@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Map from 'ol/Map';
 import View from 'ol/View';
 import { Tile as TileLayer, Vector as VectorLayer } from 'ol/layer';
-import { OSM, Vector as VectorSource } from 'ol/source';
+import { OSM, Vector as VectorSource, XYZ } from 'ol/source';
 import { Draw, Modify, Select, Translate } from 'ol/interaction';
 import { fromLonLat } from 'ol/proj';
 import GeoJSON from 'ol/format/GeoJSON';
@@ -13,26 +13,54 @@ import { Plus, Undo2, Redo2 } from 'lucide-react';
 import 'ol/ol.css';
 import 'ol-ext/dist/ol-ext.css';
 import Transform from 'ol-ext/interaction/Transform'; // ✅ ol-ext transform
+import { MapViewToggle, type MapViewType } from './MapViewToggle';
+import { LoadingOverlay } from './LoadingOverlay';
 
 const MapEditor: React.FC = () => {
   const mapRef = useRef<Map | null>(null);
   const vectorSourceRef = useRef(new VectorSource());
-  const [drawType, setDrawType] = useState<'LineString' | 'Polygon' | 'Text' | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [redoStack, setRedoStack] = useState<string[]>([]);
   const transformRef = useRef<Transform | null>(null);
+  const [currentMapView, setCurrentMapView] = useState<MapViewType>('osm');
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const osmLayerRef = useRef<TileLayer<OSM> | null>(null);
+  const satelliteLayerRef = useRef<TileLayer<XYZ> | null>(null);
 
   // ✅ Initialize map
   useEffect(() => {
-    const rasterLayer = new TileLayer({ source: new OSM() });
+    // Create OSM layer
+    const osmLayer = new TileLayer({
+      source: new OSM(),
+      visible: true,
+    });
+
+    // Create Satellite layer using Esri World Imagery
+    const satelliteLayer = new TileLayer({
+      source: new XYZ({
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        attributions: 'Tiles © Esri',
+        maxZoom: 19,
+        minZoom: 0,
+      }),
+      visible: false,
+    });
+
+    // Store references for layer switching
+    osmLayerRef.current = osmLayer;
+    satelliteLayerRef.current = satelliteLayer;
+
     const vectorLayer = new VectorLayer({ source: vectorSourceRef.current });
 
     const map = new Map({
       target: 'map',
-      layers: [rasterLayer, vectorLayer],
+      layers: [osmLayer, satelliteLayer, vectorLayer],
       view: new View({
         center: fromLonLat([78.9629, 20.5937]),
         zoom: 5,
+        maxZoom: 19,
+        minZoom: 0,
+        smoothExtentConstraint: true,
       }),
     });
 
@@ -40,6 +68,125 @@ const MapEditor: React.FC = () => {
     addModifySelectTranslate();
 
     return () => map.setTarget(undefined);
+  }, []);
+
+  // ✅ Add keyboard shortcuts for zoom controls
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!mapRef.current) return;
+
+      const view = mapRef.current.getView();
+      if (!view) return;
+
+      const currentZoom = view.getZoom() || 5;
+
+      switch (event.key) {
+        case '+':
+        case '=':
+          // Zoom in
+          if (currentZoom < 19) {
+            event.preventDefault();
+            view.animate({
+              zoom: Math.min(currentZoom + 1, 19),
+              duration: 300
+            });
+          }
+          break;
+
+        case '-':
+        case '_':
+          // Zoom out
+          if (currentZoom > 0) {
+            event.preventDefault();
+            view.animate({
+              zoom: Math.max(currentZoom - 1, 0),
+              duration: 300
+            });
+          }
+          break;
+
+        case '0':
+          // Reset zoom to initial view
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            view.animate({
+              center: [8725933.439846955, 2343485.3266368586], // India center
+              zoom: 5,
+              duration: 600
+            });
+          }
+          break;
+
+        case '1':
+          // Zoom to world view
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            view.animate({
+              center: [0, 0],
+              zoom: 2,
+              duration: 600
+            });
+          }
+          break;
+
+        case 'ArrowUp':
+          // Pan up
+          event.preventDefault();
+          const currentCenter = view.getCenter();
+          if (currentCenter) {
+            view.animate({
+              center: [currentCenter[0], currentCenter[1] + 100000],
+              duration: 200
+            });
+          }
+          break;
+
+        case 'ArrowDown':
+          // Pan down
+          event.preventDefault();
+          const centerDown = view.getCenter();
+          if (centerDown) {
+            view.animate({
+              center: [centerDown[0], centerDown[1] - 100000],
+              duration: 200
+            });
+          }
+          break;
+
+        case 'ArrowLeft':
+          // Pan left
+          event.preventDefault();
+          const centerLeft = view.getCenter();
+          if (centerLeft) {
+            view.animate({
+              center: [centerLeft[0] - 100000, centerLeft[1]],
+              duration: 200
+            });
+          }
+          break;
+
+        case 'ArrowRight':
+          // Pan right
+          event.preventDefault();
+          const centerRight = view.getCenter();
+          if (centerRight) {
+            view.animate({
+              center: [centerRight[0] + 100000, centerRight[1]],
+              duration: 200
+            });
+          }
+          break;
+      }
+    };
+
+    // Add keyboard event listener
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   // ✅ Helper: remove only editing interactions
@@ -51,7 +198,7 @@ const MapEditor: React.FC = () => {
         interaction instanceof Modify ||
         interaction instanceof Select ||
         interaction instanceof Translate ||
-        interaction instanceof Transform
+        (interaction as any).constructor?.name === 'Transform'
       ) {
         mapRef.current?.removeInteraction(interaction);
       }
@@ -75,10 +222,10 @@ const MapEditor: React.FC = () => {
       translateFeature: true,
       scale: true,
       rotate: true,
-      keepAspectRatio: (event) => event.originalEvent.shiftKey,
+      keepAspectRatio: (event: any) => event.originalEvent.shiftKey,
     });
 
-    transform.on('select', (e) => {
+    transform.on('select', (e: any) => {
       if (e.feature) {
         saveState();
       }
@@ -89,7 +236,7 @@ const MapEditor: React.FC = () => {
     mapRef.current.addInteraction(modify);
     mapRef.current.addInteraction(select);
     mapRef.current.addInteraction(translate);
-    mapRef.current.addInteraction(transform);
+    mapRef.current.addInteraction(transform as any);
   };
 
   // ✅ Save state
@@ -138,7 +285,7 @@ const MapEditor: React.FC = () => {
         type: 'Point',
       });
 
-      draw.on('drawend', (event) => {
+      draw.on('drawend', (event: any) => {
         const userText = prompt('Enter text label:') || 'Label';
         const feature = event.feature;
 
@@ -166,14 +313,11 @@ const MapEditor: React.FC = () => {
       draw.on('drawend', saveState);
       mapRef.current.addInteraction(draw);
     }
-
-    setDrawType(type);
   };
 
   // ✅ Activate Select / Move / Rotate / Scale
   const activateSelectTool = () => {
     addModifySelectTranslate();
-    setDrawType(null);
   };
 
   // ✅ Add marker (Plus)
@@ -219,6 +363,51 @@ const MapEditor: React.FC = () => {
     setRedoStack([]);
   };
 
+  // ✅ Handle map view change with smooth transitions
+  const handleMapViewChange = (newView: MapViewType) => {
+    if (!osmLayerRef.current || !satelliteLayerRef.current || !mapRef.current) return;
+
+    if (newView === currentMapView) return; // No change needed
+
+    setIsTransitioning(true);
+    setCurrentMapView(newView);
+
+    // Set opacity for fade transition
+    if (newView === 'osm') {
+      // Fade out satellite, fade in OSM
+      satelliteLayerRef.current!.setOpacity(1);
+      osmLayerRef.current!.setOpacity(0);
+      osmLayerRef.current!.setVisible(true);
+
+      // Simple opacity change with CSS transition (since OpenLayers layer.animate is not available)
+      setTimeout(() => {
+        satelliteLayerRef.current!.setOpacity(0);
+        osmLayerRef.current!.setOpacity(1);
+      }, 50);
+
+      setTimeout(() => {
+        satelliteLayerRef.current!.setVisible(false);
+        setIsTransitioning(false);
+      }, 250);
+    } else {
+      // Fade out OSM, fade in satellite
+      osmLayerRef.current!.setOpacity(1);
+      satelliteLayerRef.current!.setOpacity(0);
+      satelliteLayerRef.current!.setVisible(true);
+
+      // Simple opacity change with CSS transition
+      setTimeout(() => {
+        osmLayerRef.current!.setOpacity(0);
+        satelliteLayerRef.current!.setOpacity(1);
+      }, 50);
+
+      setTimeout(() => {
+        osmLayerRef.current!.setVisible(false);
+        setIsTransitioning(false);
+      }, 250);
+    }
+  };
+
   return (
     <div className="map-editor">
       <div
@@ -250,7 +439,16 @@ const MapEditor: React.FC = () => {
         <button onClick={clearAll}>Clear</button>
       </div>
 
-      <div id="map"></div>
+      <div id="map" style={{ position: 'relative' }}>
+        <LoadingOverlay
+          isVisible={isTransitioning}
+          message="Switching map view..."
+        />
+        <MapViewToggle
+          currentView={currentMapView}
+          onViewChange={handleMapViewChange}
+        />
+      </div>
     </div>
   );
 };
