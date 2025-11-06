@@ -9,6 +9,7 @@ import { MapViewToggle, type MapViewType } from "./MapViewToggle";
 import { LoadingOverlay } from "./LoadingOverlay";
 import type { Feature } from "ol";
 import type { Geometry } from "ol/geom";
+import type { FeatureLike } from "ol/Feature";
 import { Style, Circle as CircleStyle } from "ol/style";
 import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
@@ -19,6 +20,7 @@ import Toolbar from "./ToolBar";
 import GeoJSON from "ol/format/GeoJSON";
 import KML from "ol/format/KML";
 import JSZip from "jszip";
+import { Draw } from "ol/interaction";
 import "ol/ol.css";
 import "ol-ext/dist/ol-ext.css";
 
@@ -32,9 +34,11 @@ const MapEditor: React.FC = () => {
   const satelliteLayerRef = useRef<TileLayer<XYZ> | null>(null);
   const [selectedFeature, setSelectedFeature] =
     useState<Feature<Geometry> | null>(null);
+  const [activeTool, setActiveTool] = useState<string>("");
+  const drawInteractionRef = useRef<Draw | null>(null);
 
   // ✅ Custom feature styles (used for GeoJSON, KML, and KMZ)
-  const getFeatureStyle = (feature: Feature<Geometry>) => {
+  const getFeatureStyle = (feature: FeatureLike) => {
     const type = feature.getGeometry()?.getType();
 
     if (type === "LineString" || type === "MultiLineString") {
@@ -62,6 +66,91 @@ const MapEditor: React.FC = () => {
     });
   };
 
+  // ✅ Handle tool activation
+  const handleToolActivation = (toolId: string) => {
+    if (!mapRef.current) return;
+
+    // Remove existing draw interaction if any
+    if (drawInteractionRef.current) {
+      mapRef.current.removeInteraction(drawInteractionRef.current);
+      drawInteractionRef.current = null;
+    }
+
+    setActiveTool(toolId);
+
+    switch (toolId) {
+      case "point":
+        const pointDraw = new Draw({
+          source: vectorSourceRef.current,
+          type: "Point",
+          style: new Style({
+            image: new CircleStyle({
+              radius: 6,
+              fill: new Fill({ color: "#ff0000" }),
+              stroke: new Stroke({ color: "#fff", width: 2 }),
+            }),
+          }),
+        });
+        drawInteractionRef.current = pointDraw;
+        mapRef.current.addInteraction(pointDraw);
+        break;
+
+      case "polyline":
+        const lineDraw = new Draw({
+          source: vectorSourceRef.current,
+          type: "LineString",
+          style: new Style({
+            stroke: new Stroke({
+              color: "#00ff00",
+              width: 4,
+            }),
+          }),
+        });
+        drawInteractionRef.current = lineDraw;
+        mapRef.current.addInteraction(lineDraw);
+        break;
+
+      case "freehand":
+        const freehandDraw = new Draw({
+          source: vectorSourceRef.current,
+          type: "LineString",
+          freehand: true,
+          style: new Style({
+            stroke: new Stroke({
+              color: "#00ff00",
+              width: 4,
+            }),
+          }),
+        });
+        drawInteractionRef.current = freehandDraw;
+        mapRef.current.addInteraction(freehandDraw);
+        break;
+
+      case "select":
+        // Reactivate select/modify interactions
+        const selectInteraction = mapRef.current.getInteractions().getArray().find(
+          (interaction) => interaction instanceof Select
+        ) as Select;
+        if (selectInteraction) {
+          selectInteraction.setActive(true);
+        }
+        break;
+
+      case "hand":
+        // Deactivate select/modify for pan navigation
+        const selectInteractionForHand = mapRef.current.getInteractions().getArray().find(
+          (interaction) => interaction instanceof Select
+        ) as Select;
+        if (selectInteractionForHand) {
+          selectInteractionForHand.setActive(false);
+        }
+        break;
+
+      default:
+        break;
+    }
+  };
+
   // ✅ Initialize map
   useEffect(() => {
     // Create OSM layer
@@ -75,7 +164,7 @@ const MapEditor: React.FC = () => {
       source: new XYZ({
         url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         attributions: "Tiles © Esri",
-        maxZoom: 19,
+        maxZoom: 18,
         minZoom: 0,
       }),
       visible: false,
@@ -124,7 +213,9 @@ const MapEditor: React.FC = () => {
 
     mapRef.current = map;
 
-    return () => map.setTarget(undefined);
+    return () => {
+      map.setTarget(undefined);
+    };
   }, []);
 
   // ✅ Handle map view change with smooth transitions
@@ -263,6 +354,8 @@ const MapEditor: React.FC = () => {
         <Toolbar
           onFileImport={handleImportClick}
           onDeleteFeature={handleDelete}
+          onToolActivate={handleToolActivation}
+          activeTool={activeTool}
         />
 
         <input

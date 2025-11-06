@@ -3,7 +3,9 @@ import {
   MousePointer2,
   Pencil,
   Slash,
-  Type
+  Type,
+  Circle,
+  Minus
 } from "lucide-react";
 
 export const TOOLS = [
@@ -16,6 +18,16 @@ export const TOOLS = [
     id: "hand",
     name: "Hand",
     icon: HandGrab,
+  },
+  {
+    id: "point",
+    name: "Point",
+    icon: Circle,
+  },
+  {
+    id: "polyline",
+    name: "Polyline",
+    icon: Minus,
   },
   {
     id: "line",

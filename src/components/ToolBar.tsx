@@ -14,15 +14,15 @@ import { TOOLS } from "../tools/toolConfig";
 interface ToolbarProps {
   onFileImport: () => void;
   onDeleteFeature: () => void;
+  onToolActivate: (toolId: string) => void;
+  activeTool: string;
 }
 
-const Toolbar = ({ onFileImport, onDeleteFeature }: ToolbarProps) => {
+const Toolbar = ({ onFileImport, onDeleteFeature, onToolActivate, activeTool }: ToolbarProps) => {
   const [open, setOpen] = useState(true);
-  const [selectedTool, setSelectedTool] = useState("");
 
   const handleToolClick = (toolId: string) => {
-    setSelectedTool(toolId);
-    console.log(toolId, "toolId");
+    onToolActivate(toolId);
   };
 
   return (
@@ -51,7 +51,7 @@ const Toolbar = ({ onFileImport, onDeleteFeature }: ToolbarProps) => {
                     key={tool.id}
                     onSelect={(e) => e.preventDefault()}
                     className={`w-full cursor-pointer ${
-                      selectedTool === tool.id
+                      activeTool === tool.id
                         ? "bg-[#e0dfff] focus:bg-[#e0dfff]"
                         : "focus:bg-zinc-200/60"
                     } hover:bg-[#e0dfff]  delay-75 transition-all flex justify-center `}

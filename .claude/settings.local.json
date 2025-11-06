@@ -15,7 +15,11 @@
       "WebFetch(domain:docs.mapbox.com)",
       "WebFetch(domain:www.bingmapsportal.com)",
       "WebFetch(domain:openlayers.org)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "WebFetch(domain:excalidraw.com)",
+      "WebFetch(domain:maas-log-prod.cn-wlcb.ufileos.com)"
     ],
     "deny": [],
     "ask": []
