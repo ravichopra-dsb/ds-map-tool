@@ -2,22 +2,25 @@ import React, { useEffect, useRef, useState } from "react";
 import Map from "ol/Map";
 import View from "ol/View";
 import { Tile as TileLayer, Vector as VectorLayer } from "ol/layer";
+import type { Extent } from "ol/extent";
 import { OSM, Vector as VectorSource, XYZ } from "ol/source";
 import { fromLonLat } from "ol/proj";
-import GeoJSON from "ol/format/GeoJSON";
-import KML from "ol/format/KML";
-import JSZip from "jszip";
-import "ol-ext/dist/ol-ext.css";
 import { MapViewToggle, type MapViewType } from "./MapViewToggle";
 import { LoadingOverlay } from "./LoadingOverlay";
 import type { Feature } from "ol";
 import type { Geometry } from "ol/geom";
-import "ol/ol.css";
 import { Style, Circle as CircleStyle } from "ol/style";
 import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
 import { Modify, Select } from "ol/interaction";
+import { defaults as defaultControls } from "ol/control";
 import { click } from "ol/events/condition";
+import Toolbar from "./ToolBar";
+import GeoJSON from "ol/format/GeoJSON";
+import KML from "ol/format/KML";
+import JSZip from "jszip";
+import "ol/ol.css";
+import "ol-ext/dist/ol-ext.css";
 
 const MapEditor: React.FC = () => {
   const mapRef = useRef<Map | null>(null);
@@ -96,6 +99,11 @@ const MapEditor: React.FC = () => {
         maxZoom: 19,
         minZoom: 0,
         smoothExtentConstraint: true,
+      }),
+      controls: defaultControls({
+        zoom: false,
+        attribution: false,
+        rotate: false,
       }),
     });
 
@@ -252,6 +260,18 @@ const MapEditor: React.FC = () => {
   return (
     <div>
       <div id="map" className="relative w-full h-screen">
+        <Toolbar
+          onFileImport={handleImportClick}
+          onDeleteFeature={handleDelete}
+        />
+
+        <input
+          type="file"
+          accept=".geojson,.json,.kml,.kmz"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          style={{ display: "none" }}
+        />
         <LoadingOverlay
           isVisible={isTransitioning}
           message="Switching map view..."
@@ -261,27 +281,6 @@ const MapEditor: React.FC = () => {
           onViewChange={handleMapViewChange}
         />
         {/* Toolbar */}
-        <div className="absolute top-4 left-4 z-10 bg-white shadow p-2 rounded-md flex gap-2">
-          <button
-            onClick={handleImportClick}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Import File
-          </button>
-          <button
-            onClick={handleDelete}
-            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-          >
-            Delete Selected
-          </button>
-          <input
-            type="file"
-            accept=".geojson,.json,.kml,.kmz"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            style={{ display: "none" }}
-          />
-        </div>
       </div>
     </div>
   );
