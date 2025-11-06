@@ -1,203 +1,454 @@
-import { useEffect, useRef, useState } from "react";
-import Map from "ol/Map";
-import View from "ol/View";
-import { Tile as TileLayer, Vector as VectorLayer } from "ol/layer";
-import { OSM, Vector as VectorSource } from "ol/source";
-import { fromLonLat } from "ol/proj";
-import GeoJSON from "ol/format/GeoJSON";
-import KML from "ol/format/KML";
-import JSZip from "jszip";
-import type { Extent } from "ol/extent";
-import { Style, Stroke, Fill, Circle as CircleStyle } from "ol/style";
-import { Select, Modify } from "ol/interaction";
-import { click } from "ol/events/condition";
-import "ol/ol.css";
-import type { Feature } from "ol";
-import type { Geometry } from "ol/geom";
+import React, { useEffect, useRef, useState } from 'react';
+import Map from 'ol/Map';
+import View from 'ol/View';
+import { Tile as TileLayer, Vector as VectorLayer } from 'ol/layer';
+import { OSM, Vector as VectorSource, XYZ } from 'ol/source';
+import { Draw, Modify, Select, Translate } from 'ol/interaction';
+import { fromLonLat } from 'ol/proj';
+import GeoJSON from 'ol/format/GeoJSON';
+import { Feature } from 'ol';
+import Point from 'ol/geom/Point';
+import { Icon, Style, Text as TextStyle, Fill, Stroke } from 'ol/style';
+import { Plus, Undo2, Redo2 } from 'lucide-react';
+import 'ol/ol.css';
+import 'ol-ext/dist/ol-ext.css';
+import Transform from 'ol-ext/interaction/Transform'; // ✅ ol-ext transform
+import { MapViewToggle, type MapViewType } from './MapViewToggle';
+import { LoadingOverlay } from './LoadingOverlay';
 
-const MapEditor = () => {
+const MapEditor: React.FC = () => {
   const mapRef = useRef<Map | null>(null);
   const vectorSourceRef = useRef(new VectorSource());
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [selectedFeature, setSelectedFeature] =
-    useState<Feature<Geometry> | null>(null);
+  const [history, setHistory] = useState<string[]>([]);
+  const [redoStack, setRedoStack] = useState<string[]>([]);
+  const transformRef = useRef<Transform | null>(null);
+  const [currentMapView, setCurrentMapView] = useState<MapViewType>('osm');
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const osmLayerRef = useRef<TileLayer<OSM> | null>(null);
+  const satelliteLayerRef = useRef<TileLayer<XYZ> | null>(null);
 
-  // ✅ Custom feature styles (used for GeoJSON, KML, and KMZ)
-  const getFeatureStyle = (feature: Feature<Geometry>) => {
-    const type = feature.getGeometry()?.getType();
-
-    if (type === "LineString" || type === "MultiLineString") {
-      return new Style({
-        stroke: new Stroke({
-          color: "#00ff00",
-          width: 4,
-        }),
-      });
-    }
-
-    if (type === "Point" || type === "MultiPoint") {
-      return new Style({
-        image: new CircleStyle({
-          radius: 6,
-          fill: new Fill({ color: "#ff0000" }),
-          stroke: new Stroke({ color: "#fff", width: 2 }),
-        }),
-      });
-    }
-
-    return new Style({
-      fill: new Fill({ color: "rgba(255, 255, 0, 0.2)" }),
-      stroke: new Stroke({ color: "#ff8800", width: 3 }),
-    });
-  };
-
-  // ✅ Initialize the map
+  // ✅ Initialize map
   useEffect(() => {
-    const rasterLayer = new TileLayer({ source: new OSM() });
-    const vectorLayer = new VectorLayer({
-      source: vectorSourceRef.current,
-      style: getFeatureStyle,
+    // Create OSM layer
+    const osmLayer = new TileLayer({
+      source: new OSM(),
+      visible: true,
     });
+
+    // Create Satellite layer using Esri World Imagery
+    const satelliteLayer = new TileLayer({
+      source: new XYZ({
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        attributions: 'Tiles © Esri',
+        maxZoom: 19,
+        minZoom: 0,
+      }),
+      visible: false,
+    });
+
+    // Store references for layer switching
+    osmLayerRef.current = osmLayer;
+    satelliteLayerRef.current = satelliteLayer;
+
+    const vectorLayer = new VectorLayer({ source: vectorSourceRef.current });
 
     const map = new Map({
-      target: "map",
-      layers: [rasterLayer, vectorLayer],
+      target: 'map',
+      layers: [osmLayer, satelliteLayer, vectorLayer],
       view: new View({
         center: fromLonLat([78.9629, 20.5937]),
         zoom: 5,
+        maxZoom: 19,
+        minZoom: 0,
+        smoothExtentConstraint: true,
       }),
     });
 
-    // ✅ Select + Modify interactions
-    const selectInteraction = new Select({
-      condition: click,
-      layers: [vectorLayer],
-    });
-    const modifyInteraction = new Modify({
-      features: selectInteraction.getFeatures(),
-    });
-    map.addInteraction(selectInteraction);
-    map.addInteraction(modifyInteraction);
-
-    selectInteraction.on("select", (e) => {
-      setSelectedFeature(e.selected[0] || null);
-    });
-
     mapRef.current = map;
+    addModifySelectTranslate();
+
     return () => map.setTarget(undefined);
   }, []);
 
-  // ✅ Handle file import (GeoJSON, KML, KMZ)
-  const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  // ✅ Add keyboard shortcuts for zoom controls
+  useEffect(() => {
+    if (!mapRef.current) return;
 
-    const name = file.name.toLowerCase();
-    const reader = new FileReader();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!mapRef.current) return;
 
-    reader.onload = async (e) => {
-      const data = e.target?.result;
-      if (!data) return;
+      const view = mapRef.current.getView();
+      if (!view) return;
 
-      let features: Feature<Geometry>[] = [];
+      const currentZoom = view.getZoom() || 5;
 
-      try {
-        if (name.endsWith(".geojson") || name.endsWith(".json")) {
-          const json = JSON.parse(data as string);
-          features = new GeoJSON().readFeatures(json, {
-            featureProjection: "EPSG:3857",
-          });
-        } else if (name.endsWith(".kml")) {
-          features = new KML({ extractStyles: false }).readFeatures(data, {
-            featureProjection: "EPSG:3857",
-          });
-        } else if (name.endsWith(".kmz")) {
-          const zip = await JSZip.loadAsync(file);
-          const kmlFile = Object.keys(zip.files).find((f) =>
-            f.toLowerCase().endsWith(".kml")
-          );
-          if (kmlFile) {
-            const kmlText = await zip.file(kmlFile)?.async("text");
-            if (kmlText) {
-              features = new KML({ extractStyles: false }).readFeatures(
-                kmlText,
-                {
-                  featureProjection: "EPSG:3857",
-                }
-              );
-            }
+      switch (event.key) {
+        case '+':
+        case '=':
+          // Zoom in
+          if (currentZoom < 19) {
+            event.preventDefault();
+            view.animate({
+              zoom: Math.min(currentZoom + 1, 19),
+              duration: 300
+            });
           }
-        }
+          break;
 
-        if (features.length === 0) {
-          alert("No valid features found in the file.");
-          return;
-        }
+        case '-':
+        case '_':
+          // Zoom out
+          if (currentZoom > 0) {
+            event.preventDefault();
+            view.animate({
+              zoom: Math.max(currentZoom - 1, 0),
+              duration: 300
+            });
+          }
+          break;
 
-        vectorSourceRef.current.clear();
-        console.log(features,"features")
-        vectorSourceRef.current.addFeatures(features);
+        case '0':
+          // Reset zoom to initial view
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            view.animate({
+              center: [8725933.439846955, 2343485.3266368586], // India center
+              zoom: 5,
+              duration: 600
+            });
+          }
+          break;
 
-        const extent: Extent = vectorSourceRef.current.getExtent();
-        mapRef.current?.getView().fit(extent, {
-          duration: 1000,
-          padding: [50, 50, 50, 50],
-        });
-      } catch (err) {
-        console.error("File parsing error:", err);
-        alert("Invalid or unsupported file format.");
+        case '1':
+          // Zoom to world view
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            view.animate({
+              center: [0, 0],
+              zoom: 2,
+              duration: 600
+            });
+          }
+          break;
+
+        case 'ArrowUp':
+          // Pan up
+          event.preventDefault();
+          const currentCenter = view.getCenter();
+          if (currentCenter) {
+            view.animate({
+              center: [currentCenter[0], currentCenter[1] + 100000],
+              duration: 200
+            });
+          }
+          break;
+
+        case 'ArrowDown':
+          // Pan down
+          event.preventDefault();
+          const centerDown = view.getCenter();
+          if (centerDown) {
+            view.animate({
+              center: [centerDown[0], centerDown[1] - 100000],
+              duration: 200
+            });
+          }
+          break;
+
+        case 'ArrowLeft':
+          // Pan left
+          event.preventDefault();
+          const centerLeft = view.getCenter();
+          if (centerLeft) {
+            view.animate({
+              center: [centerLeft[0] - 100000, centerLeft[1]],
+              duration: 200
+            });
+          }
+          break;
+
+        case 'ArrowRight':
+          // Pan right
+          event.preventDefault();
+          const centerRight = view.getCenter();
+          if (centerRight) {
+            view.animate({
+              center: [centerRight[0] + 100000, centerRight[1]],
+              duration: 200
+            });
+          }
+          break;
       }
     };
 
-    if (name.endsWith(".kmz")) {
-      // JSZip reads blob directly, no need to use FileReader
-      reader.readAsArrayBuffer(file);
+    // Add keyboard event listener
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // ✅ Helper: remove only editing interactions
+  const removeEditingInteractions = () => {
+    if (!mapRef.current) return;
+    mapRef.current.getInteractions().forEach((interaction) => {
+      if (
+        interaction instanceof Draw ||
+        interaction instanceof Modify ||
+        interaction instanceof Select ||
+        interaction instanceof Translate ||
+        (interaction as any).constructor?.name === 'Transform'
+      ) {
+        mapRef.current?.removeInteraction(interaction);
+      }
+    });
+  };
+
+  // ✅ Add modify + select + translate + transform
+  const addModifySelectTranslate = () => {
+    if (!mapRef.current) return;
+
+    removeEditingInteractions();
+
+    const modify = new Modify({ source: vectorSourceRef.current });
+    const select = new Select();
+    const translate = new Translate({ features: select.getFeatures() });
+
+    // ✅ Add Transform interaction for rotate/scale
+    const transform = new Transform({
+      enableRotatedTransform: true,
+      addCondition: () => true,
+      translateFeature: true,
+      scale: true,
+      rotate: true,
+      keepAspectRatio: (event: any) => event.originalEvent.shiftKey,
+    });
+
+    transform.on('select', (e: any) => {
+      if (e.feature) {
+        saveState();
+      }
+    });
+
+    transformRef.current = transform;
+
+    mapRef.current.addInteraction(modify);
+    mapRef.current.addInteraction(select);
+    mapRef.current.addInteraction(translate);
+    mapRef.current.addInteraction(transform as any);
+  };
+
+  // ✅ Save state
+  const saveState = () => {
+    const features = vectorSourceRef.current.getFeatures();
+    const geojson = new GeoJSON().writeFeatures(features);
+    setHistory((prev) => [...prev, geojson]);
+  };
+
+  // ✅ Undo
+  const undo = () => {
+    if (!history.length) return;
+    const newRedo = [...redoStack, history[history.length - 1]];
+    const newHistory = history.slice(0, -1);
+    setRedoStack(newRedo);
+    setHistory(newHistory);
+
+    const last = newHistory[newHistory.length - 1];
+    if (last) {
+      const features = new GeoJSON().readFeatures(last);
+      vectorSourceRef.current.clear();
+      vectorSourceRef.current.addFeatures(features);
+    } else vectorSourceRef.current.clear();
+  };
+
+  // ✅ Redo
+  const redo = () => {
+    if (!redoStack.length) return;
+    const restored = redoStack[redoStack.length - 1];
+    setRedoStack(redoStack.slice(0, -1));
+    setHistory([...history, restored]);
+
+    const features = new GeoJSON().readFeatures(restored);
+    vectorSourceRef.current.clear();
+    vectorSourceRef.current.addFeatures(features);
+  };
+
+  // ✅ Draw interaction for Line / Polygon / Text
+  const addDrawInteraction = (type: 'LineString' | 'Polygon' | 'Text') => {
+    if (!mapRef.current) return;
+    removeEditingInteractions();
+
+    if (type === 'Text') {
+      const draw = new Draw({
+        source: vectorSourceRef.current,
+        type: 'Point',
+      });
+
+      draw.on('drawend', (event: any) => {
+        const userText = prompt('Enter text label:') || 'Label';
+        const feature = event.feature;
+
+        feature.setStyle(
+          new Style({
+            text: new TextStyle({
+              text: userText,
+              font: '16px Calibri,sans-serif',
+              fill: new Fill({ color: '#000' }),
+              stroke: new Stroke({ color: '#fff', width: 2 }),
+            }),
+          })
+        );
+
+        saveState();
+      });
+
+      mapRef.current.addInteraction(draw);
     } else {
-      reader.readAsText(file);
+      const draw = new Draw({
+        source: vectorSourceRef.current,
+        type,
+      });
+
+      draw.on('drawend', saveState);
+      mapRef.current.addInteraction(draw);
     }
   };
 
-  const handleImportClick = () => fileInputRef.current?.click();
+  // ✅ Activate Select / Move / Rotate / Scale
+  const activateSelectTool = () => {
+    addModifySelectTranslate();
+  };
 
-  // ✅ Delete selected feature
-  const handleDelete = () => {
-    if (selectedFeature) {
-      vectorSourceRef.current.removeFeature(selectedFeature);
-      setSelectedFeature(null);
+  // ✅ Add marker (Plus)
+  const addMarkerAtCenter = () => {
+    if (!mapRef.current) return;
+
+    const center = mapRef.current.getView().getCenter();
+    if (!center) return;
+
+    const marker = new Feature({
+      geometry: new Point(center),
+    });
+
+    marker.setStyle(
+      new Style({
+        image: new Icon({
+          src: 'https://cdn-icons-png.flaticon.com/512/25/25694.png',
+          scale: 0.05,
+        }),
+      })
+    );
+
+    vectorSourceRef.current.addFeature(marker);
+    saveState();
+  };
+
+  // ✅ Export
+  const exportGeoJSON = () => {
+    const features = vectorSourceRef.current.getFeatures();
+    const geojson = new GeoJSON().writeFeatures(features);
+    const blob = new Blob([geojson], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'features.geojson';
+    a.click();
+  };
+
+  // ✅ Clear
+  const clearAll = () => {
+    vectorSourceRef.current.clear();
+    setHistory([]);
+    setRedoStack([]);
+  };
+
+  // ✅ Handle map view change with smooth transitions
+  const handleMapViewChange = (newView: MapViewType) => {
+    if (!osmLayerRef.current || !satelliteLayerRef.current || !mapRef.current) return;
+
+    if (newView === currentMapView) return; // No change needed
+
+    setIsTransitioning(true);
+    setCurrentMapView(newView);
+
+    // Set opacity for fade transition
+    if (newView === 'osm') {
+      // Fade out satellite, fade in OSM
+      satelliteLayerRef.current!.setOpacity(1);
+      osmLayerRef.current!.setOpacity(0);
+      osmLayerRef.current!.setVisible(true);
+
+      // Simple opacity change with CSS transition (since OpenLayers layer.animate is not available)
+      setTimeout(() => {
+        satelliteLayerRef.current!.setOpacity(0);
+        osmLayerRef.current!.setOpacity(1);
+      }, 50);
+
+      setTimeout(() => {
+        satelliteLayerRef.current!.setVisible(false);
+        setIsTransitioning(false);
+      }, 250);
     } else {
-      alert("Please select a feature to delete.");
+      // Fade out OSM, fade in satellite
+      osmLayerRef.current!.setOpacity(1);
+      satelliteLayerRef.current!.setOpacity(0);
+      satelliteLayerRef.current!.setVisible(true);
+
+      // Simple opacity change with CSS transition
+      setTimeout(() => {
+        osmLayerRef.current!.setOpacity(0);
+        satelliteLayerRef.current!.setOpacity(1);
+      }, 50);
+
+      setTimeout(() => {
+        osmLayerRef.current!.setVisible(false);
+        setIsTransitioning(false);
+      }, 250);
     }
   };
 
   return (
-    <div className="w-screen h-screen relative">
-      {/* Toolbar */}
-      <div className="absolute top-4 left-4 z-10 bg-white shadow p-2 rounded-md flex gap-2">
-        <button
-          onClick={handleImportClick}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Import File
+    <div className="map-editor">
+      <div
+        className="toolbar"
+        style={{
+          padding: '8px',
+          background: '#eee',
+          display: 'flex',
+          gap: '6px',
+        }}
+      >
+        <button onClick={() => addDrawInteraction('LineString')}>Line</button>
+        <button onClick={() => addDrawInteraction('Polygon')}>Polygon</button>
+        <button onClick={() => addDrawInteraction('Text')}>Text</button>
+        <button onClick={activateSelectTool}>Select / Move / Rotate / Scale</button>
+
+        <button onClick={addMarkerAtCenter} title="Add Marker">
+          <Plus size={16} />
         </button>
-        <button
-          onClick={handleDelete}
-          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-        >
-          Delete Selected
+
+        <button onClick={undo}>
+          <Undo2 size={16} />
         </button>
-        <input
-          type="file"
-          accept=".geojson,.json,.kml,.kmz"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          style={{ display: "none" }}
-        />
+        <button onClick={redo}>
+          <Redo2 size={16} />
+        </button>
+
+        <button onClick={exportGeoJSON}>Export</button>
+        <button onClick={clearAll}>Clear</button>
       </div>
 
-      {/* Map */}
-      <div id="map" className="w-full h-full"></div>
+      <div id="map" style={{ position: 'relative' }}>
+        <LoadingOverlay
+          isVisible={isTransitioning}
+          message="Switching map view..."
+        />
+        <MapViewToggle
+          currentView={currentMapView}
+          onViewChange={handleMapViewChange}
+        />
+      </div>
     </div>
   );
 };
