@@ -1,12 +1,7 @@
-import MapEditor from "./components/MapEditor"
+import MapEditor from "./components/MapEditor";
 
 function App() {
-
-  return (
-    <>
-      <MapEditor />
-    </>
-  )
+  return <MapEditor />;
 }
 
-export default App
+export default App;
