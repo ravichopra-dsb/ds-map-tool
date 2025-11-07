@@ -5,7 +5,8 @@ import {
   Slash,
   Type,
   Circle,
-  ArrowUp
+  ArrowUp,
+  Minus
 } from "lucide-react";
 
 export const TOOLS = [
@@ -43,7 +44,12 @@ export const TOOLS = [
     id: "arrow",
     name: "Arrow",
     icon: ArrowUp,
-  }
+  },
+  {
+    id: "legends",
+    name: "Legends",
+    icon: Minus ,
+  },
 ];
 
 export const DEFAULT_TOOL = "hand";

@@ -10,7 +10,7 @@ import { LoadingOverlay } from "./LoadingOverlay";
 import type { Feature } from "ol";
 import type { Geometry } from "ol/geom";
 import type { FeatureLike } from "ol/Feature";
-import { Style, Circle as CircleStyle } from "ol/style";
+import { Style, Circle as CircleStyle, Text } from "ol/style";
 import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
 import { Modify, Select } from "ol/interaction";
@@ -25,6 +25,65 @@ import { Draw } from "ol/interaction";
 import "ol/ol.css";
 import "ol-ext/dist/ol-ext.css";
 import { RegularShape } from "ol/style";
+import { getLegendById, type LegendType } from "@/tools/legendsConfig";
+
+
+// ✅ Legend 11: Optimized text along line path with improved consistency
+const getLegend11Style_LinePath = (feature: FeatureLike): Style[] => {
+  const geometry = feature.getGeometry();
+  if (!geometry) return [];
+
+  const styles: Style[] = [];
+
+  // Base green dashed line style (legend11: green, 4px, [16, 12] dash)
+  styles.push(
+    new Style({
+      stroke: new Stroke({
+        color: "#00FF00",
+        width: 4,
+        lineDash: [16, 12],
+        lineCap: "butt",
+      }),
+      zIndex: 1, // Base line layer
+    })
+  );
+
+  // Add repeated text along the line with optimized placement
+  if (geometry.getType() === "LineString" || geometry.getType() === "MultiLineString") {
+    // Calculate optimal repeat distance based on dash pattern
+    // Dash cycle: 16px dash + 12px gap = 28px total
+    // Use 84px (3x cycle) to ensure consistent text placement and readability
+    const optimalRepeat = 84;
+
+    styles.push(
+      new Style({
+        text: new Text({
+          text: "OIL",
+          placement: "line", // Place text along the line path
+          repeat: optimalRepeat, // Optimized repeat distance for consistent display
+          font: "bold 13px Arial",
+          fill: new Fill({
+            color: "#000000",
+          }),
+          stroke: new Stroke({
+            color: "#ffffff",
+            width: 4, // Increased stroke width for better visibility
+          }),
+          textAlign: "center",
+          textBaseline: "middle",
+          maxAngle: Math.PI / 6, // Reduced max angle for better readability (30 degrees)
+          offsetX: 14, // Slight offset to position text more in gaps
+          offsetY: 0,
+          scale: 1.1, // Slightly larger text for better visibility
+        }),
+        zIndex: 100, // High z-index to ensure text always appears above line
+      })
+    );
+  }
+
+  return styles;
+};
+
 
 const MapEditor: React.FC = () => {
   const mapRef = useRef<Map | null>(null);
@@ -37,15 +96,66 @@ const MapEditor: React.FC = () => {
   const [selectedFeature, setSelectedFeature] =
     useState<Feature<Geometry> | null>(null);
   const [activeTool, setActiveTool] = useState<string>("");
+  const [selectedLegend, setSelectedLegend] = useState<LegendType | undefined>(undefined);
   const drawInteractionRef = useRef<Draw | null>(null);
 
   // ✅ Custom feature styles (used for GeoJSON, KML, and KMZ)
   const getFeatureStyle = (feature: FeatureLike) => {
     const type = feature.getGeometry()?.getType();
-    const isArrow = feature.get('isArrow');
+    const isArrow = feature.get("isArrow");
+
+    console.log("Checking : ", activeTool);
 
     if (isArrow && (type === "LineString" || type === "MultiLineString")) {
       return getArrowStyle(feature);
+    }
+
+    if (
+      feature.get("islegends") &&
+      (type === "LineString" || type === "MultiLineString")
+    ) {
+      const legendTypeId = feature.get("legendType");
+      let legendType: LegendType | undefined;
+
+      if (legendTypeId) {
+        // Use the configuration to get the legend type
+        legendType = getLegendById(legendTypeId);
+      } else if (selectedLegend) {
+        // Use the currently selected legend
+        legendType = selectedLegend;
+      }
+
+      // If no legend type is found, don't render the feature
+      if (!legendType) {
+        return [];
+      }
+
+      // Special handling for legend11 with text placement
+      if (legendType.id === "legend11") {
+        // ✅ Legend 11 with "LEGEND 11" text placed along the line path
+        return getLegend11Style_LinePath(feature);
+      }
+
+      const styles: Style[] = [];
+      const opacity = legendType.style.opacity || 1;
+      const strokeColor = legendType.style.strokeColor;
+
+      // Apply opacity to the stroke color
+      const colorWithOpacity = opacity < 1 ?
+        strokeColor + Math.round(opacity * 255).toString(16).padStart(2, '0') :
+        strokeColor;
+
+      styles.push(
+        new Style({
+          stroke: new Stroke({
+            color: colorWithOpacity,
+            width: legendType.style.strokeWidth || 2,
+            lineDash: legendType.style.strokeDash || [5, 5],
+            lineCap: "butt",
+          }),
+        })
+      );
+      return styles;
     }
 
     if (type === "LineString" || type === "MultiLineString") {
@@ -66,11 +176,6 @@ const MapEditor: React.FC = () => {
         }),
       });
     }
-
-    return new Style({
-      fill: new Fill({ color: "rgba(255, 255, 0, 0.2)" }),
-      stroke: new Stroke({ color: "#ff8800", width: 3 }),
-    });
   };
 
   // ✅ Arrow style function
@@ -80,9 +185,9 @@ const MapEditor: React.FC = () => {
 
     let coordinates: number[][];
 
-    if (geometry.getType() === 'LineString') {
+    if (geometry.getType() === "LineString") {
       coordinates = (geometry as any).getCoordinates();
-    } else if (geometry.getType() === 'MultiLineString') {
+    } else if (geometry.getType() === "MultiLineString") {
       // For MultiLineString, use the last line segment
       const lineStrings = (geometry as any).getLineStrings();
       if (lineStrings.length === 0) return new Style();
@@ -109,14 +214,14 @@ const MapEditor: React.FC = () => {
       rotation: -angle,
       angle: 10,
       displacement: [0, 0],
-      fill: new Fill({ color: '#00ff00' }),
+      fill: new Fill({ color: "#000000" }),
     });
 
     return [
       // Line style
       new Style({
         stroke: new Stroke({
-          color: '#00ff00',
+          color: "#000000",
           width: 4,
         }),
       }),
@@ -127,6 +232,26 @@ const MapEditor: React.FC = () => {
       }),
     ];
   };
+
+  // ✅ Handle legend selection - only updates state
+  const handleLegendSelect = (legend: LegendType) => {
+    console.log("🎯 Legend selected:", legend.name, legend.id);
+    setSelectedLegend(legend);
+  };
+
+  // ✅ Auto-activate legends tool when selectedLegend changes
+  useEffect(() => {
+    if (selectedLegend) {
+      console.log("🔧 Activating legends tool for:", selectedLegend.name);
+      // Remove any existing draw interaction first
+      if (drawInteractionRef.current) {
+        mapRef.current?.removeInteraction(drawInteractionRef.current);
+        drawInteractionRef.current = null;
+      }
+      // Then activate the legends tool with the selected legend
+      handleToolActivation("legends");
+    }
+  }, [selectedLegend]);
 
   // ✅ Handle tool activation
   const handleToolActivation = (toolId: string) => {
@@ -194,27 +319,110 @@ const MapEditor: React.FC = () => {
           type: "LineString",
           style: new Style({
             stroke: new Stroke({
-              color: "#00ff00",
+              color: "#000000",
               width: 4,
             }),
           }),
         });
 
         // Mark the feature as arrow when drawing finishes
-        arrowDraw.on('drawend', (event) => {
+        arrowDraw.on("drawend", (event) => {
           const feature = event.feature;
-          feature.set('isArrow', true);
+          feature.set("isArrow", true);
         });
 
         drawInteractionRef.current = arrowDraw;
         mapRef.current.addInteraction(arrowDraw);
         break;
 
+      case "legends":
+        console.log("🎨 Legends tool activation, selectedLegend:", selectedLegend?.name || "none");
+        // Don't allow drawing if no legend is selected
+        if (!selectedLegend) {
+          console.log("❌ No legend selected, cannot activate legends tool");
+          return;
+        }
+
+        const opacity = selectedLegend.style.opacity || 1;
+        const strokeColor = selectedLegend.style.strokeColor;
+
+        // Apply opacity to the stroke color
+        const colorWithOpacity = opacity < 1 ?
+          strokeColor + Math.round(opacity * 255).toString(16).padStart(2, '0') :
+          strokeColor;
+
+        // Use legend11 style for drawing if it's legend11, otherwise use standard style
+        let drawStyle;
+        if (selectedLegend.id === "legend11") {
+          // Apply the same legend11 style for drawing to ensure consistent appearance
+          drawStyle = [
+            // Green dashed line
+            new Style({
+              stroke: new Stroke({
+                color: "#00FF00",
+                width: 4,
+                lineDash: [16, 12],
+                lineCap: "butt",
+              }),
+              zIndex: 1,
+            }),
+            // Text along line
+            new Style({
+              text: new Text({
+                text: "OIL",
+                placement: "line",
+                repeat: 84,
+                font: "bold 13px Arial",
+                fill: new Fill({
+                  color: "#000000",
+                }),
+                stroke: new Stroke({
+                  color: "#ffffff",
+                  width: 4,
+                }),
+                textAlign: "center",
+                textBaseline: "middle",
+                maxAngle: Math.PI / 6,
+                offsetX: 14,
+                offsetY: 0,
+                scale: 1.1,
+              }),
+              zIndex: 100,
+            })
+          ];
+        } else {
+          drawStyle = new Style({
+            stroke: new Stroke({
+              color: colorWithOpacity,
+              width: selectedLegend.style.strokeWidth || 2,
+              lineDash: selectedLegend.style.strokeDash || [5, 5],
+              lineCap: "butt",
+            }),
+          });
+        }
+
+        const legendlineDraw = new Draw({
+          source: vectorSourceRef.current,
+          type: "LineString",
+          style: drawStyle,
+        });
+        legendlineDraw.on("drawend", (event) => {
+          const feature = event.feature;
+          console.log("✏️ Drawing completed for legend:", selectedLegend.name, "with color:", selectedLegend.style.strokeColor);
+          feature.set("islegends", true);
+          feature.set("legendType", selectedLegend.id);
+        });
+        drawInteractionRef.current = legendlineDraw;
+        mapRef.current.addInteraction(legendlineDraw);
+        console.log("✅ Legends tool activated with:", selectedLegend.name);
+        break;
+
       case "select":
         // Reactivate select/modify interactions
-        const selectInteraction = mapRef.current.getInteractions().getArray().find(
-          (interaction) => interaction instanceof Select
-        ) as Select;
+        const selectInteraction = mapRef.current
+          .getInteractions()
+          .getArray()
+          .find((interaction) => interaction instanceof Select) as Select;
         if (selectInteraction) {
           selectInteraction.setActive(true);
         }
@@ -222,9 +430,10 @@ const MapEditor: React.FC = () => {
 
       case "hand":
         // Deactivate select/modify for pan navigation
-        const selectInteractionForHand = mapRef.current.getInteractions().getArray().find(
-          (interaction) => interaction instanceof Select
-        ) as Select;
+        const selectInteractionForHand = mapRef.current
+          .getInteractions()
+          .getArray()
+          .find((interaction) => interaction instanceof Select) as Select;
         if (selectInteractionForHand) {
           selectInteractionForHand.setActive(false);
         }
@@ -440,6 +649,8 @@ const MapEditor: React.FC = () => {
           onDeleteFeature={handleDelete}
           onToolActivate={handleToolActivation}
           activeTool={activeTool}
+          selectedLegend={selectedLegend}
+          onLegendSelect={handleLegendSelect}
         />
 
         <input

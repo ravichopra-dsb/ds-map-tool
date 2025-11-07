@@ -10,15 +10,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Import, Menu, Trash2 } from "lucide-react";
 import { TOOLS } from "../tools/toolConfig";
+import { LegendDropdown } from "./LegendDropdown";
+import type { LegendType } from "@/tools/legendsConfig";
 
 interface ToolbarProps {
   onFileImport: () => void;
   onDeleteFeature: () => void;
   onToolActivate: (toolId: string) => void;
   activeTool: string;
+  selectedLegend?: LegendType;
+  onLegendSelect: (legend: LegendType) => void;
 }
 
-const Toolbar = ({ onFileImport, onDeleteFeature, onToolActivate, activeTool }: ToolbarProps) => {
+const Toolbar = ({ onFileImport, onDeleteFeature, onToolActivate, activeTool, selectedLegend, onLegendSelect }: ToolbarProps) => {
   const [open, setOpen] = useState(true);
 
   const handleToolClick = (toolId: string) => {
@@ -45,6 +49,17 @@ const Toolbar = ({ onFileImport, onDeleteFeature, onToolActivate, activeTool }: 
           <DropdownMenuGroup className="my-2 px-3">
             <div className="grid grid-cols-2 gap-4">
               {TOOLS.map((tool) => {
+                if (tool.id === "legends") {
+                  return (
+                    <div key={tool.id} className="flex justify-center">
+                      <LegendDropdown
+                        selectedLegend={selectedLegend}
+                        onLegendSelect={onLegendSelect}
+                      />
+                    </div>
+                  );
+                }
+
                 const Icon = tool.icon;
                 return (
                   <DropdownMenuItem
