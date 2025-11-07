@@ -14,6 +14,7 @@ import { Style, Circle as CircleStyle } from "ol/style";
 import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
 import { Modify, Select } from "ol/interaction";
+import { Point } from "ol/geom";
 import { defaults as defaultControls } from "ol/control";
 import { click } from "ol/events/condition";
 import Toolbar from "./ToolBar";
@@ -23,6 +24,7 @@ import JSZip from "jszip";
 import { Draw } from "ol/interaction";
 import "ol/ol.css";
 import "ol-ext/dist/ol-ext.css";
+import { RegularShape } from "ol/style";
 
 const MapEditor: React.FC = () => {
   const mapRef = useRef<Map | null>(null);
@@ -40,6 +42,11 @@ const MapEditor: React.FC = () => {
   // ✅ Custom feature styles (used for GeoJSON, KML, and KMZ)
   const getFeatureStyle = (feature: FeatureLike) => {
     const type = feature.getGeometry()?.getType();
+    const isArrow = feature.get('isArrow');
+
+    if (isArrow && (type === "LineString" || type === "MultiLineString")) {
+      return getArrowStyle(feature);
+    }
 
     if (type === "LineString" || type === "MultiLineString") {
       return new Style({
@@ -64,6 +71,61 @@ const MapEditor: React.FC = () => {
       fill: new Fill({ color: "rgba(255, 255, 0, 0.2)" }),
       stroke: new Stroke({ color: "#ff8800", width: 3 }),
     });
+  };
+
+  // ✅ Arrow style function
+  const getArrowStyle = (feature: FeatureLike) => {
+    const geometry = feature.getGeometry();
+    if (!geometry) return new Style();
+
+    let coordinates: number[][];
+
+    if (geometry.getType() === 'LineString') {
+      coordinates = (geometry as any).getCoordinates();
+    } else if (geometry.getType() === 'MultiLineString') {
+      // For MultiLineString, use the last line segment
+      const lineStrings = (geometry as any).getLineStrings();
+      if (lineStrings.length === 0) return new Style();
+      coordinates = lineStrings[lineStrings.length - 1].getCoordinates();
+    } else {
+      return new Style();
+    }
+
+    if (coordinates.length < 2) return new Style();
+
+    // Get the last segment for arrow direction
+    const startPoint = coordinates[coordinates.length - 2];
+    const endPoint = coordinates[coordinates.length - 1];
+
+    // Calculate angle for arrow head
+    const dx = endPoint[0] - startPoint[0];
+    const dy = endPoint[1] - startPoint[1];
+    const angle = Math.atan2(dy, dx);
+
+    // Create arrow head using RegularShape
+    const arrowHead = new RegularShape({
+      points: 3,
+      radius: 8,
+      rotation: -angle,
+      angle: 10,
+      displacement: [0, 0],
+      fill: new Fill({ color: '#00ff00' }),
+    });
+
+    return [
+      // Line style
+      new Style({
+        stroke: new Stroke({
+          color: '#00ff00',
+          width: 4,
+        }),
+      }),
+      // Arrow head style at the end point
+      new Style({
+        geometry: new Point(endPoint),
+        image: arrowHead,
+      }),
+    ];
   };
 
   // ✅ Handle tool activation
@@ -124,6 +186,28 @@ const MapEditor: React.FC = () => {
         });
         drawInteractionRef.current = freehandDraw;
         mapRef.current.addInteraction(freehandDraw);
+        break;
+
+      case "arrow":
+        const arrowDraw = new Draw({
+          source: vectorSourceRef.current,
+          type: "LineString",
+          style: new Style({
+            stroke: new Stroke({
+              color: "#00ff00",
+              width: 4,
+            }),
+          }),
+        });
+
+        // Mark the feature as arrow when drawing finishes
+        arrowDraw.on('drawend', (event) => {
+          const feature = event.feature;
+          feature.set('isArrow', true);
+        });
+
+        drawInteractionRef.current = arrowDraw;
+        mapRef.current.addInteraction(arrowDraw);
         break;
 
       case "select":

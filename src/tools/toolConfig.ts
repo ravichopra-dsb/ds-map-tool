@@ -5,7 +5,7 @@ import {
   Slash,
   Type,
   Circle,
-  Minus
+  ArrowUp
 } from "lucide-react";
 
 export const TOOLS = [
@@ -27,11 +27,6 @@ export const TOOLS = [
   {
     id: "polyline",
     name: "Polyline",
-    icon: Minus,
-  },
-  {
-    id: "line",
-    name: "Line",
     icon: Slash,
   },
   {
@@ -43,6 +38,11 @@ export const TOOLS = [
     id: "text",
     name: "Text",
     icon: Type,
+  },
+  {
+    id: "arrow",
+    name: "Arrow",
+    icon: ArrowUp,
   }
 ];
 
