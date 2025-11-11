@@ -26,6 +26,7 @@ import "ol/ol.css";
 import "ol-ext/dist/ol-ext.css";
 import { RegularShape } from "ol/style";
 import { getLegendById, type LegendType } from "@/tools/legendsConfig";
+import PitRotationPanel from "./PitRotationPanel";
 
 // ✅ Reusable function for legends with text along line path
 const getTextAlongLineStyle = (
@@ -106,6 +107,10 @@ const MapEditor: React.FC = () => {
   );
   const drawInteractionRef = useRef<Draw | null>(null);
 
+  // Pit rotation state
+  const [isRotatingPit, setIsRotatingPit] = useState(false);
+  const [currentPitRotation, setCurrentPitRotation] = useState(0);
+
   // ✅ NEW: Ref for Modify interaction to manage hover behavior
   const modifyInteractionRef = useRef<Modify | null>(null);
   // const vectorLayerRef = useRef<VectorLayer<VectorSource> | null>(null);
@@ -119,12 +124,13 @@ const MapEditor: React.FC = () => {
     console.log("Checking : ", activeTool);
 
     if (isPits && (type === "Point" || type === "MultiPoint")) {
+      const rotation = feature.get("rotation") || 0;
       return new Style({
         image: new RegularShape({
           points: 4,
           radius: 10,
           radius2: 0,
-          angle: 0,
+          angle: rotation,
           stroke: new Stroke({ color: "red", width: 6 }),
           fill: new Fill({ color: "transparent" }),
         }),
@@ -466,6 +472,8 @@ const MapEditor: React.FC = () => {
         pitsDraw.on("drawend", (event) => {
           const feature = event.feature;
           feature.set("isPits", true);
+          feature.set("rotation", 0); // Initialize rotation to 0 degrees
+          console.log("✅ New pit created with rotation:", 0);
         });
 
         drawInteractionRef.current = pitsDraw;
@@ -559,16 +567,37 @@ const MapEditor: React.FC = () => {
 
     // ✅ NEW: Show pointer cursor when hovering over a vertex dot (on overlay)
     const overlaySource = modifyInteraction.getOverlay().getSource();
-    overlaySource.on(["addfeature", "removefeature"], function (evt) {
-      const target = map.getTargetElement();
-      target.style.cursor = evt.type === "addfeature" ? "pointer" : "";
-    });
+    if (overlaySource) {
+      overlaySource.on(["addfeature", "removefeature"], function (evt) {
+        const target = map.getTargetElement();
+        target.style.cursor = evt.type === "addfeature" ? "pointer" : "";
+      });
+    }
 
     map.addInteraction(selectInteraction);
     map.addInteraction(modifyInteraction);
 
     selectInteraction.on("select", (e) => {
-      setSelectedFeature(e.selected[0] || null);
+      const selected = e.selected[0] || null;
+      setSelectedFeature(selected);
+
+      // Debug logging to track selection state
+      console.log("🎯 Feature selected:", {
+        hasFeature: !!selected,
+        isPit: selected?.get("isPits"),
+        activeTool: activeTool,
+        rotation: selected?.get("rotation")
+      });
+
+      // Check if selected feature is a pit (regardless of active tool)
+      if (selected && selected.get("isPits")) {
+        const existingRotation = selected.get("rotation") || 0;
+        setCurrentPitRotation(existingRotation);
+        setIsRotatingPit(true);
+        console.log("✅ Pit rotation panel should be visible");
+      } else {
+        setIsRotatingPit(false);
+      }
     });
 
     mapRef.current = map;
@@ -703,10 +732,43 @@ const MapEditor: React.FC = () => {
     if (selectedFeature) {
       vectorSourceRef.current.removeFeature(selectedFeature);
       setSelectedFeature(null);
+      setIsRotatingPit(false); // Close rotation panel when deleting
     } else {
       alert("Please select a feature to delete.");
     }
   };
+
+  // Handle pit rotation changes
+  const handlePitRotationChange = (angle: number) => {
+    setCurrentPitRotation(angle);
+
+    // Update the selected feature with new rotation
+    if (selectedFeature && selectedFeature.get("isPits")) {
+      selectedFeature.set("rotation", angle);
+      // Force map to re-render the feature
+      selectedFeature.changed();
+    }
+  };
+
+  // Close rotation panel and save rotation
+  const handleRotationPanelClose = () => {
+    setIsRotatingPit(false);
+    // Rotation is already saved in feature properties during real-time updates
+  };
+
+  // Close rotation panel when tool changes or clicking away
+  useEffect(() => {
+    if (activeTool !== "select") {
+      setIsRotatingPit(false);
+    }
+  }, [activeTool]);
+
+  // Close rotation panel when selectedFeature changes to non-pit
+  useEffect(() => {
+    if (!selectedFeature || !selectedFeature.get("isPits")) {
+      setIsRotatingPit(false);
+    }
+  }, [selectedFeature]);
 
   return (
     <div>
@@ -735,6 +797,16 @@ const MapEditor: React.FC = () => {
           currentView={currentMapView}
           onViewChange={handleMapViewChange}
         />
+
+        {/* Pit Rotation Panel - shown only when rotating a pit */}
+        {isRotatingPit && (
+          <PitRotationPanel
+            rotation={currentPitRotation}
+            onRotationChange={handlePitRotationChange}
+            onClose={handleRotationPanelClose}
+          />
+        )}
+
         {/* Toolbar */}
       </div>
     </div>
