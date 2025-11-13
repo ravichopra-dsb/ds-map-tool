@@ -52,7 +52,6 @@ export const getJunctionStyles = (): Style[] => {
     fill: new Fill({
       color: "red",
     }),
-    zIndex: 0,
   });
 
   const circleStyle = new Style({
@@ -68,7 +67,6 @@ export const getJunctionStyles = (): Style[] => {
       color: "black",
       width: 1,
     }),
-    zIndex: 1,
   });
 
   return [squareStyle, circleStyle];

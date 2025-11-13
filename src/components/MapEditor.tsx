@@ -665,7 +665,7 @@ const MapEditor: React.FC = () => {
             coordinate,
             towerPathD,
             15,
-            8
+            1
           );
         };
         mapRef.current.on("click", towerHandler);

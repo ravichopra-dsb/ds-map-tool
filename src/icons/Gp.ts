@@ -44,7 +44,6 @@ export const getGPStyles = (): Style[] => {
     fill: new Fill({
       color: "rgba(147, 51, 234)",
     }),
-    zIndex: 0,
   });
 
   const innerStyle = new Style({
@@ -61,7 +60,6 @@ export const getGPStyles = (): Style[] => {
     fill: new Fill({
       color: "#000",
     }),
-    zIndex: 1,
   });
 
   return [outerStyle, innerStyle];
