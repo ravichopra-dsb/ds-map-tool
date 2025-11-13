@@ -28,7 +28,8 @@ import "ol/ol.css";
 import "ol-ext/dist/ol-ext.css";
 import { RegularShape } from "ol/style";
 import { getLegendById, type LegendType } from "@/tools/legendsConfig";
-import { handleTriangleClick, isTriangleFeature, triangleUtils } from "@/tools/CustomIcons";
+import { handleTriangleClick, isTriangleFeature, triangleUtils } from "@/icons/Triangle";
+import {handlePitClick, isPitFeature, pitUtils} from "@/icons/Pit"
 
 // ✅ Reusable function for legends with text along line path
 const getTextAlongLineStyle = (
@@ -127,6 +128,11 @@ const MapEditor: React.FC = () => {
     // Handle triangle features
     if (isTriangleFeature(feature as Feature) && type === "Polygon") {
       return triangleUtils.getStyle();
+    }
+    
+    // Handle pit features
+    if (isPitFeature(feature as Feature) && type === "Polygon") {
+      return pitUtils.getStyle();
     }
 
     if (
@@ -287,6 +293,12 @@ const MapEditor: React.FC = () => {
     if ((mapRef.current as any).triangleClickHandler) {
       mapRef.current.un('click', (mapRef.current as any).triangleClickHandler);
       delete (mapRef.current as any).triangleClickHandler;
+    }
+
+    // Remove pit click handler if switching away from pit tool
+    if ((mapRef.current as any).PitClickHandler) {
+      mapRef.current.un('click', (mapRef.current as any).PitClickHandler);
+      delete (mapRef.current as any).PitClickHandler;
     }
 
     // Deactivate and remove transform interaction when switching away from transform tool
@@ -551,6 +563,22 @@ const MapEditor: React.FC = () => {
 
         // Store the handler reference for cleanup when switching tools
         (mapRef.current as any).triangleClickHandler = triangleClickHandler;
+        break;
+
+        case "pit":
+          // Pit tool: set up click listener for single-click pit creation
+        if (!mapRef.current) return;
+
+        // Add click event listener for pit creation
+        const PitClickHandler = (event: any) => {
+          const coordinate = event.coordinate;
+          handlePitClick(vectorSourceRef.current, coordinate);
+        };
+
+        mapRef.current.on('click', PitClickHandler);
+
+        // Store the handler reference for cleanup when switching tools
+        (mapRef.current as any).PitClickHandler = PitClickHandler;
         break;
 
       case "hand":

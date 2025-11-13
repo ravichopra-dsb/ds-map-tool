@@ -8,7 +8,8 @@ import {
   ArrowUp,
   Minus,
   Move,
-  Triangle
+  Triangle,
+  Plus
 } from "lucide-react";
 
 export const TOOLS = [
@@ -61,6 +62,11 @@ export const TOOLS = [
     id: "triangle",
     name: "Triangle",
     icon: Triangle ,
+  },
+  {
+    id: "pit",
+    name: "Pit",
+    icon: Plus ,
   },
 ];
 

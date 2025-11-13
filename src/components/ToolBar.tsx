@@ -22,7 +22,14 @@ interface ToolbarProps {
   onLegendSelect: (legend: LegendType) => void;
 }
 
-const Toolbar = ({ onFileImport, onDeleteFeature, onToolActivate, activeTool, selectedLegend, onLegendSelect }: ToolbarProps) => {
+const Toolbar = ({
+  onFileImport,
+  onDeleteFeature,
+  onToolActivate,
+  activeTool,
+  selectedLegend,
+  onLegendSelect,
+}: ToolbarProps) => {
   const [open, setOpen] = useState(true);
 
   const handleToolClick = (toolId: string) => {
@@ -61,6 +68,7 @@ const Toolbar = ({ onFileImport, onDeleteFeature, onToolActivate, activeTool, se
                 }
 
                 const Icon = tool.icon;
+                console.log(tool.id);
                 return (
                   <DropdownMenuItem
                     key={tool.id}
@@ -73,7 +81,13 @@ const Toolbar = ({ onFileImport, onDeleteFeature, onToolActivate, activeTool, se
                     onClick={() => handleToolClick(tool.id)}
                     title={tool.name}
                   >
-                    <Icon />
+                    {tool.id === "triangle" ? (
+                      <Icon fill="#a4aaa5" stroke="#000" />
+                    ) : tool.id === "pit" ? (
+                      <Icon stroke="#ff0000" strokeWidth={5}/>
+                    ) : (
+                      <Icon />
+                    )}
                   </DropdownMenuItem>
                 );
               })}
