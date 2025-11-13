@@ -29,7 +29,8 @@ import "ol-ext/dist/ol-ext.css";
 import { RegularShape } from "ol/style";
 import { getLegendById, type LegendType } from "@/tools/legendsConfig";
 import { handleTriangleClick, isTriangleFeature, triangleUtils } from "@/icons/Triangle";
-import {handlePitClick, isPitFeature, pitUtils} from "@/icons/Pit"
+import {handlePitClick, isPitFeature, pitUtils} from "@/icons/Pit";
+import {handleGPClick, isGPFeature, gpUtils} from "@/icons/Gp";
 
 // ✅ Reusable function for legends with text along line path
 const getTextAlongLineStyle = (
@@ -133,6 +134,11 @@ const MapEditor: React.FC = () => {
     // Handle pit features
     if (isPitFeature(feature as Feature) && type === "Polygon") {
       return pitUtils.getStyle();
+    }
+
+    // Handle gp features
+    if (isGPFeature(feature as Feature) && type === "Polygon") {
+      return gpUtils.getStyles();
     }
 
     if (
@@ -299,6 +305,12 @@ const MapEditor: React.FC = () => {
     if ((mapRef.current as any).PitClickHandler) {
       mapRef.current.un('click', (mapRef.current as any).PitClickHandler);
       delete (mapRef.current as any).PitClickHandler;
+    }
+    
+    // Remove gp click handler if switching away from pit tool
+    if ((mapRef.current as any).GpClickHandler) {
+      mapRef.current.un('click', (mapRef.current as any).GpClickHandler);
+      delete (mapRef.current as any).GpClickHandler;
     }
 
     // Deactivate and remove transform interaction when switching away from transform tool
@@ -579,6 +591,22 @@ const MapEditor: React.FC = () => {
 
         // Store the handler reference for cleanup when switching tools
         (mapRef.current as any).PitClickHandler = PitClickHandler;
+        break;
+
+        case "gp":
+          // Gp tool: set up click listener for single-click gp creation
+        if (!mapRef.current) return;
+
+        // Add click event listener for gp creation
+        const GpClickHandler = (event: any) => {
+          const coordinate = event.coordinate;
+          handleGPClick(vectorSourceRef.current, coordinate);
+        };
+
+        mapRef.current.on('click', GpClickHandler);
+
+        // Store the handler reference for cleanup when switching tools
+        (mapRef.current as any).GpClickHandler = GpClickHandler;
         break;
 
       case "hand":

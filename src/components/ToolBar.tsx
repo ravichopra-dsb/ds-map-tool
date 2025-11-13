@@ -81,13 +81,7 @@ const Toolbar = ({
                     onClick={() => handleToolClick(tool.id)}
                     title={tool.name}
                   >
-                    {tool.id === "triangle" ? (
-                      <Icon fill="#a4aaa5" stroke="#000" />
-                    ) : tool.id === "pit" ? (
-                      <Icon stroke="#ff0000" strokeWidth={5}/>
-                    ) : (
-                      <Icon />
-                    )}
+                    <Icon />
                   </DropdownMenuItem>
                 );
               })}

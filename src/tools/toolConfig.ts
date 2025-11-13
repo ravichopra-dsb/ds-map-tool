@@ -1,3 +1,4 @@
+import { GP, JunctionPoint, Pit, Tower, Triangle } from "@/icons/ToolBoxIcon";
 import {
   HandGrab,
   MousePointer2,
@@ -7,9 +8,7 @@ import {
   Circle,
   ArrowUp,
   Minus,
-  Move,
-  Triangle,
-  Plus
+  Move
 } from "lucide-react";
 
 export const TOOLS = [
@@ -56,18 +55,33 @@ export const TOOLS = [
   {
     id: "legends",
     name: "Legends",
-    icon: Minus ,
+    icon: Minus,
   },
   {
     id: "triangle",
     name: "Triangle",
-    icon: Triangle ,
+    icon: Triangle,
   },
   {
     id: "pit",
     name: "Pit",
-    icon: Plus ,
+    icon: Pit,
   },
+  {
+    id: "gp",
+    name: "Gp",
+    icon: GP,
+  },
+  {
+    id: 'junction',
+    name: 'Junction Point',
+    icon: JunctionPoint,
+  },
+  {
+    id: 'tower',
+    name: 'Tower',
+    icon: Tower,
+  }
 ];
 
 export const DEFAULT_TOOL = "hand";

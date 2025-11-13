@@ -45,7 +45,7 @@ export const getPitStyle = (): Style => {
 };
 
 /**
- * Handles pit/pit tool click events
+ * Handles pit tool click events
  * Creates a pit feature at the clicked coordinate
  */
 export const handlePitClick = (
