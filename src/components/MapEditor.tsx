@@ -27,11 +27,11 @@ import { Draw } from "ol/interaction";
 import "ol/ol.css";
 import "ol-ext/dist/ol-ext.css";
 import { getLegendById, type LegendType } from "@/tools/legendsConfig";
-import { isSelectableFeature } from "@/utils/featureTypeUtils";
+import { isSelectableFeature, isEditableFeature } from "@/utils/featureTypeUtils";
 import { handleTriangleClick } from "@/icons/Triangle";
 import { handlePitClick } from "@/icons/Pit";
 import { handleGPClick } from "@/icons/Gp";
-import { handleJunctionClick } from "@/icons/JuctionPoint";
+import { handleJunctionClick } from "@/icons/JunctionPoint";
 import { handleTowerClickFromSvg } from "@/icons/Tower";
 
 // New utilities
@@ -43,12 +43,10 @@ import {
   createPolylineDraw,
   createFreehandDraw,
   createArrowDraw,
-  createLegendDraw
+  createLegendDraw,
 } from "@/utils/interactionUtils";
 import { useClickHandlerManager } from "@/hooks/useClickHandlerManager";
-import {
-  TOWER_CONFIG
-} from "@/config/toolConfig";
+import { TOWER_CONFIG } from "@/config/toolConfig";
 
 // ✅ Reusable function for legends with text along line path
 const getTextAlongLineStyle = (
@@ -136,10 +134,8 @@ const MapEditor: React.FC = () => {
   );
 
   // Click handler manager hook
-  const {
-    registerClickHandler,
-    removeAllClickHandlers,
-  } = useClickHandlerManager();
+  const { registerClickHandler, removeAllClickHandlers } =
+    useClickHandlerManager();
 
   // ✅ Custom feature styles (used for GeoJSON, KML, and KMZ)
   const getFeatureStyle = (feature: FeatureLike) => {
@@ -353,12 +349,16 @@ const MapEditor: React.FC = () => {
         break;
 
       case "polyline":
-        drawInteractionRef.current = createPolylineDraw(vectorSourceRef.current);
+        drawInteractionRef.current = createPolylineDraw(
+          vectorSourceRef.current
+        );
         mapRef.current.addInteraction(drawInteractionRef.current);
         break;
 
       case "freehand":
-        drawInteractionRef.current = createFreehandDraw(vectorSourceRef.current);
+        drawInteractionRef.current = createFreehandDraw(
+          vectorSourceRef.current
+        );
         mapRef.current.addInteraction(drawInteractionRef.current);
         break;
 
@@ -447,9 +447,11 @@ const MapEditor: React.FC = () => {
           // Clear previous selection
           transformFeaturesRef.current?.clear();
 
-          // Add newly selected features to transform collection
+          // Add newly selected features to transform collection (only editable ones)
           e.selected.forEach((feature) => {
-            transformFeaturesRef.current?.push(feature);
+            if (isEditableFeature(feature)) {
+              transformFeaturesRef.current?.push(feature);
+            }
           });
         });
 
@@ -468,9 +470,9 @@ const MapEditor: React.FC = () => {
           stretch: true, // Enable stretching
           keepAspectRatio: (e) => e.originalEvent.shiftKey, // Hold Shift for aspect ratio
           hitTolerance: 3, // Better hit tolerance for selection
-          filter: (_feature) => {
-            // Filter to prevent conflicts - allow all features for now
-            return true;
+          filter: (feature) => {
+            // Only allow transformation of editable features
+            return isEditableFeature(feature);
           },
         });
 
@@ -486,7 +488,8 @@ const MapEditor: React.FC = () => {
           {
             toolId: "triangle",
             handlerKey: "triangleClickHandler",
-            onClick: (coordinate) => handleTriangleClick(vectorSourceRef.current, coordinate),
+            onClick: (coordinate) =>
+              handleTriangleClick(vectorSourceRef.current, coordinate),
           },
           vectorSourceRef.current
         );
@@ -498,7 +501,8 @@ const MapEditor: React.FC = () => {
           {
             toolId: "pit",
             handlerKey: "PitClickHandler",
-            onClick: (coordinate) => handlePitClick(vectorSourceRef.current, coordinate),
+            onClick: (coordinate) =>
+              handlePitClick(vectorSourceRef.current, coordinate),
           },
           vectorSourceRef.current
         );
@@ -510,7 +514,8 @@ const MapEditor: React.FC = () => {
           {
             toolId: "gp",
             handlerKey: "GpClickHandler",
-            onClick: (coordinate) => handleGPClick(vectorSourceRef.current, coordinate),
+            onClick: (coordinate) =>
+              handleGPClick(vectorSourceRef.current, coordinate),
           },
           vectorSourceRef.current
         );
@@ -522,7 +527,8 @@ const MapEditor: React.FC = () => {
           {
             toolId: "junction",
             handlerKey: "JuctionPointClickHandler",
-            onClick: (coordinate) => handleJunctionClick(vectorSourceRef.current, coordinate),
+            onClick: (coordinate) =>
+              handleJunctionClick(vectorSourceRef.current, coordinate),
           },
           vectorSourceRef.current
         );
@@ -617,9 +623,31 @@ const MapEditor: React.FC = () => {
       condition: click,
       layers: [vectorLayer],
       filter: isSelectableFeature,
+      style: (feature) => {
+        const geometry = feature.getGeometry();
+
+        if (!geometry) return undefined;
+
+        const geometryType = geometry.getType();
+
+        // Same blue solid highlight for all features
+        if (geometryType === "Point" || geometryType === "MultiPoint") {
+          return createPointStyle({
+            radius: 8,
+            fillColor: "#0066cc",
+            strokeColor: "#ffffff",
+            strokeWidth: 2,
+          });
+        } else {
+          return createLineStyle("#0066cc", 4, 1, []);
+        }
+      },
     });
+
+    // Create a separate collection for editable features
+    const editableFeatures = new Collection<Feature<Geometry>>();
     const modifyInteraction = new Modify({
-      features: selectInteraction.getFeatures(),
+      features: editableFeatures,
     });
 
     map.addInteraction(selectInteraction);
@@ -627,6 +655,16 @@ const MapEditor: React.FC = () => {
 
     selectInteraction.on("select", (e) => {
       setSelectedFeature(e.selected[0] || null);
+
+      // Clear editable features collection
+      editableFeatures.clear();
+
+      // Add only editable features to the modify collection
+      e.selected.forEach((feature) => {
+        if (isEditableFeature(feature as Feature<Geometry>)) {
+          editableFeatures.push(feature as Feature<Geometry>);
+        }
+      });
     });
 
     mapRef.current = map;

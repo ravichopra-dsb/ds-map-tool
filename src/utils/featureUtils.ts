@@ -4,7 +4,7 @@ import { Geometry } from "ol/geom";
 import { isTriangleFeature, triangleUtils } from "@/icons/Triangle";
 import { isPitFeature, pitUtils } from "@/icons/Pit";
 import { isGPFeature, gpUtils } from "@/icons/Gp";
-import { isJunctionFeature, junctionUtils } from "@/icons/JuctionPoint";
+import { isJunctionFeature, junctionUtils } from "@/icons/JunctionPoint";
 
 /**
  * Feature type checker configuration

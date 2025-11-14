@@ -38,8 +38,9 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - Advanced drawing tools (Point, Polyline, Line, Freehand, Arrow, GP, Tower, Junction Point)
 - File import/export support (GeoJSON, KML, KMZ)
 - Tool selection system with toolbar
-- Feature selection and deletion (works on Polyline, Freehand Line, Arrow and legend)
+- Universal feature selection (all features can be selected) with restricted editing (only Polyline, Freehand Line, Arrow, and Legend are editable)
 - Legend creation and management
+- Transform tool for advanced feature manipulation (rotate, scale, stretch)
 - Smooth map view transitions
 
 ### Architecture
@@ -52,7 +53,7 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - `src/components/LoadingOverlay.tsx` - Loading overlay for transitions
 
 ### Available Tools
-- **Select**: Select and modify features (works on Polyline, Freehand Line, Arrow and legend)
+- **Select**: Select all features (universal selection) with editing restricted to Polyline, Freehand Line, Arrow, and Legend features
 - **Hand**: Pan navigation mode
 - **Point**: Place point markers
 - **Polyline**: Draw straight lines
@@ -63,6 +64,7 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - **Tower**: Place tower markers
 - **Junction Point**: Place junction/connectivity points
 - **Legend**: Create and manage map legends
+- **Transform**: Advanced feature manipulation (rotate, scale, stretch) - works only on editable features
 - **Text**: Place and edit text labels (planned feature)
 
 ### Development
@@ -76,7 +78,10 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - Added Tower tool for placing tower markers
 - Added Junction Point tool for connectivity points
 - Enhanced Legend component with full CRUD operations
-- Improved Select tool to work specifically with Polyline, Freehand Line, Arrow, and Legend features
+- **Updated Select tool for universal selection** - All features can now be selected, but editing is restricted to Polyline, Freehand Line, Arrow, and Legend features
+- **Enhanced Transform tool** - Now respects editability restrictions and only works on editable features
+- **Fixed icon feature editability** - Pit, Triangle, GP, and Junction features are now properly non-editable while remaining selectable
+- **Unified visual selection feedback** - All selected features now have consistent blue highlighting regardless of editability
 - Added file export support for KMZ format in addition to GeoJSON and KML
 - Implemented auto-save functionality
 - Added keyboard shortcuts for tool switching

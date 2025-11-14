@@ -68,7 +68,6 @@ const Toolbar = ({
                 }
 
                 const Icon = tool.icon;
-                console.log(tool.id);
                 return (
                   <DropdownMenuItem
                     key={tool.id}

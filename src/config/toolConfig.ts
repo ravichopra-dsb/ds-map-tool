@@ -1,7 +1,7 @@
 import { handleTriangleClick } from "@/icons/Triangle";
 import { handlePitClick } from "@/icons/Pit";
 import { handleGPClick } from "@/icons/Gp";
-import { handleJunctionClick } from "@/icons/JuctionPoint";
+import { handleJunctionClick } from "@/icons/JunctionPoint";
 import { handleTowerClickFromSvg } from "@/icons/Tower";
 
 /**
