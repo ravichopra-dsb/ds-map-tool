@@ -6,6 +6,7 @@ import type Map from "ol/Map";
 import { Vector as VectorSource } from "ol/source";
 import type { Geometry } from "ol/geom";
 import type { LegendType } from "@/tools/legendsConfig";
+import { getLegendById } from "@/tools/legendsConfig";
 import { handleTriangleClick } from "@/icons/Triangle";
 import { handlePitClick } from "@/icons/Pit";
 import { handleGPClick } from "@/icons/Gp";
@@ -17,6 +18,7 @@ import {
   createFreehandDraw,
   createArrowDraw,
   createLegendDraw,
+  createMeasureDraw,
 } from "@/utils/interactionUtils";
 import { createLineStyle } from "@/utils/styleUtils";
 import { useClickHandlerManager } from "@/hooks/useClickHandlerManager";
@@ -147,8 +149,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           {
             toolId: "pit",
             handlerKey: "PitClickHandler",
-            onClick: (coordinate) =>
-              handlePitClick(vectorSource, coordinate),
+            onClick: (coordinate) => handlePitClick(vectorSource, coordinate),
           },
           vectorSource
         );
@@ -160,8 +161,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           {
             toolId: "gp",
             handlerKey: "GpClickHandler",
-            onClick: (coordinate) =>
-              handleGPClick(vectorSource, coordinate),
+            onClick: (coordinate) => handleGPClick(vectorSource, coordinate),
           },
           vectorSource
         );
@@ -200,6 +200,29 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         );
         break;
 
+      case "measure":
+        // Use the measure legend configuration
+        const measureLegend = getLegendById("measure");
+        if (measureLegend) {
+          const opacity = measureLegend.style.opacity || 1;
+          const strokeColor = measureLegend.style.strokeColor || "#3b4352";
+
+          const measureDrawStyle = createLineStyle(
+            strokeColor,
+            measureLegend.style.strokeWidth,
+            opacity,
+            measureLegend.style.strokeDash
+          );
+
+          drawInteractionRef.current = createMeasureDraw(
+            vectorSource,
+            measureDrawStyle,
+            "measure"
+          );
+          map.addInteraction(drawInteractionRef.current);
+        }
+        break;
+
       default:
         break;
     }
@@ -211,7 +234,14 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         drawInteractionRef.current = null;
       }
     };
-  }, [activeTool, map, vectorSource, selectedLegend, registerClickHandler, removeAllClickHandlers]);
+  }, [
+    activeTool,
+    map,
+    vectorSource,
+    selectedLegend,
+    registerClickHandler,
+    removeAllClickHandlers,
+  ]);
 
   return null; // This component doesn't render anything
 };

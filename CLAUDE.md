@@ -35,22 +35,51 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 
 ### Key Features
 - Interactive map with OSM and satellite view toggle
-- Advanced drawing tools (Point, Polyline, Line, Freehand, Arrow, GP, Tower, Junction Point)
+- Advanced drawing tools (Point, Polyline, Line, Freehand, Arrow, GP, Tower, Junction Point, Measure)
 - File import/export support (GeoJSON, KML, KMZ)
 - Tool selection system with toolbar
 - Universal feature selection (all features can be selected) with restricted editing (only Polyline, Freehand Line, Arrow, and Legend are editable)
 - Legend creation and management
 - Transform tool for advanced feature manipulation (rotate, scale, stretch)
+- Distance measurement tool with inline text display
 - Smooth map view transitions
 
 ### Architecture
-- `src/components/MapEditor.tsx` - Main map component with OpenLayers integration
-- `src/components/ToolBar.tsx` - Toolbar for tool selection
-- `src/components/Legend.tsx` - Legend creation and management component
-- `src/tools/toolConfig.ts` - Tool configuration and definitions
-- `src/tools/` - Individual tool implementations (ArrowTool.ts, GPTool.ts, TowerTool.ts, JunctionPointTool.ts)
-- `src/components/MapViewToggle.tsx` - Map view switcher component
-- `src/components/LoadingOverlay.tsx` - Loading overlay for transitions
+
+The application follows a modular, component-based architecture with clear separation of concerns:
+
+#### Core Components (`src/components/`)
+- **`MapEditor.tsx`** - Main orchestrator component (~185 lines) that coordinates all sub-components
+- **`MapInstance.tsx`** - Core OpenLayers map initialization, layer setup, and view configuration
+- **`MapInteractions.tsx`** - Select, Modify, and Transform interaction management
+- **`ToolManager.tsx`** - Tool activation, draw interactions, and click handler coordination
+- **`FeatureStyler.tsx`** - All feature styling logic (arrows, legends, icons, text)
+- **`FileManager.tsx`** - File import/export operations (GeoJSON, KML, KMZ)
+- **`ToolBar.tsx`** - UI toolbar for tool selection
+- **`Legend.tsx`** - Legend creation and management component
+- **`MapViewToggle.tsx`** - Map view switcher component
+- **`LoadingOverlay.tsx`** - Loading overlay for transitions
+
+#### Custom Hooks (`src/hooks/`)
+- **`useMapState.ts`** - Map view state, layer switching, and transition management
+- **`useToolState.ts`** - Active tool and legend selection state management
+- **`useFeatureState.ts`** - Feature selection and editing state management
+- **`useClickHandlerManager.ts`** - OpenLayers event handler management
+
+#### Configuration & Tools
+- **`src/tools/toolConfig.ts`** - Tool configuration and definitions
+- **`src/tools/legendsConfig.ts`** - Legend type configurations
+- **`src/tools/`** - Individual tool implementations (ArrowTool.ts, GPTool.ts, TowerTool.ts, JunctionPointTool.ts)
+
+#### Utilities (`src/utils/`)
+- **`featureUtils.ts`** - Feature type detection and styling utilities
+- **`styleUtils.ts`** - Consistent styling functions
+- **`colorUtils.ts`** - Color manipulation utilities
+- **`interactionUtils.ts`** - Draw interaction creation utilities
+- **`featureTypeUtils.ts`** - Feature selection and editability logic
+
+#### Icons (`src/icons/`)
+- **Icon handlers** - Triangle, Pit, GP, Junction Point, Tower SVG components and click handlers
 
 ### Available Tools
 - **Select**: Select all features (universal selection) with editing restricted to Polyline, Freehand Line, Arrow, and Legend features
@@ -64,6 +93,7 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - **Tower**: Place tower markers
 - **Junction Point**: Place junction/connectivity points
 - **Legend**: Create and manage map legends
+- **Measure**: Distance measurement tool with inline text display (dark gray dashed lines)
 - **Transform**: Advanced feature manipulation (rotate, scale, stretch) - works only on editable features
 - **Text**: Place and edit text labels (planned feature)
 
@@ -72,7 +102,70 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - Build for production: `npm run build`
 - TypeScript compilation: `npm run build` (includes type checking)
 
+### Development Guidelines
+
+#### Working with the New Architecture
+
+1. **Component Updates**:
+   - When modifying map functionality, identify which component needs changes (MapInstance, MapInteractions, ToolManager, etc.)
+   - For state changes, use the appropriate custom hook (useMapState, useToolState, useFeatureState)
+   - Keep components focused on their single responsibility
+
+2. **Adding New Tools**:
+   - Add tool configuration to `src/tools/toolConfig.ts`
+   - Implement tool logic in `ToolManager.tsx` or create a dedicated tool component
+   - Update styling logic in `FeatureStyler.tsx` if needed
+   - Add any new utility functions to appropriate files in `src/utils/`
+
+3. **State Management**:
+   - Map-related state (view, layers, transitions): Use `useMapState`
+   - Tool selection and legends: Use `useToolState`
+   - Feature selection and editing: Use `useFeatureState`
+   - Complex shared state should be lifted to the closest common ancestor component
+
+4. **Styling**:
+   - All feature styling logic is centralized in `FeatureStyler.tsx`
+   - Use existing utility functions from `styleUtils.ts` and `colorUtils.ts`
+   - For new feature types, add styling functions to `FeatureStyler.tsx`
+   - Measure tool uses dedicated styling with custom dark gray dashed lines and distance text labels
+
+5. **File Operations**:
+   - File import/export logic is in `FileManager.tsx`
+   - Support for additional formats can be added there
+   - The file input element is managed in `MapEditor.tsx` for better control
+
+#### Benefits of the New Architecture
+- **Easier debugging** - Issues can be isolated to specific components
+- **Better testing** - Each component can be unit tested independently
+- **Improved reusability** - Components can be reused in other parts of the application
+- **Cleaner code** - Related functionality is grouped together
+- **Type safety** - Better TypeScript support with proper interfaces and props
+
 ### Recent Changes
+
+#### Major Architecture Refactoring (Latest)
+- **Complete codebase refactoring** - Broke down the monolithic 821-line MapEditor.tsx into modular, reusable components
+- **Added custom hooks** - Implemented `useMapState`, `useToolState`, and `useFeatureState` for better state management
+- **Component separation** - Created specialized components:
+  - `MapInstance.tsx` - Core map initialization and setup
+  - `MapInteractions.tsx` - Select/Modify/Transform interactions
+  - `ToolManager.tsx` - Tool activation and drawing logic
+  - `FeatureStyler.tsx` - All styling functionality
+  - `FileManager.tsx` - Import/export operations
+- **Improved maintainability** - Each component now has a single responsibility
+- **Enhanced testability** - Smaller components are easier to unit test
+- **Better code organization** - Clear separation of concerns and consistent architecture patterns
+- **TypeScript improvements** - All type errors resolved and enhanced type safety
+
+#### Measure Tool Implementation (Latest)
+- **Added Measure tool** for distance measurement with custom dark gray dashed styling (#3b4352, width 2, dash pattern [12, 8])
+- **Distance text display** - Shows formatted distance at the end point of each polyline with automatic unit switching (m/km)
+- **Legend separation** - Measure tool is completely independent and excluded from legend dropdown selection
+- **Enhanced user experience** - Removed alert popups, distance is now displayed inline with good contrast styling
+- **Integrated styling system** - Uses dedicated `getMeasureTextStyle` function in `FeatureStyler.tsx` for consistent appearance
+- **Proper feature management** - Measure features have `isMeasure: true` property and stored distance data
+
+#### Previous Feature Updates
 - Added Arrow tool for drawing arrows with various styles
 - Added GP (General Purpose) drawing tool
 - Added Tower tool for placing tower markers

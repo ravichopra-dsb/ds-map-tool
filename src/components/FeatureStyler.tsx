@@ -141,6 +141,11 @@ export const getFeatureStyle = (
     return getArrowStyle(feature);
   }
 
+  // Handle measure features
+  if (feature.get("isMeasure") && (type === "LineString" || type === "MultiLineString")) {
+    return getMeasureTextStyle(feature);
+  }
+
   // Handle icon features using utility
   const iconStyle = getFeatureTypeStyle(feature);
   if (iconStyle) {
@@ -201,4 +206,83 @@ export const getFeatureStyle = (
       strokeWidth: 2,
     });
   }
+};
+
+/**
+ * Format distance with automatic unit switching
+ * @param distance - Distance in meters
+ * @returns Formatted distance string
+ */
+const formatDistance = (distance: number): string => {
+  if (distance < 1000) {
+    return `${Math.round(distance)}m`;
+  } else {
+    return `${(distance / 1000).toFixed(1)}km`;
+  }
+};
+
+/**
+ * Create measure text styling for distance display at end point
+ * @param feature - Feature with distance property
+ * @returns Style array with line and distance text
+ */
+export const getMeasureTextStyle = (feature: FeatureLike): Style[] => {
+  const geometry = feature.getGeometry();
+  const distance = feature.get('distance');
+
+  if (!geometry || distance === undefined) return [];
+
+  if (geometry.getType() !== 'LineString') return [];
+
+  const lineString = geometry as any;
+  const coordinates = lineString.getCoordinates();
+
+  if (coordinates.length < 2) return [];
+
+  // Get the end point (last coordinate)
+  const endPoint = coordinates[coordinates.length - 1];
+  const formattedDistance = formatDistance(distance);
+
+  const styles: Style[] = [];
+
+  // Add the line style
+  const measureLegend = getLegendById("measure");
+  if (measureLegend) {
+    styles.push(
+      new Style({
+        stroke: new Stroke({
+          color: measureLegend.style.strokeColor || "#3b4352",
+          width: measureLegend.style.strokeWidth || 2,
+          lineDash: measureLegend.style.strokeDash || [12, 8],
+          lineCap: "round",
+        }),
+        zIndex: 10,
+      })
+    );
+  }
+
+  // Add text label at end point
+  styles.push(
+    new Style({
+      text: new Text({
+        text: formattedDistance,
+        font: 'bold 12px Arial, sans-serif',
+        fill: new Fill({ color: '#000000' }),
+        stroke: new Stroke({
+          color: '#ffffff',
+          width: 3
+        }),
+        backgroundFill: new Fill({ color: 'rgba(255, 255, 255, 0.8)' }),
+        padding: [2, 4, 2, 4],
+        textAlign: 'left',
+        textBaseline: 'middle',
+        offsetX: 8, // Offset slightly to the right of the end point
+        offsetY: 0,
+      }),
+      geometry: new Point(endPoint),
+      zIndex: 11,
+    })
+  );
+
+  return styles;
 };

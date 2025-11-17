@@ -16,7 +16,7 @@ export function LegendDropdown({
   selectedLegend,
   onLegendSelect,
 }: LegendDropdownProps) {
-  const legends = getAvailableLegends();
+  const legends = getAvailableLegends().filter(legend => legend.id !== 'measure');
 
   return (
     <DropdownMenu>

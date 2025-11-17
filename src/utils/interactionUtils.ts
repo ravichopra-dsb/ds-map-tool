@@ -1,6 +1,7 @@
 import { Draw } from "ol/interaction";
 import { Style } from "ol/style";
 import { createPointStyle, createLineStyle } from "./styleUtils";
+import { getLength } from "ol/sphere";
 
 /**
  * Draw interaction configuration interface
@@ -169,5 +170,39 @@ export const createLegendDraw = (
       legendType: legendTypeId,
     },
     onDrawEnd,
+  });
+};
+
+export const createMeasureDraw = (
+  source: any,
+  style: Style | Style[],
+  legendTypeId: string,
+  onDrawEnd?: (event: any) => void
+): Draw => {
+  // Add measurement logic to the default handler
+  const handleDrawEnd = (event: any) => {
+    const geometry = event.feature.getGeometry();
+    const length = getLength(geometry); // Returns length in meters
+
+    // Store distance in feature properties for text display
+    event.feature.set('isMeasure', true);
+    event.feature.set('distance', length);
+
+    // Optionally call the provided handler after measurement
+    if (onDrawEnd) {
+      onDrawEnd(event);
+    }
+  };
+
+  return createDrawInteraction({
+    type: "LineString",
+    source,
+    style,
+    featureProperties: {
+      islegends: true,
+      legendType: legendTypeId,
+      isMeasure: true,
+    },
+    onDrawEnd: handleDrawEnd,
   });
 };

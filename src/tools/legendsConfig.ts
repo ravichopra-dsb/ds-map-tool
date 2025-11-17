@@ -36,6 +36,16 @@ export const LEGEND_TYPES: LegendType[] = [
     }
   },
   {
+    id: "measure",
+    name: "Measure",
+    imagePath: "/Legends/legend1.png",
+    style: {
+      strokeColor: "#3b4352",
+      strokeWidth: 2,
+      strokeDash: [12, 8]
+    }
+  },
+  {
     id: "legend2",
     name: "Legend 2",
     imagePath: "/Legends/legend2.png",

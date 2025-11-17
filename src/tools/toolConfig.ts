@@ -8,7 +8,8 @@ import {
   Circle,
   ArrowUp,
   Minus,
-  Move
+  Move,
+  RulerDimensionLine
 } from "lucide-react";
 
 export const TOOLS = [
@@ -81,6 +82,11 @@ export const TOOLS = [
     id: 'tower',
     name: 'Tower',
     icon: Tower,
+  }, 
+  {
+    id: 'measure',
+    name: 'Measure',
+    icon: RulerDimensionLine
   }
 ];
 
