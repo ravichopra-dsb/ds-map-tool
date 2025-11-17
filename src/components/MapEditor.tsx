@@ -27,7 +27,10 @@ import { Draw } from "ol/interaction";
 import "ol/ol.css";
 import "ol-ext/dist/ol-ext.css";
 import { getLegendById, type LegendType } from "@/tools/legendsConfig";
-import { isSelectableFeature, isEditableFeature } from "@/utils/featureTypeUtils";
+import {
+  isSelectableFeature,
+  isEditableFeature,
+} from "@/utils/featureTypeUtils";
 import { handleTriangleClick } from "@/icons/Triangle";
 import { handlePitClick } from "@/icons/Pit";
 import { handleGPClick } from "@/icons/Gp";
@@ -447,11 +450,9 @@ const MapEditor: React.FC = () => {
           // Clear previous selection
           transformFeaturesRef.current?.clear();
 
-          // Add newly selected features to transform collection (only editable ones)
+          // Add newly selected features to transform collection
           e.selected.forEach((feature) => {
-            if (isEditableFeature(feature)) {
-              transformFeaturesRef.current?.push(feature);
-            }
+            transformFeaturesRef.current?.push(feature);
           });
         });
 
@@ -470,9 +471,9 @@ const MapEditor: React.FC = () => {
           stretch: true, // Enable stretching
           keepAspectRatio: (e) => e.originalEvent.shiftKey, // Hold Shift for aspect ratio
           hitTolerance: 3, // Better hit tolerance for selection
-          filter: (feature) => {
+          filter: () => {
             // Only allow transformation of editable features
-            return isEditableFeature(feature);
+            return true;
           },
         });
 
@@ -623,25 +624,6 @@ const MapEditor: React.FC = () => {
       condition: click,
       layers: [vectorLayer],
       filter: isSelectableFeature,
-      style: (feature) => {
-        const geometry = feature.getGeometry();
-
-        if (!geometry) return undefined;
-
-        const geometryType = geometry.getType();
-
-        // Same blue solid highlight for all features
-        if (geometryType === "Point" || geometryType === "MultiPoint") {
-          return createPointStyle({
-            radius: 8,
-            fillColor: "#0066cc",
-            strokeColor: "#ffffff",
-            strokeWidth: 2,
-          });
-        } else {
-          return createLineStyle("#0066cc", 4, 1, []);
-        }
-      },
     });
 
     // Create a separate collection for editable features
