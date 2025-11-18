@@ -8,7 +8,11 @@ import type VectorLayer from "ol/layer/Vector";
 import { Vector as VectorSource } from "ol/source";
 import { Feature } from "ol";
 import type { Geometry } from "ol/geom";
-import { isSelectableFeature, isEditableFeature } from "@/utils/featureTypeUtils";
+import {
+  isSelectableFeature,
+  isEditableFeature,
+} from "@/utils/featureTypeUtils";
+import { recalculateMeasureDistances } from "@/utils/interactionUtils";
 
 export interface MapInteractionsProps {
   map: Map | null;
@@ -27,7 +31,9 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   const modifyInteractionRef = useRef<Modify | null>(null);
   const transformInteractionRef = useRef<Transform | null>(null);
   const transformSelectInteractionRef = useRef<Select | null>(null);
-  const transformFeaturesRef = useRef<Collection<Feature<Geometry>> | null>(null);
+  const transformFeaturesRef = useRef<Collection<Feature<Geometry>> | null>(
+    null
+  );
 
   // Initialize select and modify interactions
   useEffect(() => {
@@ -44,6 +50,19 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     const editableFeatures = new Collection<Feature<Geometry>>();
     const modifyInteraction = new Modify({
       features: editableFeatures,
+    });
+
+    // Add modify event handling for distance recalculation
+    modifyInteraction.on("modifyend", (event) => {
+      const features = event.features.getArray();
+
+      // Filter for measure features and recalculate distances
+      const measureFeatures = features.filter((feature) =>
+        feature.get("isMeasure")
+      );
+      if (measureFeatures.length > 0) {
+        recalculateMeasureDistances(measureFeatures);
+      }
     });
 
     map.addInteraction(selectInteraction);
@@ -122,7 +141,20 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
         stretch: true, // Enable stretching
         keepAspectRatio: (e) => e.originalEvent.shiftKey, // Hold Shift for aspect ratio
         hitTolerance: 3, // Better hit tolerance for selection
-        filter: () => {
+        filter: (feature) => {
+          const isMeasure = feature.get("isMeasure");
+
+          // Disable rotate / scale / stretch if it's a measure feature
+          if (isMeasure) {
+            newTransformInteraction.set("rotate", false);
+            newTransformInteraction.set("scale", false);
+            newTransformInteraction.set("stretch", false);
+          } else {
+            newTransformInteraction.set("rotate", true);
+            newTransformInteraction.set("scale", true);
+            newTransformInteraction.set("stretch", true);
+          }
+
           // Only allow transformation of editable features
           return true;
         },
@@ -183,16 +215,16 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     };
   }, [activeTool, map, vectorLayer]);
 
-  // Handle select interaction activation/deactivation for hand tool
+  // Handle select interaction activation/deactivation - only enable for select and transform tools
   useEffect(() => {
     if (!map || !selectInteractionRef.current) return;
 
-    if (activeTool === "hand") {
-      // Deactivate select/modify for pan navigation
-      selectInteractionRef.current.setActive(false);
-    } else if (activeTool !== "transform") {
-      // Reactivate select/modify for other tools (except transform which handles selection differently)
+    if (activeTool === "select" || activeTool === "transform") {
+      // Enable selection only for select and transform tools
       selectInteractionRef.current.setActive(true);
+    } else {
+      // Disable selection for all other tools (drawing, navigation, icon tools, etc.)
+      selectInteractionRef.current.setActive(false);
     }
   }, [activeTool, map]);
 

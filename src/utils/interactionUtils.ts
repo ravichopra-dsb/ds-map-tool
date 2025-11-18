@@ -2,6 +2,8 @@ import { Draw } from "ol/interaction";
 import { Style } from "ol/style";
 import { createPointStyle, createLineStyle } from "./styleUtils";
 import { getLength } from "ol/sphere";
+import { Feature } from "ol";
+import { Geometry } from "ol/geom";
 
 /**
  * Draw interaction configuration interface
@@ -204,5 +206,41 @@ export const createMeasureDraw = (
       isMeasure: true,
     },
     onDrawEnd: handleDrawEnd,
+  });
+};
+
+/**
+ * Recalculate distance for a measure feature
+ * @param feature - Feature to recalculate distance for
+ * @returns void
+ */
+export const recalculateMeasureDistance = (feature: Feature<Geometry>): void => {
+  try {
+    if (!feature.get('isMeasure')) return;
+
+    const geometry = feature.getGeometry();
+    if (!geometry) return;
+
+    // Calculate new distance
+    const distance = getLength(geometry);
+
+    // Update the distance property
+    feature.set('distance', distance);
+
+  } catch (error) {
+    console.error('Error recalculating measure distance:', error);
+  }
+};
+
+/**
+ * Recalculate distances for an array of measure features
+ * @param features - Array of features to process
+ * @returns void
+ */
+export const recalculateMeasureDistances = (features: Feature<Geometry>[]): void => {
+  features.forEach(feature => {
+    if (feature.get('isMeasure')) {
+      recalculateMeasureDistance(feature);
+    }
   });
 };
