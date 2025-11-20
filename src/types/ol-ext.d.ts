@@ -84,3 +84,107 @@ declare module 'ol-ext/interaction/CopyPaste' {
     setActive(active: boolean): void;
   }
 }
+
+/**
+ * UndoRedo interaction from ol-ext
+ * Adds undo/redo functionality to OpenLayers maps
+ */
+declare module 'ol-ext/interaction/UndoRedo' {
+  import Map from 'ol/Map';
+  import Interaction from 'ol/interaction/Interaction';
+  import Collection from 'ol/Collection';
+  import Feature from 'ol/Feature';
+
+  export interface UndoRedoOptions {
+    /**
+     * Maximum number of undo/redo steps to keep in memory
+     * Default: 50
+     */
+    maxHistorySize?: number;
+
+    /**
+     * Automatically add drawing interactions to undo stack
+     * Default: true
+     */
+    autoTrack?: boolean;
+
+    /**
+     * Collection of features to track for changes
+     * Default: null (track all features)
+     */
+    features?: Collection<Feature> | null;
+
+    /**
+     * Map instance to attach to
+     */
+    map?: import('ol/Map').default;
+  }
+
+  export default class UndoRedo extends Interaction {
+    constructor(options?: UndoRedoOptions);
+
+    /**
+     * Perform an undo operation
+     * @returns true if undo was performed, false if no undo available
+     */
+    undo(): boolean;
+
+    /**
+     * Perform a redo operation
+     * @returns true if redo was performed, false if no redo available
+     */
+    redo(): boolean;
+
+    /**
+     * Check if undo is available
+     */
+    hasUndo(): boolean;
+
+    /**
+     * Check if redo is available
+     */
+    hasRedo(): boolean;
+
+    /**
+     * Get the current undo stack length
+     */
+    getUndoStackLength(): number;
+
+    /**
+     * Get the current redo stack length
+     */
+    getRedoStackLength(): number;
+
+    /**
+     * Clear all undo/redo history
+     */
+    clear(): void;
+
+    /**
+     * Set the maximum history size
+     */
+    setMaxHistorySize(size: number): void;
+
+    /**
+     * Get the current position in the history
+     */
+    getCurrentIndex(): number;
+
+    /**
+     * Add a custom action to the undo stack
+     */
+    pushAction(action: {
+      undo: () => void;
+      redo: () => void;
+      name?: string;
+    }): void;
+
+    /**
+     * Attach event listener
+     */
+    on(
+      type: 'undo' | 'redo' | 'stack:add' | 'stack:remove' | 'stack:clear',
+      listener: (event: any) => void
+    ): void;
+  }
+}

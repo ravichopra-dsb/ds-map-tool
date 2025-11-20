@@ -3,6 +3,7 @@ import { Modify, Select } from "ol/interaction";
 import { Collection } from "ol";
 import { click, altKeyOnly } from "ol/events/condition";
 import Transform from "ol-ext/interaction/Transform";
+import UndoRedo from "ol-ext/interaction/UndoRedo";
 import type Map from "ol/Map";
 import type VectorLayer from "ol/layer/Vector";
 import { Vector as VectorSource } from "ol/source";
@@ -26,6 +27,7 @@ export interface MapInteractionsProps {
   onPasteFeatures?: (features: Feature<Geometry>[], coordinates: number[]) => void;
   pasteCoordinates?: number[] | null;
   onSelectInteractionReady?: (selectInteraction: Select | null) => void;
+  onUndoInteractionReady?: (undoInteraction: UndoRedo | null) => void;
 }
 
 export const MapInteractions: React.FC<MapInteractionsProps> = ({
@@ -34,6 +36,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   activeTool,
   onFeatureSelect,
   onSelectInteractionReady,
+  onUndoInteractionReady,
 }) => {
   const selectInteractionRef = useRef<Select | null>(null);
   const modifyInteractionRef = useRef<Modify | null>(null);
@@ -42,6 +45,43 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   const transformFeaturesRef = useRef<Collection<Feature<Geometry>> | null>(
     null
   );
+  const undoRedoInteractionRef = useRef<UndoRedo | null>(null);
+
+  // Initialize UndoRedo interaction - only initialize once when map and vectorLayer are available
+  useEffect(() => {
+    // Don't re-initialize if we already have an undoRedo interaction
+    if (undoRedoInteractionRef.current) return;
+
+    if (!map || !vectorLayer) return;
+
+    // Initialize UndoRedo interaction to track all drawing operations
+    const undoRedoInteraction = new UndoRedo({
+      map,
+      features: vectorLayer.getSource()?.getFeaturesCollection(),
+      autoTrack: true, // Automatically track drawing interactions
+      maxHistorySize: 50,
+    });
+
+    console.log("undoRedoInteraction initialized: ", undoRedoInteraction)
+
+    map.addInteraction(undoRedoInteraction as any);
+    undoRedoInteractionRef.current = undoRedoInteraction;
+
+    // Notify parent component that undo interaction is ready
+    if (onUndoInteractionReady) {
+      onUndoInteractionReady(undoRedoInteraction);
+    }
+  }, [map, vectorLayer]); // Remove onUndoInteractionReady from dependencies
+
+  // Cleanup undo interaction when unmounting
+  useEffect(() => {
+    return () => {
+      if (undoRedoInteractionRef.current && map) {
+        map.removeInteraction(undoRedoInteractionRef.current as any);
+        undoRedoInteractionRef.current = null;
+      }
+    };
+  }, [map]);
 
   // Initialize select and modify interactions
   useEffect(() => {

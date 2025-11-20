@@ -50,6 +50,9 @@ const MapEditor: React.FC = () => {
   // Reference to select interaction for keyboard shortcuts
   const selectInteractionRef = useRef<Select | null>(null);
 
+  // Reference to undo interaction for keyboard shortcuts
+  const undoRedoInteractionRef = useRef<any>(null);
+
   // File input reference for FileManager
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -157,10 +160,9 @@ const MapEditor: React.FC = () => {
   };
 
   const handlePasteOperation = (
-    features: Feature<Geometry>[],
+    _features: Feature<Geometry>[],
     coordinates: number[]
   ) => {
-
     const pastedFeatures: Feature<Geometry>[] = [];
 
     clipboardState.copiedFeatures.forEach((originalFeature) => {
@@ -207,6 +209,36 @@ const MapEditor: React.FC = () => {
     selectInteractionRef.current = selectInteraction;
   };
 
+  // Handle undo interaction reference from MapInteractions
+  const handleUndoInteractionReady = (undoInteraction: any) => {
+    undoRedoInteractionRef.current = undoInteraction;
+    console.log(
+      "handleUndoInteractionReady UndoInteration MapEditor : ",
+      undoInteraction
+    );
+  };
+
+  // Undo operation handler
+  const handleUndoOperation = () => {
+    console.log("handleUndoOperation : ", undoRedoInteractionRef.current);
+    if (
+      undoRedoInteractionRef.current &&
+      undoRedoInteractionRef.current.hasUndo()
+    ) {
+      undoRedoInteractionRef.current.undo();
+    }
+  };
+
+  // Redo operation handler
+  const handleRedoOperation = () => {
+    if (
+      undoRedoInteractionRef.current &&
+      undoRedoInteractionRef.current.hasRedo()
+    ) {
+      undoRedoInteractionRef.current.redo();
+    }
+  };
+
   // Set up keyboard shortcuts
   useKeyboardShortcuts({
     map: mapRef.current,
@@ -216,6 +248,8 @@ const MapEditor: React.FC = () => {
     onCopyOperation: handleCopyOperation,
     onPasteOperation: handlePasteOperation,
     onSetActiveTool: setActiveTool,
+    onUndoOperation: handleUndoOperation,
+    onRedoOperation: handleRedoOperation,
     disabled: false,
   });
 
@@ -238,6 +272,7 @@ const MapEditor: React.FC = () => {
         onCopyFeatures={handleCopyOperation}
         onPasteFeatures={handlePasteOperation}
         onSelectInteractionReady={handleSelectInteractionReady}
+        onUndoInteractionReady={handleUndoInteractionReady}
       />
 
       <ToolManager

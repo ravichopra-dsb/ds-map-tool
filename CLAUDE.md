@@ -44,6 +44,10 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - Legend creation and management
 - Transform tool for advanced feature manipulation (rotate, scale, stretch)
 - Distance measurement tool with inline text display
+- **Cut, Copy, and Paste functionality** with keyboard shortcuts (Ctrl+C, Ctrl+X, Ctrl+V)
+- **Point delete functionality** in polylines with vertex manipulation
+- **Enhanced keyboard shortcuts** for improved workflow efficiency
+- **Undo/Redo functionality** with keyboard shortcuts (Ctrl+Z, Ctrl+Y) for all drawing operations
 - Smooth map view transitions
 
 ### Architecture
@@ -53,7 +57,7 @@ The application follows a modular, component-based architecture with clear separ
 #### Core Components (`src/components/`)
 - **`MapEditor.tsx`** - Main orchestrator component that coordinates all sub-components
 - **`MapInstance.tsx`** - Core OpenLayers map initialization, layer setup, and view configuration
-- **`MapInteractions.tsx`** - Select, Modify, and Transform interaction management
+- **`MapInteractions.tsx`** - Select, Modify, Transform, and UndoRedo interaction management
 - **`ToolManager.tsx`** - Tool activation, draw interactions, and click handler coordination
 - **`FeatureStyler.tsx`** - All feature styling logic (arrows, legends, icons, text)
 - **`FileManager.tsx`** - File import/export operations (GeoJSON, KML, KMZ)
@@ -66,8 +70,9 @@ The application follows a modular, component-based architecture with clear separ
 #### Custom Hooks (`src/hooks/`)
 - **`useMapState.ts`** - Map view state, layer switching, and transition management
 - **`useToolState.ts`** - Active tool and legend selection state management
-- **`useFeatureState.ts`** - Feature selection and editing state management
+- **`useFeatureState.ts`** - Feature selection, editing state, and clipboard management
 - **`useClickHandlerManager.ts`** - OpenLayers event handler management
+- **`useKeyboardShortcuts.ts`** - Keyboard shortcuts management for cut/copy/paste and undo/redo operations
 
 #### Configuration & Tools
 - **`src/config/toolConfig.ts`** - Tool configuration and definitions
@@ -94,7 +99,7 @@ The application follows a modular, component-based architecture with clear separ
 - **Select**: Select all features (universal selection) with editing restricted to Polyline, Freehand Line, Arrow, and Legend features
 - **Hand**: Pan navigation mode
 - **Point**: Place point markers
-- **Polyline**: Draw straight lines
+- **Polyline**: Draw straight lines with vertex delete functionality
 - **Line**: Draw line segments
 - **Freehand**: Freehand drawing
 - **Arrow**: Draw arrows with customizable styles
@@ -105,6 +110,15 @@ The application follows a modular, component-based architecture with clear separ
 - **Measure**: Distance measurement tool with inline text display (dark gray dashed lines)
 - **Transform**: Advanced feature manipulation (rotate, scale, stretch) - works only on editable features
 - **Text**: Place and edit text labels (planned feature)
+
+### Keyboard Shortcuts
+- **Ctrl+C**: Copy selected features to clipboard
+- **Ctrl+X**: Cut selected features (copy and remove from map)
+- **Ctrl+V**: Paste features from clipboard at cursor position
+- **Ctrl+Z**: Undo last drawing operation
+- **Ctrl+Y**: Redo last undone operation
+- **Delete**: Remove selected points/vertices from polylines
+- Tool switching shortcuts (configured in toolbar)
 
 ### Development
 - Run development server: `npm run dev`
@@ -146,6 +160,20 @@ The application follows a modular, component-based architecture with clear separ
    - Support for additional formats can be added there
    - The file input element is managed in `MapEditor.tsx` for better control
 
+6. **Keyboard Shortcuts & Clipboard**:
+   - Keyboard shortcuts are managed through `useKeyboardShortcuts.ts`
+   - Clipboard state is handled in `useFeatureState.ts` with `ClipboardState` interface
+   - Copy/paste operations support both cut and copy modes with proper feature tracking
+   - Features are pasted at current cursor position with automatic coordinate transformation
+   - Undo/redo operations use ol-ext UndoRedo interaction with singleton pattern to prevent re-initialization
+
+7. **Undo/Redo Implementation**:
+   - UndoRedo interaction is initialized once in `MapInteractions.tsx` with proper guard patterns
+   - All drawing operations are automatically tracked through `autoTrack: true`
+   - Keyboard shortcuts (Ctrl+Z/Ctrl+Y) trigger undo/redo operations
+   - Undo history persists across tool switches due to singleton implementation
+   - Uses ol-ext library with proper TypeScript type definitions in `src/types/ol-ext.d.ts`
+
 #### Benefits of the New Architecture
 - **Easier debugging** - Issues can be isolated to specific components
 - **Better testing** - Each component can be unit tested independently
@@ -159,7 +187,30 @@ The `Icons2.0` branch includes the latest features and improvements over the mai
 
 ### Recent Changes
 
-#### Measure Tool Implementation (Latest - v2.0)
+#### Undo/Redo Implementation (Latest - v2.2)
+- **Complete undo/redo functionality** - Implemented comprehensive undo/redo system using ol-ext UndoRedo interaction
+- **Keyboard shortcuts** - Added Ctrl+Z (undo) and Ctrl+Y (redo) keyboard shortcuts
+- **All drawing operations tracked** - Point, Polyline, Line, Freehand, Arrow, GP, Tower, Junction Point, Legend tools
+- **Singleton pattern** - UndoRedo interaction initialized once to prevent history reset on tool switches
+- **Auto-tracking** - Uses ol-ext's built-in drawing interaction tracking with `autoTrack: true`
+- **History persistence** - Undo/redo state persists across tool switches due to proper initialization guard
+- **Type safety** - Leverages existing TypeScript definitions in `src/types/ol-ext.d.ts`
+- **DRY compliance** - Follows established architectural patterns and integrates seamlessly with existing codebase
+
+#### Cut, Copy, and Paste Implementation (v2.1)
+- **Full clipboard functionality** - Implemented cut, copy, and paste operations with keyboard shortcuts (Ctrl+C, Ctrl+X, Ctrl+V)
+- **Smart cursor tracking** - Features are pasted at current cursor position with fallback to map center
+- **Clipboard state management** - Added `ClipboardState` interface in `useFeatureState.ts` with proper feature tracking
+- **Keyboard shortcuts system** - New `useKeyboardShortcuts.ts` hook for managing all keyboard interactions
+- **Feature validation** - Only copyable features are included in clipboard operations with proper filtering
+- **Automatic tool switching** - Returns to Select tool after copy/cut operations for better workflow
+
+#### Point Delete Functionality in Polylines
+- **Vertex deletion** - Added ability to delete individual points/vertices from polylines using Delete key
+- **Enhanced Modify interaction** - Improved polyline editing with precise vertex control
+- **Visual feedback** - Clear indication of selectable vertices for deletion
+
+#### Measure Tool Implementation (v2.0)
 - **Added Measure tool** for distance measurement with custom dark gray dashed styling (#3b4352, width 2, dash pattern [12, 8])
 - **Distance text display** - Shows formatted distance at the end point of each polyline with automatic unit switching (m/km)
 - **Legend separation** - Measure tool is completely independent and excluded from legend dropdown selection
@@ -205,7 +256,7 @@ The `Icons2.0` branch includes the latest features and improvements over the mai
 - Enhanced UI with improved tooltips and visual feedback
 
 ### Version History
-- **Icons2.0** (current) - Latest features including Measure tool, icon improvements, and architecture refactoring
+- **Icons2.0** (current) - Latest features including Cut/Copy/Paste, point delete, Measure tool, icon improvements, and architecture refactoring
 - **Icons** - Icon tools implementation
 - **Legends** - Legend component enhancements
 - **Satellite** - Arrow tool and satellite view improvements

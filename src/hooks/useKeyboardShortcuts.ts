@@ -13,6 +13,8 @@ export interface KeyboardShortcutsProps {
   onCopyOperation?: (features: Feature<Geometry>[], isCut: boolean) => void;
   onPasteOperation?: (features: Feature<Geometry>[], coordinates: number[]) => void;
   onSetActiveTool?: (tool: string) => void;
+  onUndoOperation?: () => void;
+  onRedoOperation?: () => void;
   disabled?: boolean;
 }
 
@@ -24,6 +26,8 @@ export const useKeyboardShortcuts = ({
   onCopyOperation,
   onPasteOperation,
   onSetActiveTool,
+  onUndoOperation,
+  onRedoOperation,
   disabled = false,
 }: KeyboardShortcutsProps) => {
   const currentCursorCoordinates = useRef<number[] | null>(null);
@@ -51,6 +55,20 @@ export const useKeyboardShortcuts = ({
             // Paste operation - paste at current cursor position
             event.preventDefault();
             handlePasteOperation();
+            break;
+
+          case 'z':
+            // Undo operation
+            if (!event.shiftKey) {
+              event.preventDefault();
+              onUndoOperation?.();
+            }
+            break;
+
+          case 'y':
+            // Redo operation
+            event.preventDefault();
+            onRedoOperation?.();
             break;
         }
       }
@@ -139,6 +157,8 @@ export const useKeyboardShortcuts = ({
     onCopyOperation,
     onPasteOperation,
     onSetActiveTool,
+    onUndoOperation,
+    onRedoOperation,
     disabled
   ]);
 
