@@ -1,179 +1,62 @@
-import React, { useEffect, useRef, useState } from "react";
-import Map from "ol/Map";
-import View from "ol/View";
-import { Tile as TileLayer, Vector as VectorLayer } from "ol/layer";
-import type { Extent } from "ol/extent";
-import { OSM, Vector as VectorSource, XYZ } from "ol/source";
-import { fromLonLat } from "ol/proj";
-import { MapViewToggle, type MapViewType } from "./MapViewToggle";
-import { LoadingOverlay } from "./LoadingOverlay";
-import type { Feature } from "ol";
+import React, { useRef } from "react";
+import { Vector as VectorSource } from "ol/source";
+import { Feature } from "ol";
 import type { Geometry } from "ol/geom";
-import { Style, Circle as CircleStyle } from "ol/style";
-import Stroke from "ol/style/Stroke";
-import Fill from "ol/style/Fill";
-import { Modify, Select } from "ol/interaction";
-import { defaults as defaultControls } from "ol/control";
-import { click } from "ol/events/condition";
-import Toolbar from "./ToolBar";
+import type { Extent } from "ol/extent";
+import type Map from "ol/Map";
 import GeoJSON from "ol/format/GeoJSON";
 import KML from "ol/format/KML";
 import JSZip from "jszip";
-import "ol/ol.css";
-import "ol-ext/dist/ol-ext.css";
+import { MapViewToggle } from "./MapViewToggle";
+import { LoadingOverlay } from "./LoadingOverlay";
+import Toolbar from "./ToolBar";
+import FileManager from "./FileManager";
+import MapInstance from "./MapInstance";
+import MapInteractions from "./MapInteractions";
+import ToolManager from "./ToolManager";
+import { useMapState } from "@/hooks/useMapState";
+import { useToolState } from "@/hooks/useToolState";
+import { useFeatureState } from "@/hooks/useFeatureState";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { cloneFeature, offsetFeature } from "@/utils/interactionUtils";
+import { Select } from "ol/interaction";
 
 const MapEditor: React.FC = () => {
+  // Core map references
   const mapRef = useRef<Map | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const vectorSourceRef = useRef(new VectorSource());
-  const [currentMapView, setCurrentMapView] = useState<MapViewType>("osm");
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const osmLayerRef = useRef<TileLayer<OSM> | null>(null);
-  const satelliteLayerRef = useRef<TileLayer<XYZ> | null>(null);
-  const [selectedFeature, setSelectedFeature] =
-    useState<Feature<Geometry> | null>(null);
+  const vectorLayerRef = useRef<any>(null);
 
-  // ✅ Custom feature styles (used for GeoJSON, KML, and KMZ)
-  const getFeatureStyle = (feature: Feature<Geometry>) => {
-    const type = feature.getGeometry()?.getType();
+  // Custom hooks for state management
+  const {
+    currentMapView,
+    isTransitioning,
+    osmLayerRef,
+    satelliteLayerRef,
+    handleMapViewChange,
+  } = useMapState();
 
-    if (type === "LineString" || type === "MultiLineString") {
-      return new Style({
-        stroke: new Stroke({
-          color: "#00ff00",
-          width: 4,
-        }),
-      });
-    }
+  const { activeTool, selectedLegend, setActiveTool, handleLegendSelect } =
+    useToolState();
 
-    if (type === "Point" || type === "MultiPoint") {
-      return new Style({
-        image: new CircleStyle({
-          radius: 6,
-          fill: new Fill({ color: "#ff0000" }),
-          stroke: new Stroke({ color: "#fff", width: 2 }),
-        }),
-      });
-    }
+  const {
+    selectedFeature,
+    setSelectedFeature,
+    clipboardState,
+    setCopiedFeatures,
+    clearClipboard,
+  } = useFeatureState();
 
-    return new Style({
-      fill: new Fill({ color: "rgba(255, 255, 0, 0.2)" }),
-      stroke: new Stroke({ color: "#ff8800", width: 3 }),
-    });
-  };
+  // Reference to select interaction for keyboard shortcuts
+  const selectInteractionRef = useRef<Select | null>(null);
 
-  // ✅ Initialize map
-  useEffect(() => {
-    // Create OSM layer
-    const osmLayer = new TileLayer({
-      source: new OSM(),
-      visible: true,
-    });
+  // Reference to undo interaction for keyboard shortcuts
+  const undoRedoInteractionRef = useRef<any>(null);
 
-    // Create Satellite layer using Esri World Imagery
-    const satelliteLayer = new TileLayer({
-      source: new XYZ({
-        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        attributions: "Tiles © Esri",
-        maxZoom: 19,
-        minZoom: 0,
-      }),
-      visible: false,
-    });
+  // File input reference for FileManager
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    // Store references for layer switching
-    osmLayerRef.current = osmLayer;
-    satelliteLayerRef.current = satelliteLayer;
-
-    const vectorLayer = new VectorLayer({
-      source: vectorSourceRef.current,
-      style: getFeatureStyle,
-    });
-
-    const map = new Map({
-      target: "map",
-      layers: [osmLayer, satelliteLayer, vectorLayer],
-      view: new View({
-        center: fromLonLat([78.9629, 20.5937]),
-        zoom: 5,
-        maxZoom: 19,
-        minZoom: 0,
-        smoothExtentConstraint: true,
-      }),
-      controls: defaultControls({
-        zoom: false,
-        attribution: false,
-        rotate: false,
-      }),
-    });
-
-    // ✅ Select + Modify interactions
-    const selectInteraction = new Select({
-      condition: click,
-      layers: [vectorLayer],
-    });
-    const modifyInteraction = new Modify({
-      features: selectInteraction.getFeatures(),
-    });
-    map.addInteraction(selectInteraction);
-    map.addInteraction(modifyInteraction);
-
-    selectInteraction.on("select", (e) => {
-      setSelectedFeature(e.selected[0] || null);
-    });
-
-    mapRef.current = map;
-
-    return () => map.setTarget(undefined);
-  }, []);
-
-  // ✅ Handle map view change with smooth transitions
-  const handleMapViewChange = (newView: MapViewType) => {
-    if (!osmLayerRef.current || !satelliteLayerRef.current || !mapRef.current)
-      return;
-
-    if (newView === currentMapView) return; // No change needed
-
-    setIsTransitioning(true);
-    setCurrentMapView(newView);
-
-    // Set opacity for fade transition
-    if (newView === "osm") {
-      // Fade out satellite, fade in OSM
-      satelliteLayerRef.current!.setOpacity(1);
-      osmLayerRef.current!.setOpacity(0);
-      osmLayerRef.current!.setVisible(true);
-
-      // Simple opacity change with CSS transition (since OpenLayers layer.animate is not available)
-      setTimeout(() => {
-        satelliteLayerRef.current!.setOpacity(0);
-        osmLayerRef.current!.setOpacity(1);
-      }, 50);
-
-      setTimeout(() => {
-        satelliteLayerRef.current!.setVisible(false);
-        setIsTransitioning(false);
-      }, 250);
-    } else {
-      // Fade out OSM, fade in satellite
-      osmLayerRef.current!.setOpacity(1);
-      satelliteLayerRef.current!.setOpacity(0);
-      satelliteLayerRef.current!.setVisible(true);
-
-      // Simple opacity change with CSS transition
-      setTimeout(() => {
-        osmLayerRef.current!.setOpacity(0);
-        satelliteLayerRef.current!.setOpacity(1);
-      }, 50);
-
-      setTimeout(() => {
-        osmLayerRef.current!.setVisible(false);
-        setIsTransitioning(false);
-      }, 250);
-    }
-  };
-
-  // ✅ Handle file import (GeoJSON, KML, KMZ)
+  // File change handler
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -223,7 +106,6 @@ const MapEditor: React.FC = () => {
         }
 
         vectorSourceRef.current.clear();
-        console.log(features, "features");
         vectorSourceRef.current.addFeatures(features);
 
         const extent: Extent = vectorSourceRef.current.getExtent();
@@ -232,7 +114,6 @@ const MapEditor: React.FC = () => {
           padding: [50, 50, 50, 50],
         });
       } catch (err) {
-        console.error("File parsing error:", err);
         alert("Invalid or unsupported file format.");
       }
     };
@@ -245,9 +126,17 @@ const MapEditor: React.FC = () => {
     }
   };
 
-  const handleImportClick = () => fileInputRef.current?.click();
+  // Handle map initialization
+  const handleMapReady = (map: Map) => {
+    mapRef.current = map;
+  };
 
-  // ✅ Delete selected feature
+  // Handle tool activation
+  const handleToolActivation = (toolId: string) => {
+    setActiveTool(toolId);
+  };
+
+  // Handle feature deletion
   const handleDelete = () => {
     if (selectedFeature) {
       vectorSourceRef.current.removeFeature(selectedFeature);
@@ -257,31 +146,173 @@ const MapEditor: React.FC = () => {
     }
   };
 
+  // Handle file import
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Copy-paste operation handlers
+  const handleCopyOperation = (
+    features: Feature<Geometry>[],
+    isCut: boolean
+  ) => {
+    setCopiedFeatures(features, isCut);
+  };
+
+  const handlePasteOperation = (
+    _features: Feature<Geometry>[],
+    coordinates: number[]
+  ) => {
+    const pastedFeatures: Feature<Geometry>[] = [];
+
+    clipboardState.copiedFeatures.forEach((originalFeature) => {
+      const clonedFeature = cloneFeature(originalFeature);
+
+      // Move cloned feature to the exact coordinates provided
+      // Calculate offset needed to move feature from original position to target
+      const originalGeometry = originalFeature.getGeometry();
+      if (originalGeometry) {
+        const originalExtent = originalGeometry.getExtent();
+        const originalCenter = [
+          (originalExtent[0] + originalExtent[2]) / 2,
+          (originalExtent[1] + originalExtent[3]) / 2,
+        ];
+
+        // Calculate offset to move feature center to target coordinates
+        const offsetX = coordinates[0] - originalCenter[0];
+        const offsetY = coordinates[1] - originalCenter[1];
+
+        // Apply translation
+        const translatedFeature = offsetFeature(
+          clonedFeature,
+          offsetX,
+          offsetY
+        );
+        vectorSourceRef.current.addFeature(translatedFeature);
+        pastedFeatures.push(translatedFeature);
+      }
+    });
+
+    // Select the first pasted feature
+    if (pastedFeatures.length > 0) {
+      setSelectedFeature(pastedFeatures[0]);
+    }
+
+    // If it was a cut operation, clear the clipboard after pasting
+    if (clipboardState.isCutOperation) {
+      clearClipboard();
+    }
+  };
+
+  // Handle select interaction reference from MapInteractions
+  const handleSelectInteractionReady = (selectInteraction: Select | null) => {
+    selectInteractionRef.current = selectInteraction;
+  };
+
+  // Handle undo interaction reference from MapInteractions
+  const handleUndoInteractionReady = (undoInteraction: any) => {
+    undoRedoInteractionRef.current = undoInteraction;
+    console.log(
+      "handleUndoInteractionReady UndoInteration MapEditor : ",
+      undoInteraction
+    );
+  };
+
+  // Undo operation handler
+  const handleUndoOperation = () => {
+    console.log("handleUndoOperation : ", undoRedoInteractionRef.current);
+    if (
+      undoRedoInteractionRef.current &&
+      undoRedoInteractionRef.current.hasUndo()
+    ) {
+      undoRedoInteractionRef.current.undo();
+    }
+  };
+
+  // Redo operation handler
+  const handleRedoOperation = () => {
+    if (
+      undoRedoInteractionRef.current &&
+      undoRedoInteractionRef.current.hasRedo()
+    ) {
+      undoRedoInteractionRef.current.redo();
+    }
+  };
+
+  // Set up keyboard shortcuts
+  useKeyboardShortcuts({
+    map: mapRef.current,
+    vectorSource: vectorSourceRef.current,
+    selectInteraction: selectInteractionRef.current,
+    clipboardFeatures: clipboardState.copiedFeatures,
+    onCopyOperation: handleCopyOperation,
+    onPasteOperation: handlePasteOperation,
+    onSetActiveTool: setActiveTool,
+    onUndoOperation: handleUndoOperation,
+    onRedoOperation: handleRedoOperation,
+    disabled: false,
+  });
+
   return (
     <div>
-      <div id="map" className="relative w-full h-screen">
-        <Toolbar
-          onFileImport={handleImportClick}
-          onDeleteFeature={handleDelete}
-        />
+      <MapInstance
+        onMapReady={handleMapReady}
+        osmLayerRef={osmLayerRef}
+        satelliteLayerRef={satelliteLayerRef}
+        vectorLayerRef={vectorLayerRef}
+        vectorSourceRef={vectorSourceRef}
+      />
 
-        <input
-          type="file"
-          accept=".geojson,.json,.kml,.kmz"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          style={{ display: "none" }}
-        />
-        <LoadingOverlay
-          isVisible={isTransitioning}
-          message="Switching map view..."
-        />
-        <MapViewToggle
-          currentView={currentMapView}
-          onViewChange={handleMapViewChange}
-        />
-        {/* Toolbar */}
-      </div>
+      <MapInteractions
+        map={mapRef.current}
+        vectorLayer={vectorLayerRef.current}
+        activeTool={activeTool}
+        onFeatureSelect={setSelectedFeature}
+        clipboardFeatures={clipboardState.copiedFeatures}
+        onCopyFeatures={handleCopyOperation}
+        onPasteFeatures={handlePasteOperation}
+        onSelectInteractionReady={handleSelectInteractionReady}
+        onUndoInteractionReady={handleUndoInteractionReady}
+      />
+
+      <ToolManager
+        map={mapRef.current}
+        vectorSource={vectorSourceRef.current}
+        activeTool={activeTool}
+        selectedLegend={selectedLegend}
+        onToolChange={setActiveTool}
+      />
+
+      <Toolbar
+        onFileImport={handleImportClick}
+        onDeleteFeature={handleDelete}
+        onToolActivate={handleToolActivation}
+        activeTool={activeTool}
+        selectedLegend={selectedLegend}
+        onLegendSelect={handleLegendSelect}
+      />
+
+      <FileManager
+        map={mapRef.current}
+        vectorSource={vectorSourceRef.current}
+        fileInputRef={fileInputRef}
+      />
+
+      <input
+        type="file"
+        accept=".geojson,.json,.kml,.kmz"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        style={{ display: "none" }}
+      />
+      <LoadingOverlay
+        isVisible={isTransitioning}
+        message="Switching map view..."
+      />
+      <MapViewToggle
+        currentView={currentMapView}
+        onViewChange={handleMapViewChange}
+      />
     </div>
   );
 };

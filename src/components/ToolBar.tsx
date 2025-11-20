@@ -10,19 +10,30 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Import, Menu, Trash2 } from "lucide-react";
 import { TOOLS } from "../tools/toolConfig";
+import { LegendDropdown } from "./LegendDropdown";
+import type { LegendType } from "@/tools/legendsConfig";
 
 interface ToolbarProps {
   onFileImport: () => void;
   onDeleteFeature: () => void;
+  onToolActivate: (toolId: string) => void;
+  activeTool: string;
+  selectedLegend?: LegendType;
+  onLegendSelect: (legend: LegendType) => void;
 }
 
-const Toolbar = ({ onFileImport, onDeleteFeature }: ToolbarProps) => {
+const Toolbar = ({
+  onFileImport,
+  onDeleteFeature,
+  onToolActivate,
+  activeTool,
+  selectedLegend,
+  onLegendSelect,
+}: ToolbarProps) => {
   const [open, setOpen] = useState(true);
-  const [selectedTool, setSelectedTool] = useState("");
 
   const handleToolClick = (toolId: string) => {
-    setSelectedTool(toolId);
-    console.log(toolId, "toolId");
+    onToolActivate(toolId);
   };
 
   return (
@@ -45,13 +56,24 @@ const Toolbar = ({ onFileImport, onDeleteFeature }: ToolbarProps) => {
           <DropdownMenuGroup className="my-2 px-3">
             <div className="grid grid-cols-2 gap-4">
               {TOOLS.map((tool) => {
+                if (tool.id === "legends") {
+                  return (
+                    <div key={tool.id} className="flex justify-center">
+                      <LegendDropdown
+                        selectedLegend={selectedLegend}
+                        onLegendSelect={onLegendSelect}
+                      />
+                    </div>
+                  );
+                }
+
                 const Icon = tool.icon;
                 return (
                   <DropdownMenuItem
                     key={tool.id}
                     onSelect={(e) => e.preventDefault()}
                     className={`w-full cursor-pointer ${
-                      selectedTool === tool.id
+                      activeTool === tool.id
                         ? "bg-[#e0dfff] focus:bg-[#e0dfff]"
                         : "focus:bg-zinc-200/60"
                     } hover:bg-[#e0dfff]  delay-75 transition-all flex justify-center `}
