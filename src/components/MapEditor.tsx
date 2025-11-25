@@ -22,6 +22,12 @@ import { cloneFeature, offsetFeature } from "@/utils/interactionUtils";
 import { Select } from "ol/interaction";
 import SuperJSON from "superjson";
 import { usePGlite } from "@electric-sql/pglite-react";
+import {
+  convertFeaturesToGeoJSON,
+  convertGeoJSONToFeatures,
+  isEmptyExtent,
+} from "@/utils/serializationUtils";
+import { fitMapToFeatures, restoreMapView } from "@/utils/mapStateUtils";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -33,165 +39,6 @@ interface SerializedMapData {
   };
 }
 
-// Conversion utilities for proper serialization
-const convertFeaturesToGeoJSON = (vectorSource: any): any => {
-  const features = vectorSource.getFeatures();
-  const geoJSONFormat = new GeoJSON();
-
-  try {
-    const geoJSONFeatures = features.map((feature: Feature<Geometry>) => {
-      // Extract style metadata before converting to GeoJSON
-      const styleMetadata = extractStyleMetadata(feature);
-
-      // Create a copy of the feature and add style metadata to properties
-      const featureClone = feature.clone();
-
-      // Add style metadata to feature properties
-      Object.keys(styleMetadata).forEach((key) => {
-        featureClone.set(key, styleMetadata[key]);
-      });
-
-      const geoJSONFeature = geoJSONFormat.writeFeature(featureClone, {
-        featureProjection: "EPSG:3857",
-        dataProjection: "EPSG:4326",
-      });
-
-      const parsed = JSON.parse(geoJSONFeature);
-
-      // Ensure properties object exists and contains our metadata
-      if (!parsed.properties) {
-        parsed.properties = {};
-      }
-
-      // Explicitly add all style metadata to properties
-      Object.assign(parsed.properties, styleMetadata);
-
-      return parsed;
-    });
-
-    return {
-      type: "FeatureCollection",
-      features: geoJSONFeatures,
-    };
-  } catch (error) {
-    console.error("Error converting features to GeoJSON:", error);
-    return {
-      type: "FeatureCollection",
-      features: [],
-    };
-  }
-};
-
-const convertGeoJSONToFeatures = (geoJSONData: any): Feature<Geometry>[] => {
-  const geoJSONFormat = new GeoJSON();
-
-  try {
-    const features = geoJSONFormat.readFeatures(geoJSONData, {
-      featureProjection: "EPSG:3857",
-      dataProjection: "EPSG:4326",
-    });
-
-    // Restore feature properties from GeoJSON properties
-    features.forEach((feature: Feature<Geometry>) => {
-      const geoJSONProperties = feature.getProperties();
-
-      // Restore all icon type identifiers and metadata
-      Object.keys(geoJSONProperties).forEach((key) => {
-        if (key !== "geometry" && geoJSONProperties[key] !== undefined) {
-          feature.set(key, geoJSONProperties[key]);
-        }
-      });
-
-      // Call style recreation (though styling is handled by FeatureStyler)
-      recreateFeatureStyle(feature);
-    });
-
-    return features;
-  } catch (error) {
-    console.error("Error converting GeoJSON to features:", error);
-    return [];
-  }
-};
-
-const saveMapDataToLocalStorage = (data: SerializedMapData): void => {
-  try {
-    const serializedData = SuperJSON.serialize(data);
-    localStorage.setItem("DS-Stack", JSON.stringify(serializedData));
-  } catch (error) {
-    console.error("Error saving map data to localStorage:", error);
-    // Handle localStorage quota exceeded
-    if (error instanceof Error && error.name === "QuotaExceededError") {
-      alert("Storage quota exceeded. Some old data may be cleared.");
-      // Optionally clear old data or implement cleanup strategy
-    }
-  }
-};
-
-const loadMapDataFromLocalStorage = (): SerializedMapData | null => {
-  try {
-    const savedData = localStorage.getItem("DS-Stack");
-    if (!savedData) return null;
-
-    const parsedData = JSON.parse(savedData);
-    const deserializedData = SuperJSON.deserialize(parsedData);
-
-    // Validate the structure
-    if (!deserializedData || typeof deserializedData !== "object") {
-      console.warn("Invalid data structure in localStorage");
-      return null;
-    }
-
-    return deserializedData as SerializedMapData;
-  } catch (error) {
-    console.error("Error loading map data from localStorage:", error);
-    // Clear corrupted data
-    localStorage.removeItem("DS-Stack");
-    return null;
-  }
-};
-
-// Helper function to check if extent is empty
-const isEmptyExtent = (extent: Extent): boolean => {
-  return (
-    extent[0] === Infinity ||
-    extent[1] === Infinity ||
-    extent[2] === -Infinity ||
-    extent[3] === -Infinity
-  );
-};
-
-// Style serialization utilities
-const extractStyleMetadata = (feature: Feature<Geometry>): any => {
-  const featureType = feature.getGeometry()?.getType();
-  const properties: any = {};
-
-  // Store feature type for recreation
-  properties.featureType = featureType;
-
-  // Store icon type identifiers
-  if (feature.get("isPit")) properties.isPit = true;
-  if (feature.get("isGP")) properties.isGP = true;
-  if (feature.get("isJunction")) properties.isJunction = true;
-  if (feature.get("isTower")) properties.isTower = true;
-  if (feature.get("isTriangle")) properties.isTriangle = true;
-  if (feature.get("isArrow")) properties.isArrow = true;
-  if (feature.get("isMeasure")) properties.isMeasure = true;
-  if (feature.get("islegends")) properties.islegends = true;
-  if (feature.get("legendType"))
-    properties.legendType = feature.get("legendType");
-  if (feature.get("distance")) properties.distance = feature.get("distance");
-  if (feature.get("nonEditable")) properties.nonEditable = true;
-
-  return properties;
-};
-
-const recreateFeatureStyle = (_feature: Feature<Geometry>): void => {
-  // This will be called after features are loaded from GeoJSON
-  // The FeatureStyler will handle the actual styling via getFeatureTypeStyle
-  // We just need to make sure the feature properties are preserved
-  // The style will be applied automatically when the feature is rendered
-};
-
 const MapEditor: React.FC = () => {
   // Core map references
   const mapRef = useRef<Map | null>(null);
@@ -199,8 +46,7 @@ const MapEditor: React.FC = () => {
   console.log(vectorSourceRef);
   const vectorLayerRef = useRef<any>(null);
   const [interactionReady, setInteractionReady] = useState(false);
-  const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false);
-
+  
   // PgLite database instance from hook
   const db = usePGlite();
 
@@ -308,10 +154,9 @@ const MapEditor: React.FC = () => {
         vectorSourceRef.current.addFeatures(features);
 
         const extent: Extent = vectorSourceRef.current.getExtent();
-        mapRef.current?.getView().fit(extent, {
-          duration: 1000,
-          padding: [50, 50, 50, 50],
-        });
+        if (mapRef.current) {
+          fitMapToFeatures(mapRef.current, extent);
+        }
       } catch (err) {
         alert("Invalid or unsupported file format.");
       }
@@ -482,16 +327,6 @@ const MapEditor: React.FC = () => {
       console.log("Map state saved to PgLite");
     } catch (error) {
       console.error("Failed to save map state to PgLite:", error);
-      // Fallback to localStorage if PgLite fails
-      const mapData: SerializedMapData = {
-        features: convertFeaturesToGeoJSON(vectorSourceRef.current),
-        mapState: {
-          center: mapRef.current.getView().getCenter() as [number, number],
-          zoom: mapRef.current.getView().getZoom() || 0,
-          viewMode: currentMapView,
-        },
-      };
-      saveMapDataToLocalStorage(mapData);
     }
   };
 
@@ -519,69 +354,17 @@ const MapEditor: React.FC = () => {
 
         const extent = vectorSourceRef.current.getExtent();
         if (!isEmptyExtent(extent) && mapRef.current) {
-          mapRef.current.getView().fit(extent, {
-            duration: 1000,
-            padding: [50, 50, 50, 50],
-            maxZoom: 18,
-          });
+          fitMapToFeatures(mapRef.current, extent);
         }
       }
 
       if (mapData.mapState && mapRef.current) {
-        const { center, zoom, viewMode } = mapData.mapState;
-        const view = mapRef.current.getView();
-        if (center && zoom !== undefined) {
-          view.setCenter(center);
-          view.setZoom(zoom);
-        }
-        if (viewMode && viewMode !== currentMapView) {
-          handleMapViewChange(viewMode);
-        }
+        restoreMapView(mapRef.current, mapData.mapState, handleMapViewChange);
       }
 
       console.log("Map state loaded from PgLite");
     } catch (error) {
       console.error("Failed to load map state from PgLite:", error);
-      // Fallback to localStorage if PgLite fails
-      const savedMapData = loadMapDataFromLocalStorage();
-      if (savedMapData) {
-        console.log("Falling back to localStorage");
-        // Load features from GeoJSON
-        if (
-          savedMapData.features &&
-          savedMapData.features.features.length > 0
-        ) {
-          vectorSourceRef.current.clear();
-          const savedFeatures = convertGeoJSONToFeatures(savedMapData.features);
-          vectorSourceRef.current.addFeatures(savedFeatures);
-
-          const extent = vectorSourceRef.current.getExtent();
-          if (extent && extent.length === 4 && !isEmptyExtent(extent)) {
-            mapRef.current?.getView().fit(extent, {
-              duration: 1000,
-              padding: [50, 50, 50, 50],
-              maxZoom: 18,
-            });
-          }
-        }
-
-        // Restore map state if available
-        if (savedMapData.mapState && mapRef.current) {
-          const view = mapRef.current.getView();
-          const { center, zoom, viewMode } = savedMapData.mapState;
-
-          // Restore center and zoom
-          if (center && zoom !== undefined) {
-            view.setCenter(center);
-            view.setZoom(zoom);
-          }
-
-          // Restore view mode
-          if (viewMode && viewMode !== currentMapView) {
-            handleMapViewChange(viewMode);
-          }
-        }
-      }
     }
   };
 
@@ -594,46 +377,7 @@ const MapEditor: React.FC = () => {
       if (success) {
         loadMapState();
       } else {
-        console.log("Database initialization failed, using localStorage fallback");
-        // Load from localStorage if database initialization fails
-        const savedMapData = loadMapDataFromLocalStorage();
-        if (savedMapData) {
-          // Load features from GeoJSON
-          if (
-            savedMapData.features &&
-            savedMapData.features.features.length > 0
-          ) {
-            vectorSourceRef.current.clear();
-            const savedFeatures = convertGeoJSONToFeatures(savedMapData.features);
-            vectorSourceRef.current.addFeatures(savedFeatures);
-
-            const extent = vectorSourceRef.current.getExtent();
-            if (extent && extent.length === 4 && !isEmptyExtent(extent)) {
-              mapRef.current?.getView().fit(extent, {
-                duration: 1000,
-                padding: [50, 50, 50, 50],
-                maxZoom: 18,
-              });
-            }
-          }
-
-          // Restore map state if available
-          if (savedMapData.mapState && mapRef.current) {
-            const view = mapRef.current.getView();
-            const { center, zoom, viewMode } = savedMapData.mapState;
-
-            // Restore center and zoom
-            if (center && zoom !== undefined) {
-              view.setCenter(center);
-              view.setZoom(zoom);
-            }
-
-            // Restore view mode
-            if (viewMode && viewMode !== currentMapView) {
-              handleMapViewChange(viewMode);
-            }
-          }
-        }
+        console.log("Database initialization failed");
       }
     });
   }, [db]);
@@ -687,64 +431,7 @@ const MapEditor: React.FC = () => {
     disabled: false,
   });
 
-  // Load saved map data from localStorage on mount
-  useEffect(() => {
-    // Prevent duplicate loads during React StrictMode double-mounting
-    if (hasLoadedFromStorage) return;
-
-    const savedMapData = loadMapDataFromLocalStorage();
-
-    if (savedMapData) {
-      try {
-        // Load features from GeoJSON
-        if (
-          savedMapData.features &&
-          savedMapData.features.features.length > 0
-        ) {
-          vectorSourceRef.current.clear(); // Clear existing features before loading saved ones
-          const savedFeatures = convertGeoJSONToFeatures(savedMapData.features);
-          vectorSourceRef.current.addFeatures(savedFeatures);
-
-          // Fit map view to loaded features extent
-          const extent = vectorSourceRef.current.getExtent();
-          if (extent && extent.length === 4 && !isEmptyExtent(extent)) {
-            mapRef.current?.getView().fit(extent, {
-              duration: 1000,
-              padding: [50, 50, 50, 50],
-              maxZoom: 18,
-            });
-          }
-        }
-
-        // Restore map state if available
-        if (savedMapData.mapState && mapRef.current) {
-          const view = mapRef.current.getView();
-          const { center, zoom, viewMode } = savedMapData.mapState;
-
-          // Restore center and zoom
-          if (center && zoom !== undefined) {
-            view.setCenter(center);
-            view.setZoom(zoom);
-          }
-
-          // Restore view mode
-          if (viewMode && viewMode !== currentMapView) {
-            handleMapViewChange(viewMode);
-          }
-        }
-
-        console.log(
-          `Loaded ${savedMapData.features.features.length} features from localStorage`
-        );
-      } catch (error) {
-        console.error("Error loading saved map data:", error);
-      }
-    }
-
-    // Mark as loaded to prevent duplicate loads during StrictMode
-    setHasLoadedFromStorage(true);
-  }, [hasLoadedFromStorage]); // Add dependency to prevent duplicate loads
-
+  
   return (
     <div>
       <MapInstance

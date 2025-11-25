@@ -48,6 +48,8 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - **Point delete functionality** in polylines with vertex manipulation
 - **Enhanced keyboard shortcuts** for improved workflow efficiency
 - **Undo/Redo functionality** with keyboard shortcuts (Ctrl+Z, Ctrl+Y) for all drawing operations
+- **Data persistence with PGLite** - Local PostgreSQL-compatible database for reliable data storage and retrieval
+- **Enhanced serialization utilities** - Advanced feature serialization and deserialization for complex data structures
 - Smooth map view transitions
 
 ### Architecture
@@ -85,6 +87,8 @@ The application follows a modular, component-based architecture with clear separ
 - **`colorUtils.ts`** - Color manipulation utilities
 - **`interactionUtils.ts`** - Draw interaction creation utilities
 - **`featureTypeUtils.ts`** - Feature selection and editability logic
+- **`mapStateUtils.ts`** - Map state management and persistence utilities
+- **`serializationUtils.ts`** - Advanced feature serialization and deserialization for database storage
 
 #### Icons (`src/icons/`)
 - **Icon components** - Triangle, Pit, GP, Junction Point, Tower SVG components and click handlers
@@ -174,6 +178,13 @@ The application follows a modular, component-based architecture with clear separ
    - Undo history persists across tool switches due to singleton implementation
    - Uses ol-ext library with proper TypeScript type definitions in `src/types/ol-ext.d.ts`
 
+8. **Data Persistence with PGLite**:
+   - PGLite database integration for local data storage with PostgreSQL compatibility
+   - Map state and feature data persistence through `mapStateUtils.ts`
+   - Advanced serialization utilities in `serializationUtils.ts` for complex feature storage
+   - Automatic data recovery and restoration capabilities
+   - Performance-optimized database operations for real-time applications
+
 #### Benefits of the New Architecture
 - **Easier debugging** - Issues can be isolated to specific components
 - **Better testing** - Each component can be unit tested independently
@@ -187,7 +198,16 @@ The `Icons2.0` branch includes the latest features and improvements over the mai
 
 ### Recent Changes
 
-#### Undo/Redo Implementation (Latest - v2.2)
+#### Data Persistence with PGLite (Latest - v2.3)
+- **PGLite database integration** - Implemented PostgreSQL-compatible local database for reliable data storage
+- **Advanced serialization system** - New `serializationUtils.ts` handles complex feature serialization and deserialization
+- **Map state persistence** - `mapStateUtils.ts` provides comprehensive map state management and recovery
+- **Automatic data recovery** - Robust restoration of application state and features on startup
+- **Performance optimization** - Efficient database operations optimized for real-time map interactions
+- **Enhanced data integrity** - Comprehensive error handling and validation for database operations
+- **Seamless integration** - Persistence layer integrates cleanly with existing component architecture
+
+#### Undo/Redo Implementation (v2.2)
 - **Complete undo/redo functionality** - Implemented comprehensive undo/redo system using ol-ext UndoRedo interaction
 - **Keyboard shortcuts** - Added Ctrl+Z (undo) and Ctrl+Y (redo) keyboard shortcuts
 - **All drawing operations tracked** - Point, Polyline, Line, Freehand, Arrow, GP, Tower, Junction Point, Legend tools
@@ -256,7 +276,7 @@ The `Icons2.0` branch includes the latest features and improvements over the mai
 - Enhanced UI with improved tooltips and visual feedback
 
 ### Version History
-- **Icons2.0** (current) - Latest features including Cut/Copy/Paste, point delete, Measure tool, icon improvements, and architecture refactoring
+- **Icons2.0** (current) - Latest features including PGLite persistence, advanced serialization, Cut/Copy/Paste, point delete, Measure tool, icon improvements, and architecture refactoring
 - **Icons** - Icon tools implementation
 - **Legends** - Legend component enhancements
 - **Satellite** - Arrow tool and satellite view improvements
