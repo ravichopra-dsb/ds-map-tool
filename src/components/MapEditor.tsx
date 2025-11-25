@@ -46,7 +46,7 @@ const MapEditor: React.FC = () => {
   console.log(vectorSourceRef);
   const vectorLayerRef = useRef<any>(null);
   const [interactionReady, setInteractionReady] = useState(false);
-  
+
   // PgLite database instance from hook
   const db = usePGlite();
 
@@ -157,6 +157,9 @@ const MapEditor: React.FC = () => {
         if (mapRef.current) {
           fitMapToFeatures(mapRef.current, extent);
         }
+
+        // Save imported features to database silently
+        await saveMapState();
       } catch (err) {
         alert("Invalid or unsupported file format.");
       }
@@ -345,7 +348,9 @@ const MapEditor: React.FC = () => {
 
       const row = result.rows[0] as { serialized_data: string };
       const serializedData: string = row.serialized_data;
-      const mapData = SuperJSON.deserialize(JSON.parse(serializedData)) as SerializedMapData;
+      const mapData = SuperJSON.deserialize(
+        JSON.parse(serializedData)
+      ) as SerializedMapData;
 
       if (mapData.features && mapData.features.features.length > 0) {
         vectorSourceRef.current.clear();
@@ -431,7 +436,6 @@ const MapEditor: React.FC = () => {
     disabled: false,
   });
 
-  
   return (
     <div>
       <MapInstance
