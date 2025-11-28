@@ -28,6 +28,7 @@ import {
   isEmptyExtent,
 } from "@/utils/serializationUtils";
 import { fitMapToFeatures, restoreMapView } from "@/utils/mapStateUtils";
+import { JobSelection } from "./JobSelection";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -488,6 +489,7 @@ const MapEditor: React.FC = () => {
         onChange={handleFileChange}
         style={{ display: "none" }}
       />
+      <JobSelection />
       <LoadingOverlay
         isVisible={isTransitioning}
         message="Switching map view..."

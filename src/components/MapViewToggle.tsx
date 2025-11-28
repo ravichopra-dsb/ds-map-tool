@@ -11,7 +11,7 @@ interface MapViewToggleProps {
 
 export function MapViewToggle({ currentView, onViewChange }: MapViewToggleProps) {
   return (
-    <Card className="absolute top-4 right-4 z-10 p-1 shadow-lg">
+    <Card className="absolute bottom-2 right-2 z-10 p-1 shadow-lg">
       <ToggleGroup
         type="single"
         value={currentView}
