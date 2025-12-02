@@ -34,6 +34,7 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - **UI Icons**: Lucide React
 - **Build Tool**: Vite 7.1.7
 - **Package Manager**: npm/pnpm
+- **Routing**: React Router 7.9.6
 
 ### Key Features
 - Interactive map with OSM and satellite view toggle
@@ -52,6 +53,7 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - **Data persistence with PGLite** - Local PostgreSQL-compatible database for reliable data storage and retrieval
 - **Enhanced serialization utilities** - Advanced feature serialization and deserialization for complex data structures
 - **Project-based data isolation** - Each project maintains its own separate database and map state
+- **Multi-selection functionality** - Enhanced multi-selection with drag, copy, paste, and cut operations for multiple features
 - Smooth map view transitions
 
 ### Architecture
@@ -92,6 +94,7 @@ The application follows a modular, component-based architecture with clear separ
 - **`colorUtils.ts`** - Color manipulation utilities
 - **`interactionUtils.ts`** - Draw interaction creation utilities
 - **`featureTypeUtils.ts`** - Feature selection and editability logic
+- **`geometryUtils.ts`** - Geometry conversion utilities (Circle to Polygon approximation for GeoJSON serialization)
 - **`mapStateUtils.ts`** - Map state management and persistence utilities
 - **`serializationUtils.ts`** - Advanced feature serialization and deserialization for database storage
 
@@ -105,7 +108,7 @@ The application follows a modular, component-based architecture with clear separ
 - **`lib/`** - Shared utility functions (e.g., cn for className merging)
 
 ### Available Tools
-- **Select**: Select all features (universal selection) with editing restricted to Polyline, Freehand Line, Arrow, and Legend features
+- **Select**: Select all features (universal selection) with multi-selection support (shift-click, drag selection) and editing restricted to Polyline, Freehand Line, Arrow, and Legend features
 - **Hand**: Pan navigation mode
 - **Point**: Place point markers
 - **Polyline**: Draw straight lines with vertex delete functionality
@@ -183,14 +186,22 @@ The application follows a modular, component-based architecture with clear separ
    - Undo history persists across tool switches due to singleton implementation
    - Uses ol-ext library with proper TypeScript type definitions in `src/types/ol-ext.d.ts`
 
-8. **Data Persistence with PGLite**:
+8. **Multi-Selection Implementation**:
+   - Multi-selection functionality is implemented in `MapInteractions.tsx` with configurable modes
+   - Supports three multi-selection modes: "shift-click" (default), "always", and "custom"
+   - Drag selection allows selecting multiple features within a selection box
+   - Multi-feature copy/paste/cut operations work seamlessly with the clipboard system
+   - Selection state is managed through callbacks for proper state synchronization
+   - Visual feedback provides clear indication of selected features and multi-selection operations
+
+9. **Data Persistence with PGLite**:
    - PGLite database integration for local data storage with PostgreSQL compatibility
    - Map state and feature data persistence through `mapStateUtils.ts`
    - Advanced serialization utilities in `serializationUtils.ts` for complex feature storage
    - Automatic data recovery and restoration capabilities
    - Performance-optimized database operations for real-time applications
 
-9. **Multi-Job/Project Management**:
+10. **Multi-Job/Project Management**:
    - Project-based data isolation with separate PGLite databases for each project
    - Comprehensive CRUD operations through `useMapProjects.ts` hook
    - Project metadata management with timestamps and persistent storage
@@ -211,7 +222,15 @@ The `Icons2.0` branch includes the latest features and improvements over the mai
 
 ### Recent Changes
 
-#### Multi-Job Project Management (Latest - v2.4)
+#### Enhanced Multi-Selection Functionality (Latest - v2.5)
+- **Advanced multi-selection modes** - Support for shift-click, always-on, and custom multi-selection modes
+- **Drag selection support** - Select multiple features by dragging a selection box
+- **Multi-feature operations** - Enhanced copy, paste, and cut operations for multiple selected features
+- **Improved selection feedback** - Visual feedback for multi-selection operations with proper highlighting
+- **Flexible selection modes** - Configurable multi-selection behavior through `multiSelectMode` parameter
+- **Enhanced interaction handling** - Improved event handling for complex multi-selection scenarios
+
+#### Multi-Job Project Management (v2.4)
 - **Project-based architecture** - Complete multi-job system with isolated PGLite databases for each project
 - **`useMapProjects.ts` hook** - Comprehensive project management with CRUD operations and state persistence
 - **`JobSelection.tsx` component** - Advanced project selection interface with edit/delete functionality and keyboard shortcuts
@@ -300,7 +319,7 @@ The `Icons2.0` branch includes the latest features and improvements over the mai
 - Enhanced UI with improved tooltips and visual feedback
 
 ### Version History
-- **Icons2.0** (current) - Latest features including Multi-Job Project Management, PGLite persistence, advanced serialization, Cut/Copy/Paste, point delete, Measure tool, icon improvements, and architecture refactoring
+- **Icons2.0** (current) - Latest features including Enhanced Multi-Selection Functionality, Multi-Job Project Management, PGLite persistence, advanced serialization, Cut/Copy/Paste, point delete, Measure tool, icon improvements, and architecture refactoring
 - **Icons** - Icon tools implementation
 - **Legends** - Legend component enhancements
 - **Satellite** - Arrow tool and satellite view improvements
