@@ -28,6 +28,7 @@ import {
 import { fitMapToFeatures, restoreMapView } from "@/utils/mapStateUtils";
 import { JobSelection } from "./JobSelection";
 import { useMapProjects } from "@/hooks/useMapProjects";
+import PopupManager from "./PopupManager";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -46,6 +47,7 @@ const MapEditor: React.FC = () => {
   const vectorLayerRef = useRef<any>(null);
   const [interactionReady, setInteractionReady] = useState(false);
   const isProjectReadyRef = useRef(false);
+  const popupRef = useRef<HTMLDivElement | null>(null);
 
   const {
     projects,
@@ -512,6 +514,8 @@ const MapEditor: React.FC = () => {
         vectorLayerRef={vectorLayerRef}
         vectorSourceRef={vectorSourceRef}
       />
+
+      <PopupManager map={mapRef.current} />
 
       <MapInteractions
         map={mapRef.current}

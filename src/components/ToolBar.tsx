@@ -115,8 +115,8 @@ const Toolbar = ({
         <DropdownMenuContent className="w-32" align="start">
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={() => onExportClick("geojson")}>GeoJson</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onExportClick("kml")}>KML</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onExportClick("kmz")}>KMZ</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onExportClick("kml")}>Kml</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onExportClick("kmz")}>Kmz</DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
