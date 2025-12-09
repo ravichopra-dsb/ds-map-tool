@@ -229,6 +229,11 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     return null;
   }
 
+  // Don't show properties panel for text features
+  if (selectedFeature.get("isText")) {
+    return null;
+  }
+
   return (
     <div className="absolute right-4 top-20 w-80 h-112 rounded-lg overflow-hidden bg-white dark:bg-slate-800 shadow-2xl border-l border-gray-200 dark:border-slate-700 z-50 transform transition-transform duration-300 ease-in-out">
       <div className="h-full flex flex-col">

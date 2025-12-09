@@ -8,6 +8,7 @@ import { getLegendById } from "@/tools/legendsConfig";
 import { applyOpacityToColor } from "@/utils/colorUtils";
 import { getFeatureTypeStyle } from "@/utils/featureUtils";
 import { createPointStyle, createLineStyle } from "@/utils/styleUtils";
+import { getTextStyle } from "@/icons/Text";
 
 export type FeatureStylerFunction = (feature: FeatureLike, selectedLegend?: LegendType) => Style | Style[] | null;
 
@@ -144,6 +145,12 @@ export const getFeatureStyle = (
   // Handle measure features
   if (feature.get("isMeasure") && (type === "LineString" || type === "MultiLineString")) {
     return getMeasureTextStyle(feature);
+  }
+
+  // Handle text features
+  if (feature.get("isText") && type === "Point") {
+    const textContent = feature.get("text") || "Text";
+    return getTextStyle(textContent);
   }
 
   // Handle icon features using utility

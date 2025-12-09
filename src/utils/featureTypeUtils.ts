@@ -29,6 +29,7 @@ export const isEditableFeature = (feature: FeatureLike): boolean => {
   // Get feature properties
   const isArrow = feature.get("isArrow");
   const isLegends = feature.get("islegends");
+  const isText = feature.get("isText");
 
   // Editable: Arrow features
   if (isArrow) {
@@ -37,6 +38,11 @@ export const isEditableFeature = (feature: FeatureLike): boolean => {
 
   // Editable: Legend features
   if (isLegends) {
+    return true;
+  }
+
+  // Editable: Text features
+  if (isText) {
     return true;
   }
 

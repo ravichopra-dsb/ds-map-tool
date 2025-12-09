@@ -200,6 +200,24 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         );
         break;
 
+      case "text":
+        registerClickHandler(
+          map,
+          {
+            toolId: "text",
+            handlerKey: "TextClickHandler",
+            onClick: (coordinate) => {
+              // Trigger custom event for text dialog
+              const event = new CustomEvent('textToolClick', {
+                detail: { coordinate }
+              });
+              window.dispatchEvent(event);
+            },
+          },
+          vectorSource
+        );
+        break;
+
       case "measure":
         // Use the measure legend configuration
         const measureLegend = getLegendById("measure");

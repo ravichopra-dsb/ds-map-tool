@@ -2,11 +2,13 @@ import React, { useEffect, useRef } from "react";
 import Map from "ol/Map";
 import View from "ol/View";
 import { Feature } from "ol";
+import { Style, Text } from "ol/style";
 import { Tile as TileLayer, Vector as VectorLayer } from "ol/layer";
 import { OSM, XYZ, Vector as VectorSource } from "ol/source";
 import { fromLonLat } from "ol/proj";
 import { defaults as defaultControls } from "ol/control";
 import { getFeatureStyle } from "./FeatureStyler";
+import { getTextStyle } from "../icons/Text";
 
 export interface MapInstanceProps {
   onMapReady: (map: Map) => void;
@@ -51,7 +53,28 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
 
     const vectorLayer = new VectorLayer({
       source: vectorSourceRef.current,
-      style: (feature) => getFeatureStyle(feature),
+      style: (feature, resolution) => {
+        const type = feature.getGeometry()?.getType();
+
+        // Only process text features with resolution-based visibility
+        if (feature.get("isText") && type === "Point") {
+          const textContent = feature.get("text") || "Text";
+
+          // Hide text when zoomed out beyond zoom level ~8.5 (resolution 500)
+          console.log("resolution : ", resolution)
+          if (resolution > 50) {
+            return new Style({
+              text: new Text({ text: '' }) // OpenLayers pattern: empty text = hidden
+            });
+          }
+
+          // Show text when zoomed in
+          return getTextStyle(textContent);
+        }
+
+        // Handle all other feature types normally
+        return getFeatureStyle(feature);
+      },
     });
 
     // Store vector layer reference

@@ -29,6 +29,8 @@ import { fitMapToFeatures, restoreMapView } from "@/utils/mapStateUtils";
 import { JobSelection } from "./JobSelection";
 import { useMapProjects } from "@/hooks/useMapProjects";
 import PropertiesPanel from "./PropertiesPanel";
+import { TextDialog } from "./TextDialog";
+import { handleTextClick } from "@/icons/Text";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -80,6 +82,11 @@ const MapEditor: React.FC = () => {
   const selectInteractionRef = useRef<Select | null>(null);
   const undoRedoInteractionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Text dialog state
+  const [textDialogOpen, setTextDialogOpen] = useState(false);
+  const [pendingCoordinate, setPendingCoordinate] = useState<number[] | null>(null);
+  const [editingTextFeature, setEditingTextFeature] = useState<Feature<Geometry> | null>(null);
 
   // File import handler
   const handleFileChange = async (
@@ -484,6 +491,66 @@ const MapEditor: React.FC = () => {
     };
   }, [interactionReady, currentProjectId, currentDb, currentMapView]);
 
+  // Text tool event listener
+  useEffect(() => {
+    const handleTextToolClick = (event: CustomEvent) => {
+      const { coordinate } = event.detail;
+      setPendingCoordinate(coordinate);
+      setTextDialogOpen(true);
+    };
+
+    // Add event listener for text tool clicks
+    window.addEventListener('textToolClick', handleTextToolClick as EventListener);
+
+    return () => {
+      // Clean up event listener
+      window.removeEventListener('textToolClick', handleTextToolClick as EventListener);
+    };
+  }, []);
+
+  // Handle text feature selection for editing
+  useEffect(() => {
+    // Only handle editing when select tool is active and a text feature is selected
+    if (activeTool === "select" && selectedFeature && selectedFeature.get("isText")) {
+      const geometry = selectedFeature.getGeometry();
+      if (geometry && geometry.getType() === "Point") {
+        const point = geometry as any;
+        const coordinate = point.getCoordinates();
+
+        setEditingTextFeature(selectedFeature);
+        setPendingCoordinate(coordinate);
+        setTextDialogOpen(true);
+      }
+    } else if (activeTool !== "select" || !selectedFeature || !selectedFeature.get("isText")) {
+      // Clear editing state when not editing a text feature
+      setEditingTextFeature(null);
+    }
+  }, [activeTool, selectedFeature]);
+
+  // Text dialog handlers
+  const handleTextSubmit = (textContent: string) => {
+    if (editingTextFeature) {
+      // Update existing text feature
+      editingTextFeature.set("text", textContent);
+      // Text styling handled by layer style function
+      // Force re-render to update text
+      if (mapRef.current) {
+        mapRef.current.render();
+      }
+      // Clear selection after editing
+      setSelectedFeature(null);
+    } else if (pendingCoordinate && vectorSourceRef.current) {
+      // Create new text feature
+      handleTextClick(vectorSourceRef.current, pendingCoordinate, textContent);
+    }
+  };
+
+  const handleTextDialogClose = () => {
+    setTextDialogOpen(false);
+    setPendingCoordinate(null);
+    setEditingTextFeature(null);
+  };
+
   const handleRedoOperation = () => {
     if (undoRedoInteractionRef.current?.hasRedo()) {
       undoRedoInteractionRef.current.redo();
@@ -519,6 +586,15 @@ const MapEditor: React.FC = () => {
         selectedFeature={selectedFeature}
         onClose={() => setSelectedFeature(null)}
         onSave={saveMapState}
+      />
+
+      <TextDialog
+        isOpen={textDialogOpen}
+        onClose={handleTextDialogClose}
+        onSubmit={handleTextSubmit}
+        coordinate={pendingCoordinate || [0, 0]}
+        initialText={editingTextFeature?.get("text") || ""}
+        isEditing={!!editingTextFeature}
       />
 
       <MapInteractions

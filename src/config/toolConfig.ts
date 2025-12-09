@@ -3,6 +3,7 @@ import { handlePitClick } from "@/icons/Pit";
 import { handleGPClick } from "@/icons/Gp";
 import { handleJunctionClick } from "@/icons/JunctionPoint";
 import { handleTowerClickFromSvg } from "@/icons/Tower";
+// Text tool handler is managed in ToolManager.tsx
 
 /**
  * Tool configuration interface
@@ -118,6 +119,17 @@ export const TOOLS_CONFIG: Record<string, ToolConfig> = {
       );
     },
     clickHandlerKey: "TowerClickHandler",
+  },
+  text: {
+    id: "text",
+    name: "Text",
+    requiresClickHandler: true,
+    // Note: The click handler is managed in ToolManager.tsx for dialog integration
+    clickHandler: (coordinate) => {
+      // This will be handled in ToolManager.tsx to show dialog first
+      console.log("Text tool clicked at:", coordinate);
+    },
+    clickHandlerKey: "TextClickHandler",
   },
   select: {
     id: "select",
