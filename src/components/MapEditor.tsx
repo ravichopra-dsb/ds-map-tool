@@ -47,7 +47,6 @@ const MapEditor: React.FC = () => {
   const vectorLayerRef = useRef<any>(null);
   const [interactionReady, setInteractionReady] = useState(false);
   const isProjectReadyRef = useRef(false);
-  const popupRef = useRef<HTMLDivElement | null>(null);
 
   const {
     projects,
