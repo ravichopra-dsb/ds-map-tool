@@ -48,6 +48,7 @@ const MapEditor: React.FC = () => {
   const vectorSourceRef = useRef(new VectorSource());
   const vectorLayerRef = useRef<any>(null);
   const [interactionReady, setInteractionReady] = useState(false);
+
   const isProjectReadyRef = useRef(false);
 
   const {
@@ -414,6 +415,13 @@ const MapEditor: React.FC = () => {
   // ✅ LOAD from isolated DB
   const handleLoadMapState = async () => {
     try {
+      // Temporarily disable UndoRedo interaction to prevent it from tracking recovery operations
+      const wasUndoRedoActive = undoRedoInteractionRef.current !== null;
+      if (wasUndoRedoActive) {
+        undoRedoInteractionRef.current?.setActive(false);
+        console.log("Temporarily disabled UndoRedo interaction during recovery");
+      }
+
       // 1. ALWAYS clear the map first!
       // This ensures old project data is removed even if the new project is empty
       vectorSourceRef.current.clear();
@@ -433,8 +441,18 @@ const MapEditor: React.FC = () => {
         restoreMapView(mapRef.current, mapData.mapState, handleMapViewChange);
       }
       console.log("Map state loaded");
+
+      // Re-enable UndoRedo interaction after recovery is complete
+      if (wasUndoRedoActive) {
+        setTimeout(() => {
+          undoRedoInteractionRef.current?.setActive(true);
+          console.log("Re-enabled UndoRedo interaction after recovery");
+        }, 100);
+      }
     } catch (error) {
       console.error("Failed to load map state:", error);
+      // Ensure UndoRedo is re-enabled even on error
+      undoRedoInteractionRef.current?.setActive(true);
     }
   };
 
