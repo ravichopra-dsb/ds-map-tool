@@ -5,6 +5,8 @@ import type Feature from "ol/Feature";
 import type Point from "ol/geom/Point";
 import type LineString from "ol/geom/LineString";
 import type Polygon from "ol/geom/Polygon";
+import type GeometryCollection from "ol/geom/GeometryCollection";
+import type MultiLineString from "ol/geom/MultiLineString";
 import { getCenter } from "ol/extent";
 import { X, Edit2, Save, X as XIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -102,6 +104,22 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         [lon, lat] = centerCoords;
         break;
       }
+      case "GeometryCollection": {
+        const geometryCollection = geometry as GeometryCollection;
+        // Get the extent of the entire collection and use its center
+        const center = getCenter(geometryCollection.getExtent());
+        const centerCoords = toLonLat(center);
+        [lon, lat] = centerCoords;
+        break;
+      }
+      case "MultiLineString": {
+        const multiLineString = geometry as MultiLineString;
+        // Get the extent of the entire multi-line string and use its center
+        const center = getCenter(multiLineString.getExtent());
+        const centerCoords = toLonLat(center);
+        [lon, lat] = centerCoords;
+        break;
+      }
       default:
         return { longitude: "", latitude: "", name: "" };
     }
@@ -177,6 +195,69 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         );
 
         polygon.setCoordinates(newPolygonCoords);
+        break;
+      }
+      case "GeometryCollection": {
+        const geometryCollection = geometry as GeometryCollection;
+        const center = getCenter(geometryCollection.getExtent());
+        const [currentLon, currentLat] = toLonLat(center);
+        const deltaX = lon - currentLon;
+        const deltaY = lat - currentLat;
+
+        // Transform all geometries in the collection by the same offset
+        const geometries = geometryCollection.getGeometriesArray();
+        geometries.forEach((geom) => {
+          switch (geom.getType()) {
+            case "Point": {
+              const point = geom as Point;
+              const [x, y] = toLonLat(point.getCoordinates());
+              point.setCoordinates(fromLonLat([x + deltaX, y + deltaY]));
+              break;
+            }
+            case "LineString": {
+              const lineString = geom as LineString;
+              const newLineCoords = lineString.getCoordinates().map((coord) => {
+                const [x, y] = toLonLat(coord);
+                return fromLonLat([x + deltaX, y + deltaY]);
+              });
+              lineString.setCoordinates(newLineCoords);
+              break;
+            }
+            case "Polygon": {
+              const polygon = geom as Polygon;
+              const newPolygonCoords = polygon.getCoordinates().map((ring) =>
+                ring.map((coord) => {
+                  const [x, y] = toLonLat(coord);
+                  return fromLonLat([x + deltaX, y + deltaY]);
+                })
+              );
+              polygon.setCoordinates(newPolygonCoords);
+              break;
+            }
+          }
+        });
+
+        geometryCollection.changed(); // Trigger change event
+        break;
+      }
+      case "MultiLineString": {
+        const multiLineString = geometry as MultiLineString;
+        const center = getCenter(multiLineString.getExtent());
+        const [currentLon, currentLat] = toLonLat(center);
+        const deltaX = lon - currentLon;
+        const deltaY = lat - currentLat;
+
+        // Transform all line strings in the multi-line string by the same offset
+        const lineStrings = multiLineString.getLineStrings();
+        lineStrings.forEach((lineString) => {
+          const newLineCoords = lineString.getCoordinates().map((coord) => {
+            const [x, y] = toLonLat(coord);
+            return fromLonLat([x + deltaX, y + deltaY]);
+          });
+          lineString.setCoordinates(newLineCoords);
+        });
+
+        multiLineString.changed(); // Trigger change event
         break;
       }
     }
