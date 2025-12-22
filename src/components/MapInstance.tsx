@@ -8,6 +8,7 @@ import { OSM, XYZ, Vector as VectorSource } from "ol/source";
 import { fromLonLat } from "ol/proj";
 import { defaults as defaultControls } from "ol/control";
 import { getFeatureStyle } from "./FeatureStyler";
+import { useHiddenFeatures } from "@/hooks/useToggleObjects";
 
 export interface MapInstanceProps {
   onMapReady: (map: Map) => void;
@@ -25,6 +26,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
   vectorSourceRef,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const { hiddenTypes } = useHiddenFeatures();
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -52,46 +54,6 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
 
     const vectorLayer = new VectorLayer({
       source: vectorSourceRef.current,
-      style: (feature, resolution) => {
-        const type = feature.getGeometry()?.getType();
-
-        // Only process text features with resolution-based visibility
-        if (feature.get("isText") && type === "Point") {
-          const textContent = feature.get("text") || "Text";
-          const textScale = feature.get("textScale") || 1;
-          const textRotation = feature.get("textRotation") || 0;
-
-          // Hide text when zoomed out beyond zoom level ~8.5 (resolution 500)
-          console.log("resolution : ", resolution)
-          if (resolution > 500) {
-            return new Style({
-              text: new Text({ text: '' }) // OpenLayers pattern: empty text = hidden
-            });
-          }
-
-          // Create style with individual scale and rotation
-          return new Style({
-            text: new Text({
-              text: textContent,
-              font: `${14 * textScale}px Arial, sans-serif`,
-              scale: textScale,
-              rotation: textRotation * Math.PI / 180,
-              fill: new Fill({ color: '#000000' }),
-              stroke: new Stroke({
-                color: '#ffffff',
-                width: 3
-              }),
-              padding: [4, 6, 4, 6],
-              textAlign: 'center',
-              textBaseline: 'middle',
-            }),
-            zIndex: 100,
-          });
-        }
-
-        // Handle all other feature types normally
-        return getFeatureStyle(feature);
-      },
     });
 
     // Store vector layer reference
@@ -120,6 +82,62 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
       map.setTarget(undefined);
     };
   }, []);
+
+  useEffect(() => {
+    if (vectorLayerRef.current) {
+      vectorLayerRef.current.setStyle((feature, resolution) => {
+        const type = feature.getGeometry()?.getType();
+
+        // Only process text features with resolution-based visibility
+        if (feature.get("isText") && type === "Point") {
+          const textContent = feature.get("text") || "Text";
+          const textScale = feature.get("textScale") || 1;
+          const textRotation = feature.get("textRotation") || 0;
+
+          // Hide text when zoomed out beyond zoom level ~8.5 (resolution 500)
+          if (hiddenTypes["text"]) {
+            return new Style({
+              text: new Text({ text: '' }) // OpenLayers pattern: empty text = hidden
+            });
+          }
+
+          // Create style with individual scale and rotation
+          return new Style({
+            text: new Text({
+              text: textContent,
+              font: `${14 * textScale}px Arial, sans-serif`,
+              scale: textScale,
+              rotation: textRotation * Math.PI / 180,
+              fill: new Fill({ color: '#000000' }),
+              stroke: new Stroke({
+                color: '#ffffff',
+                width: 3
+              }),
+              padding: [4, 6, 4, 6],
+              textAlign: 'center',
+              textBaseline: 'middle',
+            }),
+            zIndex: 100,
+          });
+        }
+        
+        if (hiddenTypes["pit"] && feature.get("isPit") && type === "MultiLineString") return new Style({stroke: null,})
+        if (hiddenTypes["tower"] && feature.get("isTower") && type === "GeometryCollection") return new Style({stroke: null,})
+        if (hiddenTypes["junction"] && feature.get("isJunction") && type === "GeometryCollection") return new Style({stroke: null,})
+        if (hiddenTypes["gp"] && feature.get("isGP") && type === "GeometryCollection") return new Style({stroke: null,})
+        if (hiddenTypes["triangle"] && feature.get("isTriangle") && type === "Polygon") return new Style({stroke: null,})
+        if (hiddenTypes["measure"] && feature.get("isMeasure") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: null,})
+        if (hiddenTypes["arrow"] && feature.get("isArrow") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: null,})
+        if (hiddenTypes["freehand"] && feature.get("isFreehand") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: null,})
+        if (hiddenTypes["polyline"] && feature.get("isPolyline") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: null,})
+        if (hiddenTypes["legends"] && feature.get("islegends") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: null,})
+        if (hiddenTypes["point"] && feature.get("isPoint")  && type === "Point") return new Style({stroke: null,})
+
+        // Handle all other feature types normally
+        return getFeatureStyle(feature);
+      });
+    }
+  }, [hiddenTypes]);
 
   return <div id="map" className="relative w-full h-screen" ref={mapContainerRef} />;
 };

@@ -29,15 +29,24 @@ export const DRAW_CONFIGS = {
       strokeColor: "#ffffff",
       strokeWidth: 2,
     }),
+    featureProperties: {
+      isPoint: true,
+    },
   },
   polyline: {
     type: "LineString" as const,
     style: createLineStyle("#00ff00", 4),
+    featureProperties: {
+      isPolyline: true,
+    },
   },
   freehand: {
     type: "LineString" as const,
     freehand: true,
     style: createLineStyle("#00ff00", 4),
+    featureProperties: {
+      isFreehand: true,
+    },
   },
   arrow: {
     type: "LineString" as const,

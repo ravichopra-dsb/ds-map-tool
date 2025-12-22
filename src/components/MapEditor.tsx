@@ -33,6 +33,7 @@ import { TextDialog } from "./TextDialog";
 import { handleTextClick } from "@/icons/Text";
 import SearchWrapper, { type SearchWrapperRef } from "./SearchWrapper";
 import type { SearchResult } from "./SearchPanel";
+import { TogglingObject } from "./TogglingObject";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -705,10 +706,13 @@ const MapEditor: React.FC = () => {
         isVisible={isTransitioning}
         message="Switching map view..."
       />
+
       <MapViewToggle
         currentView={currentMapView}
         onViewChange={handleMapViewChange}
       />
+      
+      <TogglingObject />
     </div>
   );
 };

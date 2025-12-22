@@ -114,6 +114,9 @@ export const extractStyleMetadata = (feature: Feature<Geometry>): any => {
   if (feature.get("isArrow")) properties.isArrow = true;
   if (feature.get("isMeasure")) properties.isMeasure = true;
   if (feature.get("islegends")) properties.islegends = true;
+  if (feature.get("isPoint")) properties.isPoint = true;
+  if (feature.get("isPolyline")) properties.isPolyline = true;
+  if (feature.get("isFreehand")) properties.isFreehand = true;
   if (feature.get("legendType"))
     properties.legendType = feature.get("legendType");
   if (feature.get("distance")) properties.distance = feature.get("distance");

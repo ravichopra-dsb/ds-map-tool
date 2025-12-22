@@ -29,14 +29,9 @@ export const TOOLS = [
     icon: HandGrab,
   },
   {
-    id: "point",
-    name: "Point",
-    icon: Circle,
-  },
-  {
-    id: "polyline",
-    name: "Polyline",
-    icon: Slash,
+    id: 'measure',
+    name: 'Measure',
+    icon: RulerDimensionLine
   },
   {
     id: "freehand",
@@ -44,9 +39,9 @@ export const TOOLS = [
     icon: Pencil,
   },
   {
-    id: "text",
-    name: "Text",
-    icon: Type,
+    id: "polyline",
+    name: "Polyline",
+    icon: Slash,
   },
   {
     id: "arrow",
@@ -54,9 +49,19 @@ export const TOOLS = [
     icon: ArrowUp,
   },
   {
+    id: "text",
+    name: "Text",
+    icon: Type,
+  },
+  {
     id: "legends",
     name: "Legends",
     icon: Minus,
+  },
+  {
+    id: "point",
+    name: "Point",
+    icon: Circle,
   },
   {
     id: "triangle",
@@ -82,12 +87,8 @@ export const TOOLS = [
     id: 'tower',
     name: 'Tower',
     icon: Tower,
-  }, 
-  {
-    id: 'measure',
-    name: 'Measure',
-    icon: RulerDimensionLine
-  }
+  },
+
 ];
 
 export const DEFAULT_TOOL = "hand";
