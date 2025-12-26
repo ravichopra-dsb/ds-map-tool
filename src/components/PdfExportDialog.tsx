@@ -11,11 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import type { PdfExportConfig, PageSize, Resolution } from "@/types/pdf";
 import { PAGE_SIZE_OPTIONS, RESOLUTION_OPTIONS } from "@/types/pdf";
+import type { ExportProgress } from "@/utils/pdfExportUtils";
 
 interface PdfExportDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onExport: (config: PdfExportConfig) => void;
+  onExport: (config: PdfExportConfig, onProgress: (progress: ExportProgress) => void) => void;
   isExporting: boolean;
 }
 
@@ -27,13 +28,22 @@ export function PdfExportDialog({
 }: PdfExportDialogProps) {
   const [pageSize, setPageSize] = useState<PageSize>('a4');
   const [resolution, setResolution] = useState<Resolution>(1200);
+  const [progress, setProgress] = useState<ExportProgress | null>(null);
 
   const handleExport = () => {
-    onExport({ pageSize, resolution });
+    setProgress({ stage: 'preparing', message: 'Starting export...', percent: 0 });
+    onExport({ pageSize, resolution }, setProgress);
+  };
+
+  const handleClose = () => {
+    if (!isExporting) {
+      setProgress(null);
+      onClose();
+    }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>PDF Export Settings</DialogTitle>
@@ -81,6 +91,22 @@ export function PdfExportDialog({
               ))}
             </select>
           </div>
+
+          {/* Progress Bar */}
+          {isExporting && progress && (
+            <div className="grid gap-2">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>{progress.message}</span>
+                <span>{progress.percent}%</span>
+              </div>
+              <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-300 ease-out"
+                  style={{ width: `${progress.percent}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-2 justify-end">

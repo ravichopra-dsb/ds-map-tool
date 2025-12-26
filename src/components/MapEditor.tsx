@@ -408,7 +408,10 @@ const MapEditor: React.FC = () => {
     setPdfDialogOpen(true);
   };
 
-  const handlePdfExport = async (config: PdfExportConfig) => {
+  const handlePdfExport = async (
+    config: PdfExportConfig,
+    onProgress: (progress: import("@/utils/pdfExportUtils").ExportProgress) => void
+  ) => {
     if (!mapRef.current) {
       alert('Map not ready for export');
       return;
@@ -417,7 +420,7 @@ const MapEditor: React.FC = () => {
     setIsExportingPdf(true);
 
     try {
-      const pdfBlob = await exportMapToPdf(mapRef.current, config);
+      const pdfBlob = await exportMapToPdf(mapRef.current, config, onProgress);
       const fileName = `map-export-${new Date().toISOString().split('T')[0]}.pdf`;
       downloadBlob(pdfBlob, fileName);
       setPdfDialogOpen(false);

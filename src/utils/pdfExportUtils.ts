@@ -4,15 +4,23 @@ import { PAGE_SIZES, type PdfExportConfig } from '@/types/pdf';
 
 export type { PdfExportConfig };
 
+export interface ExportProgress {
+  stage: 'preparing' | 'rendering' | 'creating' | 'complete';
+  message: string;
+  percent: number;
+}
+
 /**
  * Export OpenLayers map to PDF with customizable page size and resolution
  * Adapted from openlayers-BE export implementation
  */
 export async function exportMapToPdf(
   map: Map,
-  config: PdfExportConfig
+  config: PdfExportConfig,
+  onProgress?: (progress: ExportProgress) => void
 ): Promise<Blob> {
   console.log('🚀 Starting PDF export with config:', config);
+  onProgress?.({ stage: 'preparing', message: 'Preparing export...', percent: 0 });
 
   const dims = PAGE_SIZES[config.pageSize];
   let width = Math.round((dims.width * config.resolution) / 25.4);
@@ -46,6 +54,7 @@ export async function exportMapToPdf(
   try {
     // Set print size
     console.log('📐 Setting print size...');
+    onProgress?.({ stage: 'preparing', message: 'Setting up canvas...', percent: 10 });
     const printSize: [number, number] = [width, height];
     map.setSize(printSize);
     console.log('📏 Print size set:', printSize);
@@ -60,6 +69,7 @@ export async function exportMapToPdf(
     }
 
     console.log('⏳ Waiting for rendercomplete...');
+    onProgress?.({ stage: 'rendering', message: 'Rendering map...', percent: 30 });
 
     // Wait for render complete with timeout
     await new Promise<void>((resolve, reject) => {
@@ -84,6 +94,7 @@ export async function exportMapToPdf(
     });
 
     console.log('🖼️ Getting map canvas...');
+    onProgress?.({ stage: 'rendering', message: 'Processing map canvas...', percent: 60 });
 
     // Get the map canvas
     const mapCanvas = document.querySelector('#map canvas') as HTMLCanvasElement;
@@ -138,6 +149,7 @@ export async function exportMapToPdf(
     console.log('🎨 Map drawn to export canvas');
 
     console.log('📄 Creating PDF...');
+    onProgress?.({ stage: 'creating', message: 'Creating PDF document...', percent: 80 });
 
     // Determine orientation based on dimensions
     const orientation = dims.width > dims.height ? 'landscape' : 'portrait';
@@ -173,6 +185,7 @@ export async function exportMapToPdf(
     console.log('💾 Creating PDF blob...');
     const pdfBlob = pdf.output('blob');
     console.log('✅ PDF created successfully!');
+    onProgress?.({ stage: 'complete', message: 'Export complete!', percent: 100 });
 
     return pdfBlob;
   } catch (error) {
