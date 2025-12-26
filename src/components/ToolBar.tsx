@@ -21,7 +21,7 @@ interface ToolbarProps {
   selectedLegend?: LegendType;
   onLegendSelect: (legend: LegendType) => void;
   onExportClick: (format: "geojson" | "kml" | "kmz") => void;
-  onPdfExport: () => void;
+  onPdfExportClick: () => void;
 }
 
 const Toolbar = ({
@@ -32,7 +32,7 @@ const Toolbar = ({
   selectedLegend,
   onLegendSelect,
   onExportClick,
-  onPdfExport,
+  onPdfExportClick,
 }: ToolbarProps) => {
   const [open, setOpen] = useState(true);
 
@@ -111,7 +111,7 @@ const Toolbar = ({
             <DropdownMenuItem onClick={() => onExportClick("geojson")}>GeoJson</DropdownMenuItem>
             <DropdownMenuItem onClick={() => onExportClick("kml")}>Kml</DropdownMenuItem>
             <DropdownMenuItem onClick={() => onExportClick("kmz")}>Kmz</DropdownMenuItem>
-            <DropdownMenuItem onClick={onPdfExport}>PDF</DropdownMenuItem>
+            <DropdownMenuItem onClick={onPdfExportClick}>PDF</DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>

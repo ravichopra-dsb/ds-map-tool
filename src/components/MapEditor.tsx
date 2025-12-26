@@ -34,7 +34,8 @@ import { handleTextClick } from "@/icons/Text";
 import SearchWrapper, { type SearchWrapperRef } from "./SearchWrapper";
 import type { SearchResult } from "./SearchPanel";
 import { TogglingObject } from "./TogglingObject";
-import axios from "axios";
+import { PdfExportDialog } from "./PdfExportDialog";
+import { exportMapToPdf, type PdfExportConfig } from "@/utils/pdfExportUtils";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -95,6 +96,10 @@ const MapEditor: React.FC = () => {
   const [editingTextFeature, setEditingTextFeature] = useState<Feature<Geometry> | null>(null);
   const [editingTextScale, setEditingTextScale] = useState(1);
   const [editingTextRotation, setEditingTextRotation] = useState(0);
+
+  // PDF export dialog state
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   // File import handler
   const handleFileChange = async (
@@ -398,42 +403,29 @@ const MapEditor: React.FC = () => {
     }
   };
 
-  // PDF Export - Send GeoJSON file to /download endpoint
-  const handlePdfExport = async () => {
-    if (!mapRef.current) return;
+  // PDF Export - Client-side with jsPDF
+  const handlePdfExportClick = () => {
+    setPdfDialogOpen(true);
+  };
+
+  const handlePdfExport = async (config: PdfExportConfig) => {
+    if (!mapRef.current) {
+      alert('Map not ready for export');
+      return;
+    }
+
+    setIsExportingPdf(true);
 
     try {
-      const mapData = await loadFromDb();
-
-      if (!mapData?.features || mapData.features.length === 0) {
-        alert("No features to export.");
-        return;
-      }
-
-      // Convert GeoJSON to Blob
-      const geojsonBlob = new Blob([JSON.stringify(mapData.features, null, 2)], {
-        type: "application/json",
-      });
-
-      // Create FormData and append the file
-      const formData = new FormData();
-      formData.append("file", geojsonBlob, "map-export.geojson");
-
-      // Send file to /download endpoint
-      const response = await axios.post("http://localhost:8000/download", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-        responseType: "blob", // Expecting PDF blob response
-      });
-
-      // Download the PDF file
-      const blob = new Blob([response.data], { type: "application/pdf" });
-      const fileName = `map-export-${new Date().toISOString().split("T")[0]}.pdf`;
-      downloadBlob(blob, fileName);
+      const pdfBlob = await exportMapToPdf(mapRef.current, config);
+      const fileName = `map-export-${new Date().toISOString().split('T')[0]}.pdf`;
+      downloadBlob(pdfBlob, fileName);
+      setPdfDialogOpen(false);
     } catch (error) {
-      console.error("PDF export failed:", error);
-      alert("PDF export failed. Check console for details.");
+      console.error('PDF export failed:', error);
+      alert(`PDF export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsExportingPdf(false);
     }
   };
 
@@ -691,6 +683,13 @@ const MapEditor: React.FC = () => {
         isEditing={!!editingTextFeature}
       />
 
+      <PdfExportDialog
+        isOpen={pdfDialogOpen}
+        onClose={() => setPdfDialogOpen(false)}
+        onExport={handlePdfExport}
+        isExporting={isExportingPdf}
+      />
+
       <MapInteractions
         map={mapRef.current}
         vectorLayer={vectorLayerRef.current}
@@ -720,7 +719,7 @@ const MapEditor: React.FC = () => {
         selectedLegend={selectedLegend}
         onLegendSelect={handleLegendSelect}
         onExportClick={handleExportClick}
-        onPdfExport={handlePdfExport}
+        onPdfExportClick={handlePdfExportClick}
       />
 
       <FileManager

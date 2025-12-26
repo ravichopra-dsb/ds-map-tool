@@ -40,7 +40,7 @@ importers:
         version: 1.1.11(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@siedlerchr/types-ol-ext':
         specifier: ^3.6.5
-        version: 3.6.5(jspdf@3.0.3)
+        version: 3.6.5(jspdf@3.0.4)
       '@tailwindcss/vite':
         specifier: ^4.1.16
         version: 4.1.16(vite@7.1.12(@types/node@24.10.0)(jiti@2.6.1)(lightningcss@1.30.2))
@@ -53,6 +53,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      jspdf:
+        specifier: ^3.0.4
+        version: 3.0.4
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
@@ -90,6 +93,9 @@ importers:
       '@eslint/js':
         specifier: ^9.36.0
         version: 9.39.1
+      '@types/jspdf':
+        specifier: ^2.0.0
+        version: 2.0.0
       '@types/node':
         specifier: ^24.6.0
         version: 24.10.0
@@ -1088,6 +1094,10 @@ packages:
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
+  '@types/jspdf@2.0.0':
+    resolution: {integrity: sha512-oonYDXI4GegGaG7FFVtriJ+Yqlh4YR3L3NVDiwCEBVG7sbya19SoGx4MW4kg1MCMRPgkbbFTck8YKJL8PrkDfA==}
+    deprecated: This is a stub types definition. jspdf provides its own type definitions, so you do not need this installed.
+
   '@types/node@24.10.0':
     resolution: {integrity: sha512-qzQZRBqkFsYyaSWXuEHc2WR9c0a0CXwiE5FWUvn7ZM+vdy1uZLfCunD38UzhuB7YN/J11ndbDBcTmOdxJo9Q7A==}
 
@@ -1653,8 +1663,8 @@ packages:
     engines: {node: '>=6'}
     hasBin: true
 
-  jspdf@3.0.3:
-    resolution: {integrity: sha512-eURjAyz5iX1H8BOYAfzvdPfIKK53V7mCpBTe7Kb16PaM8JSXEcUQNBQaiWMI8wY5RvNOPj4GccMjTlfwRBd+oQ==}
+  jspdf@3.0.4:
+    resolution: {integrity: sha512-dc6oQ8y37rRcHn316s4ngz/nOjayLF/FFxBF4V9zamQKRqXxyiH1zagkCdktdWhtoQId5K20xt1lB90XzkB+hQ==}
 
   jsts@2.12.1:
     resolution: {integrity: sha512-aaiCZeGfeU5o9TbrYF1KF0VvhGGLtG3w7vNynmaTjC8XRmS2v15lq+2Bxa8lMtprsFFJiIpAayJZguLruiHd0w==}
@@ -2960,9 +2970,9 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.52.5':
     optional: true
 
-  '@siedlerchr/types-ol-ext@3.6.5(jspdf@3.0.3)':
+  '@siedlerchr/types-ol-ext@3.6.5(jspdf@3.0.4)':
     dependencies:
-      jspdf: 3.0.3
+      jspdf: 3.0.4
 
   '@tailwindcss/node@4.1.16':
     dependencies:
@@ -3056,6 +3066,10 @@ snapshots:
   '@types/estree@1.0.8': {}
 
   '@types/json-schema@7.0.15': {}
+
+  '@types/jspdf@2.0.0':
+    dependencies:
+      jspdf: 3.0.4
 
   '@types/node@24.10.0':
     dependencies:
@@ -3665,7 +3679,7 @@ snapshots:
 
   json5@2.2.3: {}
 
-  jspdf@3.0.3:
+  jspdf@3.0.4:
     dependencies:
       '@babel/runtime': 7.28.4
       fast-png: 6.4.0
