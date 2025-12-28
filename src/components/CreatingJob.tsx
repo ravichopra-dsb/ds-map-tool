@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useMapProjects } from "@/hooks/useMapProjects";
 
@@ -19,6 +19,7 @@ interface CreatingJobProps {
 
 export function CreatingJob({ onJobCreated }: CreatingJobProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Use the hook directly!
@@ -33,6 +34,7 @@ export function CreatingJob({ onJobCreated }: CreatingJobProps) {
       return;
     }
 
+    setIsLoading(true);
     try {
       // Create new project in database
       console.log("yo");
@@ -63,6 +65,8 @@ export function CreatingJob({ onJobCreated }: CreatingJobProps) {
     } catch (error) {
       console.error("Failed to create project:", error);
       alert("Failed to create project");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -77,6 +81,14 @@ export function CreatingJob({ onJobCreated }: CreatingJobProps) {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50 rounded-lg">
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="text-sm font-medium">Creating job...</span>
+            </div>
+          </div>
+        )}
         <DialogHeader>
           <DialogTitle>Enter Job Title</DialogTitle>
         </DialogHeader>
@@ -87,9 +99,10 @@ export function CreatingJob({ onJobCreated }: CreatingJobProps) {
               id="job-input"
               ref={inputRef}
               placeholder="e.g., District Mapping Job"
+              disabled={isLoading}
               onKeyDown={(e) => {
                 // Allow Enter key to submit
-                if (e.key === "Enter") {
+                if (e.key === "Enter" && !isLoading) {
                   handleNewJob();
                 }
               }}
@@ -98,12 +111,19 @@ export function CreatingJob({ onJobCreated }: CreatingJobProps) {
         </div>
         <div className="flex gap-2 justify-end">
           <DialogClose asChild>
-            <Button type="button" variant="secondary">
+            <Button type="button" variant="secondary" disabled={isLoading}>
               Close
             </Button>
           </DialogClose>
-          <Button type="submit" onClick={handleNewJob}>
-            Create Job
+          <Button type="submit" onClick={handleNewJob} disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Create Job"
+            )}
           </Button>
         </div>
       </DialogContent>

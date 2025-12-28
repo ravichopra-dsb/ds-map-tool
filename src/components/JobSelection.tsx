@@ -22,8 +22,9 @@ import { CreatingJob } from "./CreatingJob";
 import type { PGlite } from "@electric-sql/pglite";
 import type { Project } from "@/hooks/useMapProjects";
 import { useState } from "react";
-import { Edit2, MoreHorizontal, Trash2 } from "lucide-react";
+import { Edit2, MoreHorizontal, Trash2, Loader2 } from "lucide-react";
 import { useMapProjects } from "@/hooks/useMapProjects";
+import { LoadingOverlay } from "./LoadingOverlay";
 
 interface JobSelectionProps {
   projects: Project[];
@@ -46,10 +47,17 @@ export function JobSelection({
     name: string;
   } | null>(null);
 
+  const [isSwitching, setIsSwitching] = useState(false);
+
   const { updateProject, deleteProject } = useMapProjects();
 
   const handleJobSelect = async (projectId: string) => {
-    await onSelectProject(projectId);
+    setIsSwitching(true);
+    try {
+      await onSelectProject(projectId);
+    } finally {
+      setIsSwitching(false);
+    }
   };
 
   const handleEditProject = (projectId: string, currentName: string) => {
@@ -71,14 +79,27 @@ export function JobSelection({
   };
 
   return (
-    <div className="absolute top-2 right-4 z-10">
-      <DropdownMenu>
+    <>
+      {isSwitching && (
+        <div className="fixed inset-0 z-50">
+          <LoadingOverlay isVisible={true} message="Switching job..." />
+        </div>
+      )}
+      <div className="absolute top-2 right-4 z-10">
+        <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline">
-            {currentProjectId
-              ? projects.find((p) => p.id === currentProjectId)?.name ||
-                "Select Job"
-              : "Select Job"}
+          <Button variant="outline" disabled={isSwitching}>
+            {isSwitching ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Switching...
+              </>
+            ) : (
+              currentProjectId
+                ? projects.find((p) => p.id === currentProjectId)?.name ||
+                  "Select Job"
+                : "Select Job"
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-60 mr-2">
@@ -247,6 +268,7 @@ export function JobSelection({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </>
   );
 }
