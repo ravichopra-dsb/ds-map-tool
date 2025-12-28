@@ -18,7 +18,7 @@ import { useMapState } from "@/hooks/useMapState";
 import { useToolState } from "@/hooks/useToolState";
 import { useFeatureState } from "@/hooks/useFeatureState";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
-import { Select } from "ol/interaction";
+import { Select, DragBox } from "ol/interaction";
 import {
   convertFeaturesToGeoJSON,
   convertGeoJSONToFeatures,
@@ -35,6 +35,7 @@ import SearchWrapper, { type SearchWrapperRef } from "./SearchWrapper";
 import type { SearchResult } from "./SearchPanel";
 import { TogglingObject } from "./TogglingObject";
 import { PdfExportDialog } from "./PdfExportDialog";
+import { DragBoxInstruction } from "./DragBoxInstruction";
 import { exportMapToPdf, type PdfExportConfig } from "@/utils/pdfExportUtils";
 
 // Interface for properly serializable map data
@@ -100,6 +101,9 @@ const MapEditor: React.FC = () => {
   // PDF export dialog state
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isDragBoxActive, setIsDragBoxActive] = useState(false);
+  const [selectedExtent, setSelectedExtent] = useState<Extent | null>(null);
+  const dragBoxRef = useRef<DragBox | null>(null);
 
   // File import handler
   const handleFileChange = async (
@@ -405,7 +409,45 @@ const MapEditor: React.FC = () => {
 
   // PDF Export - Client-side with jsPDF
   const handlePdfExportClick = () => {
-    setPdfDialogOpen(true);
+    if (!mapRef.current) {
+      alert('Map not ready for export');
+      return;
+    }
+
+    // Activate DragBox selection mode
+    setIsDragBoxActive(true);
+    setSelectedExtent(null);
+
+    // Initialize DragBox interaction if not already created
+    if (!dragBoxRef.current) {
+      const dragBox = new DragBox();
+
+      dragBox.on('boxend', () => {
+        const extent = dragBox.getGeometry().getExtent();
+        setSelectedExtent(extent);
+        setIsDragBoxActive(false);
+
+        // Remove DragBox interaction
+        if (mapRef.current) {
+          mapRef.current.removeInteraction(dragBox);
+        }
+        dragBoxRef.current = null;
+
+        // Open PDF dialog with selected extent
+        setPdfDialogOpen(true);
+      });
+
+      dragBox.on('boxstart', () => {
+        // Clear previous selection when starting new drag
+        setSelectedExtent(null);
+      });
+
+      dragBoxRef.current = dragBox;
+      mapRef.current.addInteraction(dragBox);
+    } else {
+      // Re-add if already exists
+      mapRef.current.addInteraction(dragBoxRef.current);
+    }
   };
 
   const handlePdfExport = async (
@@ -417,13 +459,19 @@ const MapEditor: React.FC = () => {
       return;
     }
 
+    if (!selectedExtent) {
+      alert('No area selected for export');
+      return;
+    }
+
     setIsExportingPdf(true);
 
     try {
-      const pdfBlob = await exportMapToPdf(mapRef.current, config, onProgress);
+      const pdfBlob = await exportMapToPdf(mapRef.current, config, onProgress, selectedExtent);
       const fileName = `map-export-${new Date().toISOString().split('T')[0]}.pdf`;
       downloadBlob(pdfBlob, fileName);
       setPdfDialogOpen(false);
+      setSelectedExtent(null); // Clear selection after export
     } catch (error) {
       console.error('PDF export failed:', error);
       alert(`PDF export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -692,6 +740,8 @@ const MapEditor: React.FC = () => {
         onExport={handlePdfExport}
         isExporting={isExportingPdf}
       />
+
+      <DragBoxInstruction isActive={isDragBoxActive} />
 
       <MapInteractions
         map={mapRef.current}

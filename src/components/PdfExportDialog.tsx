@@ -16,7 +16,10 @@ import type { ExportProgress } from "@/utils/pdfExportUtils";
 interface PdfExportDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onExport: (config: PdfExportConfig, onProgress: (progress: ExportProgress) => void) => void;
+  onExport: (
+    config: PdfExportConfig,
+    onProgress: (progress: ExportProgress) => void
+  ) => void;
   isExporting: boolean;
 }
 
@@ -26,12 +29,16 @@ export function PdfExportDialog({
   onExport,
   isExporting,
 }: PdfExportDialogProps) {
-  const [pageSize, setPageSize] = useState<PageSize>('a4');
+  const [pageSize, setPageSize] = useState<PageSize>("a4");
   const [resolution, setResolution] = useState<Resolution>(1200);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
 
   const handleExport = () => {
-    setProgress({ stage: 'preparing', message: 'Starting export...', percent: 0 });
+    setProgress({
+      stage: "preparing",
+      message: "Starting export...",
+      percent: 0,
+    });
     onExport({ pageSize, resolution }, setProgress);
   };
 
@@ -63,8 +70,8 @@ export function PdfExportDialog({
               {PAGE_SIZE_OPTIONS.map((size) => (
                 <option key={size} value={size}>
                   {size.toUpperCase()}
-                  {size === 'a0' && ' (slow)'}
-                  {size === 'a5' && ' (fast)'}
+                  {size === "a0" && " (slow)"}
+                  {size === "a5" && " (fast)"}
                 </option>
               ))}
             </select>
@@ -76,17 +83,20 @@ export function PdfExportDialog({
             <select
               id="resolution"
               value={resolution}
-              onChange={(e) => setResolution(Number(e.target.value) as Resolution)}
+              onChange={(e) =>
+                setResolution(Number(e.target.value) as Resolution)
+              }
               disabled={isExporting}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
             >
               {RESOLUTION_OPTIONS.map((res) => (
                 <option key={res} value={res}>
                   {res} DPI
-                  {res === 72 && ' (fast)'}
-                  {res === 600 && ' (high quality)'}
-                  {res === 1200 && ' (ultra high quality)'}
-                  {res === 2400 && ' (maximum quality, very slow)'}
+                  {res === 72 && " (fast)"}
+                  {res === 600 && " (high quality)"}
+                  {res === 1200 && " (ultra high quality)"}
+                  {res === 2400 && " (maximum quality, very slow)"}
+                  {res === 3600 && " (maximum quality, very slow)"}
                 </option>
               ))}
             </select>
@@ -122,7 +132,7 @@ export function PdfExportDialog({
                 Exporting...
               </>
             ) : (
-              'Export PDF'
+              "Export PDF"
             )}
           </Button>
         </div>
