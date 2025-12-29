@@ -65,7 +65,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
       view: new View({
         center: fromLonLat([78.9629, 21.5937]),
         zoom: 5,
-        maxZoom: 19,
+        maxZoom: 22,
         minZoom: 0,
         smoothExtentConstraint: true,
       }),
