@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import type Map from 'ol/Map';
 import type { Extent } from 'ol/extent';
+import { Tile as TileLayer, Vector as VectorLayer } from 'ol/layer';
 import { PAGE_SIZES, type PdfExportConfig } from '@/types/pdf';
 
 export type { PdfExportConfig };
@@ -69,6 +70,17 @@ export async function exportMapToPdf(
 
   console.log('🗺️ Original map state:', { originalSize, originalResolution, originalCenter, originalRotation });
 
+  // Get layer references for separate rendering if needed
+  const layers = map.getLayers().getArray();
+  const baseLayers = layers.filter(layer => layer instanceof TileLayer);
+  const vectorLayers = layers.filter(layer => layer instanceof VectorLayer);
+
+  console.log('📚 Layers found:', {
+    baseLayers: baseLayers.length,
+    vectorLayers: vectorLayers.length,
+    keepVectorLayerConstant: config.keepVectorLayerConstant
+  });
+
   // Check for canvas size limits and auto-adjust if needed
   const maxCanvasSize = 12192;
 
@@ -81,93 +93,182 @@ export async function exportMapToPdf(
 
     const message = `Canvas size too large. Auto-adjusted to ${width}x${height}.`;
     console.warn(message);
-    alert(message + '\n\nQuality will be slightly reduced but export will work.');
+    // alert(message + '\n\nQuality will be slightly reduced but export will work.');
   }
 
   console.log('📏 Final canvas dimensions:', { width, height });
 
   try {
-    // Set print size
-    console.log('📐 Setting print size...');
-    onProgress?.({ stage: 'preparing', message: 'Setting up canvas...', percent: 10 });
-    const printSize: [number, number] = [width, height];
-    map.setSize(printSize);
-    console.log('📏 Print size set:', printSize);
+    let baseLayerCanvas: HTMLCanvasElement | null = null;
+    let vectorLayerCanvas: HTMLCanvasElement | null = null;
 
-    // If extent is provided, fit the view to that extent
-    if (extent) {
-      console.log('🎯 Fitting map to selected extent:', extent);
-      map.getView().fit(extent, {
-        size: printSize,
-        padding: [0, 0, 0, 0],
+    // Dual-layer rendering mode (keep vector constant)
+    if (config.keepVectorLayerConstant && vectorLayers.length > 0) {
+      console.log('🎨 Using dual-layer rendering mode (capture vector first, scale up during composite)');
+      onProgress?.({ stage: 'preparing', message: 'Preparing dual-layer rendering...', percent: 10 });
+
+      // Store original visibility state for all layers
+      const originalVisibility = new WeakMap();
+      baseLayers.forEach(layer => originalVisibility.set(layer, layer.getVisible()));
+      vectorLayers.forEach(layer => originalVisibility.set(layer, layer.getVisible()));
+      console.log('💾 Stored original layer visibility');
+
+      // STEP 1: Render vector layers at a size matching extent's aspect ratio
+      // This ensures perfect geographic alignment with the base layer
+      console.log('📐 Rendering vector layers with extent-matched aspect ratio...');
+      onProgress?.({ stage: 'rendering', message: 'Rendering features...', percent: 20 });
+
+      // Hide base layers, show only vector
+      baseLayers.forEach(layer => layer.setVisible(false));
+      vectorLayers.forEach(layer => layer.setVisible(true));
+
+      // Calculate vector canvas size that matches extent aspect ratio but at screen scale
+      // This is CRITICAL: both layers must render with same aspect ratio to align properly
+      let vectorWidth = originalSize?.[0] ?? 1920;
+      let vectorHeight = originalSize?.[1] ?? 1080;
+
+      if (extent) {
+        const extentWidth = extent[2] - extent[0];
+        const extentHeight = extent[3] - extent[1];
+        const extentAspectRatio = extentWidth / extentHeight;
+        const originalAspectRatio = vectorWidth / vectorHeight;
+
+        console.log('📊 Aspect ratio alignment:', {
+          extentAspectRatio,
+          originalAspectRatio,
+          needsAdjustment: Math.abs(extentAspectRatio - originalAspectRatio) > 0.01
+        });
+
+        // Adjust vector canvas to match extent aspect ratio (same logic as for print canvas)
+        if (extentAspectRatio > originalAspectRatio) {
+          // Extent is wider - keep width, reduce height
+          vectorHeight = Math.round(vectorWidth / extentAspectRatio);
+        } else {
+          // Extent is taller - keep height, reduce width
+          vectorWidth = Math.round(vectorHeight * extentAspectRatio);
+        }
+
+        console.log('📐 Vector canvas adjusted to match extent:', { vectorWidth, vectorHeight });
+      }
+
+      const vectorSize: [number, number] = [vectorWidth, vectorHeight];
+      map.setSize(vectorSize);
+
+      if (extent) {
+        console.log('🎯 Fitting vector to selected extent');
+        map.getView().fit(extent, { size: vectorSize, padding: [0, 0, 0, 0] });
+      }
+
+      // Wait for vector layer render
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Vector layer render timeout')), 180000);
+        map.once('rendercomplete', () => {
+          clearTimeout(timeout);
+          resolve();
+        });
+        map.renderSync();
       });
-      console.log('✅ Map fitted to selected extent');
-    } else if (originalSize && originalResolution !== undefined) {
-      const scaling = Math.min(width / originalSize[0], height / originalSize[1]);
-      console.log('🔍 Calculating scaling:', { scaling, width, height, originalSize });
-      map.getView().setResolution(originalResolution / scaling);
-      console.log('✅ View resolution set for export');
+
+      const vectorCanvas = document.querySelector('#map canvas') as HTMLCanvasElement;
+      if (vectorCanvas) {
+        vectorLayerCanvas = document.createElement('canvas');
+        vectorLayerCanvas.width = vectorCanvas.width;
+        vectorLayerCanvas.height = vectorCanvas.height;
+        const ctx = vectorLayerCanvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(vectorCanvas, 0, 0);
+          console.log('✅ Vector layer captured at original screen size');
+        }
+      }
+
+      // STEP 2: Render base layers at HIGH RESOLUTION
+      console.log('📐 Rendering base layers at high resolution...');
+      onProgress?.({ stage: 'rendering', message: 'Rendering high-res base map...', percent: 50 });
+
+      // Hide vector layers, show ONLY the base layer that was originally visible
+      vectorLayers.forEach(layer => layer.setVisible(false));
+      baseLayers.forEach(layer => {
+        const wasVisible = originalVisibility.get(layer);
+        layer.setVisible(wasVisible ?? false);
+      });
+
+      const printSize: [number, number] = [width, height];
+      map.setSize(printSize);
+
+      if (extent) {
+        map.getView().fit(extent, { size: printSize, padding: [0, 0, 0, 0] });
+      } else if (originalSize && originalResolution !== undefined) {
+        const scaling = Math.min(width / originalSize[0], height / originalSize[1]);
+        map.getView().setResolution(originalResolution / scaling);
+      }
+
+      // Wait for base layer render
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Base layer render timeout')), 180000);
+        map.once('rendercomplete', () => {
+          clearTimeout(timeout);
+          resolve();
+        });
+        map.renderSync();
+      });
+
+      const baseCanvas = document.querySelector('#map canvas') as HTMLCanvasElement;
+      if (baseCanvas) {
+        baseLayerCanvas = document.createElement('canvas');
+        baseLayerCanvas.width = baseCanvas.width;
+        baseLayerCanvas.height = baseCanvas.height;
+        const ctx = baseLayerCanvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(baseCanvas, 0, 0);
+          console.log('✅ Base layer captured at high resolution');
+        }
+      }
+
+      // Restore original layer visibility
+      baseLayers.forEach(layer => layer.setVisible(originalVisibility.get(layer) ?? true));
+      vectorLayers.forEach(layer => layer.setVisible(originalVisibility.get(layer) ?? true));
+      console.log('✅ Restored original layer visibility');
+
     } else {
-      throw new Error('Cannot calculate scaling - missing size or viewResolution');
+      // Standard rendering mode (zoom everything together)
+      console.log('🎨 Using standard rendering mode');
+      onProgress?.({ stage: 'preparing', message: 'Setting up canvas...', percent: 10 });
+
+      const printSize: [number, number] = [width, height];
+      map.setSize(printSize);
+
+      if (extent) {
+        console.log('🎯 Fitting map to selected extent:', extent);
+        map.getView().fit(extent, { size: printSize, padding: [0, 0, 0, 0] });
+      } else if (originalSize && originalResolution !== undefined) {
+        const scaling = Math.min(width / originalSize[0], height / originalSize[1]);
+        map.getView().setResolution(originalResolution / scaling);
+      } else {
+        throw new Error('Cannot calculate scaling - missing size or viewResolution');
+      }
+
+      onProgress?.({ stage: 'rendering', message: 'Rendering map...', percent: 30 });
+
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Map render timeout after 3 minutes. Try lowering the resolution.'));
+        }, 180000);
+
+        map.once('rendercomplete', () => {
+          clearTimeout(timeout);
+          resolve();
+        });
+        map.renderSync();
+      });
     }
 
-    console.log('⏳ Waiting for rendercomplete...');
-    onProgress?.({ stage: 'rendering', message: 'Rendering map...', percent: 30 });
-
-    // Wait for render complete with timeout
-    await new Promise<void>((resolve, reject) => {
-      let renderCompleted = false;
-
-      const timeout = setTimeout(() => {
-        if (!renderCompleted) {
-          console.error('❌ Rendercomplete timeout');
-          reject(new Error('Map render timeout after 60 seconds. Try lowering the resolution.'));
-        }
-      }, 60000*3);
-
-      map.once('rendercomplete', () => {
-        renderCompleted = true;
-        clearTimeout(timeout);
-        console.log('🎨 Rendercomplete fired!');
-        resolve();
-      });
-
-      // Trigger render
-      map.renderSync();
-    });
-
-    console.log('🖼️ Getting map canvas...');
+    console.log('🖼️ Creating final export canvas...');
     onProgress?.({ stage: 'rendering', message: 'Processing map canvas...', percent: 60 });
 
-    // Get the map canvas
-    const mapCanvas = document.querySelector('#map canvas') as HTMLCanvasElement;
-    if (!mapCanvas) {
-      throw new Error('No map canvas found');
-    }
-
-    console.log('📏 Map canvas dimensions:', {
-      width: mapCanvas.width,
-      height: mapCanvas.height,
-      targetWidth: width,
-      targetHeight: height,
-    });
-
-    // Create export canvas with proper dimensions
+    // Create export canvas
     const exportCanvas = document.createElement('canvas');
-    const scale = Math.min(width / mapCanvas.width, height / mapCanvas.height);
-    const scaledWidth = Math.round(mapCanvas.width * scale);
-    const scaledHeight = Math.round(mapCanvas.height * scale);
-
     exportCanvas.width = width;
     exportCanvas.height = height;
-
-    console.log('📐 Export canvas setup:', {
-      scale,
-      scaledWidth,
-      scaledHeight,
-      exportWidth: exportCanvas.width,
-      exportHeight: exportCanvas.height,
-    });
 
     const exportContext = exportCanvas.getContext('2d');
     if (!exportContext) {
@@ -177,19 +278,61 @@ export async function exportMapToPdf(
     // Fill with white background
     exportContext.fillStyle = 'white';
     exportContext.fillRect(0, 0, width, height);
-
-    // Center the map image
-    const offsetX = (width - scaledWidth) / 2;
-    const offsetY = (height - scaledHeight) / 2;
-
-    // Disable image smoothing for sharp quality
     exportContext.imageSmoothingEnabled = true;
     exportContext.imageSmoothingQuality = 'high';
 
-    // Draw the map canvas scaled to fit
-    exportContext.drawImage(mapCanvas, offsetX, offsetY, scaledWidth, scaledHeight);
+    if (baseLayerCanvas && vectorLayerCanvas) {
+      // Composite dual-layer rendering - scale vector UP to match base layer
+      console.log('🎨 Compositing base and vector layers (scaling vector up)...');
 
-    console.log('🎨 Map drawn to export canvas');
+      // Draw base layer scaled to fill export canvas
+      const baseScale = Math.min(width / baseLayerCanvas.width, height / baseLayerCanvas.height);
+      const scaledBaseWidth = Math.round(baseLayerCanvas.width * baseScale);
+      const scaledBaseHeight = Math.round(baseLayerCanvas.height * baseScale);
+      const baseOffsetX = (width - scaledBaseWidth) / 2;
+      const baseOffsetY = (height - scaledBaseHeight) / 2;
+
+      exportContext.drawImage(baseLayerCanvas, baseOffsetX, baseOffsetY, scaledBaseWidth, scaledBaseHeight);
+
+      // Scale vector layer UP to match base layer dimensions
+      // Vector canvas is smaller (original screen size), base canvas is larger (high res)
+      // We scale vector to match base layer size for perfect alignment
+      const scaledVectorWidth = scaledBaseWidth;
+      const scaledVectorHeight = scaledBaseHeight;
+
+      console.log('📐 Vector scaling:', {
+        originalVector: { width: vectorLayerCanvas.width, height: vectorLayerCanvas.height },
+        scaledVector: { width: scaledVectorWidth, height: scaledVectorHeight },
+        baseLayer: { width: scaledBaseWidth, height: scaledBaseHeight }
+      });
+
+      // Draw vector layer scaled UP to match base layer size, at same position
+      exportContext.drawImage(
+        vectorLayerCanvas,
+        baseOffsetX,
+        baseOffsetY,
+        scaledVectorWidth,
+        scaledVectorHeight
+      );
+
+      console.log('✅ Layers composited successfully (vector scaled up for alignment)');
+    } else {
+      // Draw standard single canvas
+      const mapCanvas = document.querySelector('#map canvas') as HTMLCanvasElement;
+      if (!mapCanvas) {
+        throw new Error('No map canvas found');
+      }
+
+      const scale = Math.min(width / mapCanvas.width, height / mapCanvas.height);
+      const scaledWidth = Math.round(mapCanvas.width * scale);
+      const scaledHeight = Math.round(mapCanvas.height * scale);
+      const offsetX = (width - scaledWidth) / 2;
+      const offsetY = (height - scaledHeight) / 2;
+
+      exportContext.drawImage(mapCanvas, offsetX, offsetY, scaledWidth, scaledHeight);
+    }
+
+    console.log('🎨 Export canvas ready');
 
     console.log('📄 Creating PDF...');
     onProgress?.({ stage: 'creating', message: 'Creating PDF document...', percent: 80 });

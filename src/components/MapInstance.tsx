@@ -33,7 +33,9 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
 
     // Create OSM layer
     const osmLayer = new TileLayer({
-      source: new OSM(),
+      source: new OSM({
+        crossOrigin: 'anonymous',
+      }),
       visible: true,
     });
 
@@ -44,6 +46,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
         attributions: "Tiles © Esri",
         maxZoom: 18,
         minZoom: 0,
+        crossOrigin: 'anonymous',
       }),
       visible: false,
     });

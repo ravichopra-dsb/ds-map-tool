@@ -9,6 +9,7 @@ export interface PageDimensions {
 export interface PdfExportConfig {
   pageSize: PageSize;
   resolution: Resolution;
+  keepVectorLayerConstant?: boolean; // If true, vector features stay at original size while base layer zooms
 }
 
 // Page dimensions in millimeters [width, height]

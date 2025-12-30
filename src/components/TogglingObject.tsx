@@ -28,7 +28,7 @@ export function TogglingObject() {
         <div className="px-4 divide-transparent divide-y-12">
           {TOOLS.slice(3).map((tool) => {
             const Icon = tool.icon;
-            console.log("ID XXX : ",tool.id)
+            // console.log("ID XXX : ",tool.id)
             return (
               <div key={tool.id} className="flex items-center gap-4 ">
                 <Checkbox
