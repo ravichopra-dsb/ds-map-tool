@@ -7,13 +7,13 @@ import type Map from "ol/Map";
 import GeoJSON from "ol/format/GeoJSON";
 import KML from "ol/format/KML";
 import JSZip from "jszip";
-import { MapViewToggle } from "./MapViewToggle";
-import { LoadingOverlay } from "./LoadingOverlay";
-import Toolbar from "./ToolBar";
-import FileManager from "./FileManager";
-import MapInstance from "./MapInstance";
-import MapInteractions from "./MapInteractions";
-import ToolManager from "./ToolManager";
+import { MapViewToggle } from "../components/MapViewToggle";
+import { LoadingOverlay } from "../components/LoadingOverlay";
+import Toolbar from "../components/ToolBar";
+import FileManager from "../components/FileManager";
+import MapInstance from "../components/MapInstance";
+import MapInteractions from "../components/MapInteractions";
+import ToolManager from "../components/ToolManager";
 import { useMapState } from "@/hooks/useMapState";
 import { useToolState } from "@/hooks/useToolState";
 import { useFeatureState } from "@/hooks/useFeatureState";
@@ -26,18 +26,18 @@ import {
   normalizeImportedGeoJSON,
 } from "@/utils/serializationUtils";
 import { fitMapToFeatures, restoreMapView } from "@/utils/mapStateUtils";
-import { JobSelection } from "./JobSelection";
+import { JobSelection } from "../components/JobSelection";
 import { useMapProjects } from "@/hooks/useMapProjects";
-import PropertiesPanel from "./PropertiesPanel";
-import { TextDialog } from "./TextDialog";
+import PropertiesPanel from "../components/PropertiesPanel";
+import { TextDialog } from "../components/TextDialog";
 import { handleTextClick } from "@/icons/Text";
-import SearchWrapper, { type SearchWrapperRef } from "./SearchWrapper";
-import type { SearchResult } from "./SearchPanel";
-import { TogglingObject } from "./TogglingObject";
-import { PdfExportDialog } from "./PdfExportDialog";
-import { DragBoxInstruction } from "./DragBoxInstruction";
+import SearchWrapper, { type SearchWrapperRef } from "../components/SearchWrapper";
+import type { SearchResult } from "../components/SearchPanel";
+import { TogglingObject } from "../components/TogglingObject";
+import { PdfExportDialog } from "../components/PdfExportDialog";
+import { DragBoxInstruction } from "../components/DragBoxInstruction";
 import { exportMapToPdf, type PdfExportConfig } from "@/utils/pdfExportUtils";
-import { IconPickerDialog } from "./IconPickerDialog";
+import { IconPickerDialog } from "../components/IconPickerDialog";
 import { handleIconClick } from "@/icons/IconPicker";
 
 // Interface for properly serializable map data
