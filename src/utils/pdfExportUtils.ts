@@ -26,8 +26,6 @@ export async function exportMapToPdf(
   onProgress?: (progress: ExportProgress) => void,
   extent?: Extent
 ): Promise<Blob> {
-  console.log('🚀 Starting PDF export with config:', config);
-  console.log('📍 Export extent:', extent);
   onProgress?.({ stage: 'preparing', message: 'Preparing export...', percent: 0 });
 
   const dims = PAGE_SIZES[config.pageSize];
@@ -40,13 +38,6 @@ export async function exportMapToPdf(
     const extentHeight = extent[3] - extent[1];
     const extentAspectRatio = extentWidth / extentHeight;
     const pageAspectRatio = width / height;
-
-    console.log('📊 Aspect ratios:', {
-      extentAspectRatio,
-      pageAspectRatio,
-      extentWidth,
-      extentHeight
-    });
 
     // Adjust canvas dimensions to match extent aspect ratio
     if (extentAspectRatio > pageAspectRatio) {
@@ -96,26 +87,21 @@ export async function exportMapToPdf(
     // alert(message + '\n\nQuality will be slightly reduced but export will work.');
   }
 
-  console.log('📏 Final canvas dimensions:', { width, height });
-
   try {
     let baseLayerCanvas: HTMLCanvasElement | null = null;
     let vectorLayerCanvas: HTMLCanvasElement | null = null;
 
     // Dual-layer rendering mode (keep vector constant)
     if (config.keepVectorLayerConstant && vectorLayers.length > 0) {
-      console.log('🎨 Using dual-layer rendering mode (capture vector first, scale up during composite)');
       onProgress?.({ stage: 'preparing', message: 'Preparing dual-layer rendering...', percent: 10 });
 
       // Store original visibility state for all layers
       const originalVisibility = new WeakMap();
       baseLayers.forEach(layer => originalVisibility.set(layer, layer.getVisible()));
       vectorLayers.forEach(layer => originalVisibility.set(layer, layer.getVisible()));
-      console.log('💾 Stored original layer visibility');
 
       // STEP 1: Render vector layers at a size matching extent's aspect ratio
       // This ensures perfect geographic alignment with the base layer
-      console.log('📐 Rendering vector layers with extent-matched aspect ratio...');
       onProgress?.({ stage: 'rendering', message: 'Rendering features...', percent: 20 });
 
       // Hide base layers, show only vector
@@ -133,12 +119,6 @@ export async function exportMapToPdf(
         const extentAspectRatio = extentWidth / extentHeight;
         const originalAspectRatio = vectorWidth / vectorHeight;
 
-        console.log('📊 Aspect ratio alignment:', {
-          extentAspectRatio,
-          originalAspectRatio,
-          needsAdjustment: Math.abs(extentAspectRatio - originalAspectRatio) > 0.01
-        });
-
         // Adjust vector canvas to match extent aspect ratio (same logic as for print canvas)
         if (extentAspectRatio > originalAspectRatio) {
           // Extent is wider - keep width, reduce height
@@ -147,16 +127,28 @@ export async function exportMapToPdf(
           // Extent is taller - keep height, reduce width
           vectorWidth = Math.round(vectorHeight * extentAspectRatio);
         }
-
-        console.log('📐 Vector canvas adjusted to match extent:', { vectorWidth, vectorHeight });
       }
 
       const vectorSize: [number, number] = [vectorWidth, vectorHeight];
       map.setSize(vectorSize);
 
+      // Wait for resize and get actual size
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const actualVectorSize = map.getSize() || vectorSize;
+
       if (extent) {
-        console.log('🎯 Fitting vector to selected extent');
-        map.getView().fit(extent, { size: vectorSize, padding: [0, 0, 0, 0] });
+
+        // Calculate resolution directly for vector layer
+        const extentWidth = extent[2] - extent[0];
+        const extentHeight = extent[3] - extent[1];
+        const extentCenterX = (extent[0] + extent[2]) / 2;
+        const extentCenterY = (extent[1] + extent[3]) / 2;
+
+        const resolutionX = extentWidth / actualVectorSize[0];
+        const resolutionY = extentHeight / actualVectorSize[1];
+        const targetResolution = Math.max(resolutionX, resolutionY);
+        map.getView().setCenter([extentCenterX, extentCenterY]);
+        map.getView().setResolution(targetResolution);
       }
 
       // Wait for vector layer render
@@ -177,12 +169,10 @@ export async function exportMapToPdf(
         const ctx = vectorLayerCanvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(vectorCanvas, 0, 0);
-          console.log('✅ Vector layer captured at original screen size');
         }
       }
 
       // STEP 2: Render base layers at HIGH RESOLUTION
-      console.log('📐 Rendering base layers at high resolution...');
       onProgress?.({ stage: 'rendering', message: 'Rendering high-res base map...', percent: 50 });
 
       // Hide vector layers, show ONLY the base layer that was originally visible
@@ -195,8 +185,23 @@ export async function exportMapToPdf(
       const printSize: [number, number] = [width, height];
       map.setSize(printSize);
 
+      // Wait for resize and get actual size
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const actualPrintSize = map.getSize() || printSize;
+
       if (extent) {
-        map.getView().fit(extent, { size: printSize, padding: [0, 0, 0, 0] });
+        // Calculate resolution directly for base layer
+        const extentWidth = extent[2] - extent[0];
+        const extentHeight = extent[3] - extent[1];
+        const extentCenterX = (extent[0] + extent[2]) / 2;
+        const extentCenterY = (extent[1] + extent[3]) / 2;
+
+        const resolutionX = extentWidth / actualPrintSize[0];
+        const resolutionY = extentHeight / actualPrintSize[1];
+        const targetResolution = Math.max(resolutionX, resolutionY);
+
+        map.getView().setCenter([extentCenterX, extentCenterY]);
+        map.getView().setResolution(targetResolution);
       } else if (originalSize && originalResolution !== undefined) {
         const scaling = Math.min(width / originalSize[0], height / originalSize[1]);
         map.getView().setResolution(originalResolution / scaling);
@@ -220,26 +225,49 @@ export async function exportMapToPdf(
         const ctx = baseLayerCanvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(baseCanvas, 0, 0);
-          console.log('✅ Base layer captured at high resolution');
         }
       }
 
       // Restore original layer visibility
       baseLayers.forEach(layer => layer.setVisible(originalVisibility.get(layer) ?? true));
       vectorLayers.forEach(layer => layer.setVisible(originalVisibility.get(layer) ?? true));
-      console.log('✅ Restored original layer visibility');
 
     } else {
       // Standard rendering mode (zoom everything together)
-      console.log('🎨 Using standard rendering mode');
       onProgress?.({ stage: 'preparing', message: 'Setting up canvas...', percent: 10 });
 
       const printSize: [number, number] = [width, height];
       map.setSize(printSize);
 
+      // CRITICAL: Wait for resize to take effect and get ACTUAL size
+      // The map may not be able to resize to printSize due to browser/canvas limits
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const actualSize = map.getSize();
+
+      // Use actual size for view.fit to ensure correct resolution calculation
+      const fitSize = actualSize || printSize;
+
       if (extent) {
-        console.log('🎯 Fitting map to selected extent:', extent);
-        map.getView().fit(extent, { size: printSize, padding: [0, 0, 0, 0] });
+
+        // Calculate resolution directly for more precise control
+        // Resolution = max(extentWidth / canvasWidth, extentHeight / canvasHeight)
+        const extentWidth = extent[2] - extent[0];
+        const extentHeight = extent[3] - extent[1];
+        const extentCenterX = (extent[0] + extent[2]) / 2;
+        const extentCenterY = (extent[1] + extent[3]) / 2;
+
+        const resolutionX = extentWidth / fitSize[0];
+        const resolutionY = extentHeight / fitSize[1];
+        const targetResolution = Math.max(resolutionX, resolutionY);
+
+        // Set view directly for more precise control
+        map.getView().setCenter([extentCenterX, extentCenterY]);
+        map.getView().setResolution(targetResolution);
+
+        // Verify the view was set correctly
+        const newResolution = map.getView().getResolution();
+        const newCenter = map.getView().getCenter();
       } else if (originalSize && originalResolution !== undefined) {
         const scaling = Math.min(width / originalSize[0], height / originalSize[1]);
         map.getView().setResolution(originalResolution / scaling);
@@ -262,7 +290,6 @@ export async function exportMapToPdf(
       });
     }
 
-    console.log('🖼️ Creating final export canvas...');
     onProgress?.({ stage: 'rendering', message: 'Processing map canvas...', percent: 60 });
 
     // Create export canvas
@@ -283,7 +310,6 @@ export async function exportMapToPdf(
 
     if (baseLayerCanvas && vectorLayerCanvas) {
       // Composite dual-layer rendering - scale vector UP to match base layer
-      console.log('🎨 Compositing base and vector layers (scaling vector up)...');
 
       // Draw base layer scaled to fill export canvas
       const baseScale = Math.min(width / baseLayerCanvas.width, height / baseLayerCanvas.height);
@@ -300,12 +326,6 @@ export async function exportMapToPdf(
       const scaledVectorWidth = scaledBaseWidth;
       const scaledVectorHeight = scaledBaseHeight;
 
-      console.log('📐 Vector scaling:', {
-        originalVector: { width: vectorLayerCanvas.width, height: vectorLayerCanvas.height },
-        scaledVector: { width: scaledVectorWidth, height: scaledVectorHeight },
-        baseLayer: { width: scaledBaseWidth, height: scaledBaseHeight }
-      });
-
       // Draw vector layer scaled UP to match base layer size, at same position
       exportContext.drawImage(
         vectorLayerCanvas,
@@ -315,7 +335,6 @@ export async function exportMapToPdf(
         scaledVectorHeight
       );
 
-      console.log('✅ Layers composited successfully (vector scaled up for alignment)');
     } else {
       // Draw standard single canvas
       const mapCanvas = document.querySelector('#map canvas') as HTMLCanvasElement;
@@ -331,10 +350,6 @@ export async function exportMapToPdf(
 
       exportContext.drawImage(mapCanvas, offsetX, offsetY, scaledWidth, scaledHeight);
     }
-
-    console.log('🎨 Export canvas ready');
-
-    console.log('📄 Creating PDF...');
     onProgress?.({ stage: 'creating', message: 'Creating PDF document...', percent: 80 });
 
     // Calculate actual PDF dimensions in mm based on canvas dimensions
@@ -344,15 +359,11 @@ export async function exportMapToPdf(
     // Determine orientation based on actual dimensions
     const orientation = width > height ? 'landscape' : 'portrait';
 
-    console.log('📏 PDF dimensions:', { pdfWidth, pdfHeight, orientation });
-
     const pdf = new jsPDF({
       orientation,
       unit: 'mm',
       format: [pdfWidth, pdfHeight], // Use custom size to match extent
     });
-
-    console.log('🖼️ Converting canvas to data URL...');
 
     // Use JPEG for high resolution to avoid size limits
     const useJPEG = config.resolution >= 300;
@@ -360,10 +371,6 @@ export async function exportMapToPdf(
       useJPEG ? 'image/jpeg' : 'image/png',
       useJPEG ? 0.95 : 1.0
     );
-
-    console.log('📊 Data URL length:', dataURL.length, 'Format:', useJPEG ? 'JPEG' : 'PNG');
-
-    console.log('📎 Adding image to PDF...');
 
     pdf.addImage(
       dataURL,
@@ -373,10 +380,7 @@ export async function exportMapToPdf(
       pdfWidth,
       pdfHeight
     );
-
-    console.log('💾 Creating PDF blob...');
     const pdfBlob = pdf.output('blob');
-    console.log('✅ PDF created successfully!');
     onProgress?.({ stage: 'complete', message: 'Export complete!', percent: 100 });
 
     return pdfBlob;
@@ -385,7 +389,6 @@ export async function exportMapToPdf(
     throw error;
   } finally {
     // Always restore original map state
-    console.log('🔄 Resetting map state...');
     if (originalSize && originalResolution !== undefined && originalCenter) {
       map.setSize(originalSize);
       map.getView().setResolution(originalResolution);
@@ -393,7 +396,6 @@ export async function exportMapToPdf(
       if (originalRotation !== undefined) {
         map.getView().setRotation(originalRotation);
       }
-      console.log('✅ Map size, resolution, center, and rotation reset');
     }
   }
 }
