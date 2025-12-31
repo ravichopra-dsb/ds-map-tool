@@ -11,7 +11,8 @@ import {
   Move,
   RulerDimensionLine,
   MapPin,
-  Scissors
+  Scissors,
+  Spline
 } from "lucide-react";
 
 export const TOOLS = [
@@ -99,6 +100,11 @@ export const TOOLS = [
     id: 'split',
     name: 'Split',
     icon: Scissors,
+  },
+  {
+    id: 'merge',
+    name: 'Merge',
+    icon: Spline,
   },
 
 ];

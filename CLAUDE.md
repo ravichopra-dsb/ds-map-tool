@@ -47,6 +47,9 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - File import/export support (GeoJSON, KML, KMZ) with enhanced KML/KMZ format handling
 - **Download functionality** - Direct download of maps in GeoJSON, KML, and KMZ formats
 - **PDF Export** - High-quality map export to PDF with DragBox area selection, configurable page sizes (A0-A5), and resolution options (72-3600 DPI) with real-time progress tracking
+- **Split tool** - Split LineString features by clicking on them, preserving properties and recalculating measure distances
+- **Merge tool** - Merge LineString features by dragging endpoints together with property conflict resolution dialog
+- **Google Earth Icon Picker** - Comprehensive icon selection dialog with 400+ Google Earth icons across multiple categories (Paddle, Pushpin, Shapes, etc.)
 - **Advanced text manipulation** - Text tool with rotate and scale capabilities for precise label placement
 - Tool selection system with toolbar
 - Universal feature selection (all features can be selected) with restricted editing (only Polyline, Freehand Line, Arrow, Legend, and Text features are editable)
@@ -59,11 +62,9 @@ This is a **DS Map Tool** - a web-based map editor application built with React 
 - **Undo/Redo functionality** with keyboard shortcuts (Ctrl+Z, Ctrl+Y) for all drawing operations
 - **Multi-Job/Project Management** - Create, edit, delete, and switch between multiple map projects with isolated databases
 - **Data persistence with PGLite** - Local PostgreSQL-compatible database for reliable data storage and retrieval
-- **Enhanced serialization utilities** - Advanced feature serialization and deserialization for complex data structures
 - **Project-based data isolation** - Each project maintains its own separate database and map state
 - **Multi-selection functionality** - Enhanced multi-selection with drag, copy, paste, and cut operations for multiple features
 - **Properties panel** - View and edit feature properties including coordinates, names, and custom properties with full edit/save workflow
-- **Text tool** - Place and edit text labels on the map with customizable styling
 - **Search functionality** - Location search using Nominatim with autocomplete and geocoding capabilities
 - **Toggling Objects** - Show/hide different feature types on the map through a slide-out panel interface
 - **Feature name display** - Automatic display of feature names as text labels above Point geometry features
@@ -94,6 +95,8 @@ The application follows a modular, component-based architecture with clear separ
 - **`TogglingObject.tsx`** - Slide-out panel for showing/hiding different feature types on the map
 - **`PdfExportDialog.tsx`** - PDF export dialog with page size, resolution selection, and real-time progress tracking
 - **`DragBoxInstruction.tsx`** - Interactive overlay for DragBox area selection guidance
+- **`MergePropertiesDialog.tsx`** - Property conflict resolution dialog for merging LineString features
+- **`IconPickerDialog.tsx`** - Google Earth icon selection dialog with 400+ icons across multiple categories
 - **`ui/`** - Reusable UI components (Button, Card, Dropdown, Toggle, ToggleGroup, Input, Sheet, Checkbox)
 
 #### Custom Hooks (`src/hooks/`)
@@ -121,6 +124,8 @@ The application follows a modular, component-based architecture with clear separ
 - **`serializationUtils.ts`** - Advanced feature serialization and deserialization for database storage
 - **`searchUtils.ts`** - Search functionality utilities including coordinate conversion and result formatting
 - **`pdfExportUtils.ts`** - PDF export functionality with canvas rendering, aspect ratio preservation, format optimization, and progress tracking
+- **`splitUtils.ts`** - Split and merge utilities for LineString features with property preservation and conflict resolution
+- **`iconUtils.ts`** - Google Earth icon categorization and path management utilities
 
 #### Icons (`src/icons/`)
 - **Icon components** - Triangle, Pit, GP, Junction Point, Tower, Text SVG components and click handlers
@@ -135,7 +140,7 @@ The application follows a modular, component-based architecture with clear separ
 ### Available Tools
 - **Select**: Select all features (universal selection) with multi-selection support (shift-click, drag selection) and editing restricted to Polyline, Freehand Line, Arrow, Legend, and Text features
 - **Hand**: Pan navigation mode
-- **Point**: Place point markers
+- **Point**: Place point markers with Google Earth icon picker support
 - **Polyline**: Draw straight lines with vertex delete functionality
 - **Line**: Draw line segments
 - **Freehand**: Freehand drawing
@@ -148,6 +153,8 @@ The application follows a modular, component-based architecture with clear separ
 - **Transform**: Advanced feature manipulation (rotate, scale, stretch) - works only on editable features
 - **Text**: Place and edit text labels with customizable styling, rotation, and scale controls
 - **Search**: Location search with autocomplete using OpenStreetMap Nominatim API
+- **Split**: Split LineString features by clicking on them - preserves properties and recalculates measure distances
+- **Merge**: Merge LineString features by dragging endpoints together - includes property conflict resolution dialog
 
 ### Keyboard Shortcuts
 - **Ctrl+C**: Copy selected features to clipboard
@@ -309,6 +316,33 @@ The application follows a modular, component-based architecture with clear separ
    - **Full-screen overlays** with z-50 positioning for critical operations
    - **Lucide Loader2 icon** provides consistent spinning animation across all loading states
 
+17. **Split and Merge Tools**:
+   - **Split Tool** functionality implemented in `MapInteractions.tsx` with click-to-split interaction
+   - **Merge Tool** functionality with endpoint snapping and proximity detection
+   - **`splitUtils.ts`** provides comprehensive utilities for both split and merge operations
+   - **Property preservation** - All feature properties copied to split/merged results with intelligent handling
+   - **Measure feature support** - Automatically recalculates distances for measure features after split
+   - **`isSplittableFeature()`** - Validates that only LineString features (excluding arrows) can be split
+   - **`isMergeableFeature()`** - Validates that only LineString features (excluding arrows) can be merged
+   - **`copyFeatureProperties()`** - Preserves styling, names, and custom properties with name indexing for splits
+   - **`findNearbyEndpoint()`** - Detects nearby endpoints for merge operations with configurable tolerance
+   - **`mergeLineStrings()`** - Merges two LineString features with intelligent coordinate ordering
+   - **`performMerge()`** - Complete merge operation including feature removal and addition
+   - **MergePropertiesDialog** - User-friendly property conflict resolution with radio button selection
+   - **Endpoint snapping** - Visual feedback and automatic snapping when dragging endpoints near each other
+   - **Custom property support** - Merge dialog allows selecting which properties to keep from each feature
+
+18. **Google Earth Icon Integration**:
+   - **IconPickerDialog component** - Full-featured icon selection dialog with search and categorization
+   - **400+ Google Earth icons** organized into 8 categories for comprehensive icon library
+   - **Icon categories** - Paddle (numbered/lettered markers), Pushpin, Shapes (POI icons), Map Files, Palettes 2-5, Track Directional
+   - **`iconUtils.ts`** - Centralized icon management with `getIconCategories()` and `getIconFullPath()` functions
+   - **Search functionality** - Filter icons by name for quick selection
+   - **Category organization** - Icons grouped logically for easy browsing
+   - **Point tool integration** - Icon picker opens when placing Point features for custom icon selection
+   - **Icon path management** - All icons stored in `public/google_earth_icons/` directory with organized subdirectories
+   - **Responsive grid layout** - Icons displayed in grid with hover effects and visual feedback
+
 #### Benefits of the New Architecture
 - **Easier debugging** - Issues can be isolated to specific components
 - **Better testing** - Each component can be unit tested independently
@@ -316,13 +350,33 @@ The application follows a modular, component-based architecture with clear separ
 - **Cleaner code** - Related functionality is grouped together
 - **Type safety** - Better TypeScript support with proper interfaces and props
 
-### Current Branch: exportPDF
+### Current Branch: tools
 
-The `exportPDF` branch includes the latest features and improvements over the main branch.
+The `tools` branch includes the latest features including Split/Merge functionality and Google Earth icon picker.
 
 ### Recent Changes
 
-#### PDF Export & Visual Feedback (Latest - v2.8)
+#### Split/Merge Tools & Icon Picker (Latest - v2.9)
+- **Split Tool** - Complete LineString splitting functionality with click-to-split interaction
+- **Merge Tool** - LineString merging with endpoint snapping and automatic detection
+- **`MergePropertiesDialog.tsx` component** - Property conflict resolution dialog for merge operations
+- **Property conflict resolution** - Radio button selection for choosing properties when merging features
+- **`splitUtils.ts` utility** - Comprehensive split and merge utilities with property preservation
+- **Split functionality** - Splits LineString features while preserving styling, names, and custom properties
+- **Measure distance recalculation** - Automatically recalculates distances for split measure features
+- **Merge endpoint detection** - Automatic detection of nearby endpoints with configurable tolerance
+- **Merge coordinate merging** - Intelligent coordinate merging with proper direction handling
+- **Property preservation** - Copies all properties from original features to split/merged results
+- **Google Earth Icon Picker** - `IconPickerDialog.tsx` component with comprehensive icon selection
+- **Icon categorization** - 400+ icons organized into categories: Paddle, Pushpin, Shapes, Map Files, Palette 2-5, Track Directional
+- **`iconUtils.ts` utility** - Icon path management and category organization
+- **Icon search** - Search functionality for finding icons by name
+- **Point tool integration** - Icon picker integrated with Point tool for custom icon placement
+- **Split/Merge configuration** - Added split and merge tool configurations in `toolConfig.ts`
+- **Feature type validation** - Only LineString features (excluding arrows) can be split or merged
+- **Name indexing for splits** - Split features automatically get indexed names (e.g., "Line 1", "Line 2")
+
+#### PDF Export & Visual Feedback (v2.8)
 - **PDF Export Functionality** - Complete client-side PDF generation system with high-quality map rendering
 - **`PdfExportDialog.tsx` component** - Comprehensive dialog with page size (A0-A5), resolution (72-3600 DPI), and real-time progress tracking
 - **`DragBoxInstruction.tsx` component** - Interactive overlay guiding users through area selection process
@@ -502,13 +556,14 @@ The `exportPDF` branch includes the latest features and improvements over the ma
 - Enhanced UI with improved tooltips and visual feedback
 
 ### Version History
-- **exportPDF** (current) - Latest features including **PDF Export (v2.8)** with DragBox area selection, configurable page sizes and resolutions (72-3600 DPI), progress tracking, and visual feedback enhancements for job operations; **Toggling Objects (v2.7)** with feature visibility control, **Automatic name display for Point features**, **Enhanced Properties Panel with custom properties management**, **Auto-open Properties Panel on Point drop**, Search functionality with Nominatim integration (v2.6), Enhanced Text tool with rotate/scale controls, Multi-format download functionality (GeoJSON, KML, KMZ), Enhanced Multi-Selection Functionality (v2.5), Multi-Job Project Management (v2.4), PGLite persistence (v2.3), advanced serialization, Undo/Redo (v2.2), Cut/Copy/Paste (v2.1), point delete, Measure tool (v2.0), icon improvements, and architecture refactoring
-- **Icons2.0** - Previous major release with Enhanced Multi-Selection Functionality, Multi-Job Project Management, and architecture improvements
+- **tools** (current) - Latest features including **Split/Merge Tools & Icon Picker (v2.9)** with LineString split/merge functionality, property conflict resolution, Google Earth icon picker with 400+ icons, endpoint snapping, and measure distance recalculation; **PDF Export (v2.8)** with DragBox area selection, configurable page sizes and resolutions (72-3600 DPI), progress tracking, and visual feedback enhancements for job operations; **Toggling Objects (v2.7)** with feature visibility control, **Automatic name display for Point features**, **Enhanced Properties Panel with custom properties management**, **Auto-open Properties Panel on Point drop**, Search functionality with Nominatim integration (v2.6), Enhanced Text tool with rotate/scale controls, Multi-format download functionality (GeoJSON, KML, KMZ), Enhanced Multi-Selection Functionality (v2.5), Multi-Job Project Management (v2.4), PGLite persistence (v2.3), advanced serialization, Undo/Redo (v2.2), Cut/Copy/Paste (v2.1), point delete, Measure tool (v2.0), icon improvements, and architecture refactoring
+- **exportPDF** - Previous branch with PDF Export functionality and visual feedback enhancements
+- **Icons2.0** - Enhanced Multi-Selection Functionality, Multi-Job Project Management, and architecture improvements
 - **Icons** - Icon tools implementation
 - **Legends** - Legend component enhancements
 - **Satellite** - Arrow tool and satellite view improvements
 - **feature-1** - Transform interaction and custom tools foundation
-- **main** - Stable baseline (currently 11 commits behind)
+- **main** - Stable baseline
 
 ---
 

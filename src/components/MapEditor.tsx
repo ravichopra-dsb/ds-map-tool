@@ -39,6 +39,9 @@ import { DragBoxInstruction } from "./DragBoxInstruction";
 import { exportMapToPdf, type PdfExportConfig } from "@/utils/pdfExportUtils";
 import { IconPickerDialog } from "./IconPickerDialog";
 import { handleIconClick } from "@/icons/IconPicker";
+import { MergePropertiesDialog } from "./MergePropertiesDialog";
+import { type MergeRequestDetail } from "./MapInteractions";
+import { performMerge } from "@/utils/splitUtils";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -102,6 +105,10 @@ const MapEditor: React.FC = () => {
 
   // Icon picker dialog state
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
+
+  // Merge properties dialog state
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  const [pendingMerge, setPendingMerge] = useState<MergeRequestDetail | null>(null);
 
   // PDF export dialog state
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
@@ -642,6 +649,20 @@ const MapEditor: React.FC = () => {
     };
   }, []);
 
+  // Merge request event listener
+  useEffect(() => {
+    const handleMergeRequest = (event: CustomEvent<MergeRequestDetail>) => {
+      setPendingMerge(event.detail);
+      setMergeDialogOpen(true);
+    };
+
+    window.addEventListener('mergeRequest', handleMergeRequest as EventListener);
+
+    return () => {
+      window.removeEventListener('mergeRequest', handleMergeRequest as EventListener);
+    };
+  }, []);
+
   // Handle text feature selection for editing
   useEffect(() => {
     // Only handle editing when select tool is active and a text feature is selected
@@ -725,6 +746,39 @@ const MapEditor: React.FC = () => {
     setActiveTool('select');
   };
 
+  // Merge dialog handlers
+  const handleMergeConfirm = (selectedProperties: Record<string, any>) => {
+    if (!pendingMerge) return;
+
+    const { feature1, feature2, feature1Endpoint, feature2Endpoint, vectorSource } = pendingMerge;
+
+    // Perform merge with selected properties
+    const mergedFeature = performMerge(
+      vectorSource,
+      feature1,
+      feature2,
+      feature1Endpoint,
+      feature2Endpoint,
+      selectedProperties
+    );
+
+    if (mergedFeature) {
+      // Select the merged feature
+      setSelectedFeature(mergedFeature);
+      // Save map state
+      saveMapState();
+    }
+
+    // Close dialog and clear pending merge
+    setMergeDialogOpen(false);
+    setPendingMerge(null);
+  };
+
+  const handleMergeDialogClose = () => {
+    setMergeDialogOpen(false);
+    setPendingMerge(null);
+  };
+
   const handleRedoOperation = () => {
     if (undoRedoInteractionRef.current?.hasRedo()) {
       undoRedoInteractionRef.current.redo();
@@ -786,6 +840,14 @@ const MapEditor: React.FC = () => {
         isOpen={iconPickerOpen}
         onClose={handleIconPickerClose}
         onSelectIcon={handleIconSelect}
+      />
+
+      <MergePropertiesDialog
+        isOpen={mergeDialogOpen}
+        onClose={handleMergeDialogClose}
+        onConfirm={handleMergeConfirm}
+        feature1={pendingMerge?.feature1 || null}
+        feature2={pendingMerge?.feature2 || null}
       />
 
       <PdfExportDialog
