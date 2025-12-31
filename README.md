@@ -36,13 +36,21 @@ npm run build
 
 DS Map Tool is an interactive map editor that combines powerful drawing capabilities with professional-grade features for creating, editing, and managing geographic data.
 
-## ✨ Current Release Highlights (exportPDF branch)
+## ✨ Current Release Highlights (tools branch)
 
-### 🆕 New Features
+### 🆕 Latest Features (v2.9)
+- **Split Tool**: Split LineString features by clicking on them with property preservation
+- **Merge Tool**: Merge LineString features by dragging endpoints together with conflict resolution
+- **Google Earth Icon Picker**: 400+ icons across 8 categories (Paddle, Pushpin, Shapes, Map Files, etc.)
+- **PDF Export**: High-quality map export with DragBox area selection and configurable resolution (72-3600 DPI)
+- **Search Functionality**: Location search with OpenStreetMap Nominatim API and autocomplete
+- **Toggling Objects**: Show/hide different feature types through a slide-out panel
+
+### 🎯 Core Features
 - **Enhanced Text Tool**: Place text labels with interactive rotation (0-360°) and scale (0.5-3.0) controls
 - **Direct Download Functionality**: Export maps directly to GeoJSON, KML, and KMZ formats
 - **Multi-Selection Support**: Select multiple features using drag selection and Shift+Click
-- **Properties Panel**: View and edit feature coordinates and metadata
+- **Properties Panel**: View and edit feature coordinates, names, and custom properties
 - **Enhanced KML/KMZ Handling**: Improved format support with proper EPSG:4326 projection
 
 ### 🏗️ Architecture Improvements
@@ -60,6 +68,11 @@ DS Map Tool is an interactive map editor that combines powerful drawing capabili
 ### Core Capabilities
 - **Interactive Map Display** with OpenStreetMap and satellite view toggle
 - **Advanced Drawing Tools** for creating various geometric features including text labels
+- **Split & Merge Tools** for dividing and combining LineString features with property preservation
+- **Google Earth Icon Library** with 400+ icons for professional map markers
+- **PDF Export System** with DragBox area selection and high-resolution output (up to 3600 DPI)
+- **Location Search** with OpenStreetMap Nominatim API and autocomplete suggestions
+- **Feature Visibility Control** to show/hide different feature types on the map
 - **Feature Management** with selection, editing, and transformation capabilities
 - **Multi-Job Project Management** with isolated databases for different projects
 - **Data Persistence** with local PostgreSQL-compatible storage using PGLite
@@ -74,7 +87,7 @@ DS Map Tool is an interactive map editor that combines powerful drawing capabili
 |------|-------------|----------|
 | **Select** | Universal feature selection and editing | Select and modify existing features |
 | **Hand** | Pan navigation mode | Navigate around the map |
-| **Point** | Place point markers | Mark specific locations |
+| **Point** | Place point markers with icon picker | Mark locations with 400+ Google Earth icons |
 | **Polyline** | Draw straight lines with vertex control | Create precise paths and boundaries |
 | **Line** | Draw continuous line segments | Free-form line drawing |
 | **Freehand** | Freehand drawing | Sketch irregular shapes |
@@ -86,6 +99,9 @@ DS Map Tool is an interactive map editor that combines powerful drawing capabili
 | **Measure** | Distance measurement tool | Calculate distances between points |
 | **Text** | Place and edit text labels | Add annotations with rotate/scale controls |
 | **Transform** | Advanced feature manipulation | Rotate, scale, and stretch features |
+| **Split** | Split LineString features | Divide lines while preserving properties |
+| **Merge** | Merge LineString features | Combine lines with conflict resolution |
+| **Search** | Location search with autocomplete | Find places using OpenStreetMap Nominatim |
 
 ### Data Management Features
 - **Multi-Job Project Management**: Create, edit, and switch between multiple map projects
@@ -93,9 +109,14 @@ DS Map Tool is an interactive map editor that combines powerful drawing capabili
 - **Copy/Paste Operations**: Cut, copy, and paste features with keyboard shortcuts
 - **Undo/Redo System**: Complete history tracking for all drawing operations
 - **Vertex Editing**: Delete and modify individual points in polylines
-- **Properties Panel**: View and edit feature properties including coordinates
+- **Properties Panel**: View and edit feature properties including coordinates and custom properties
 - **Feature Styling**: Customize appearance of all map elements
 - **Enhanced File Operations**: Import/Export and direct download of multiple geospatial formats
+- **Split & Merge Tools**: Divide and combine LineString features with property preservation
+- **PDF Export**: High-quality map export with DragBox selection and configurable settings
+- **Location Search**: Find places using OpenStreetMap Nominatim API with autocomplete
+- **Feature Visibility**: Toggle visibility of different feature types without deleting data
+- **Icon Library**: Access 400+ Google Earth icons for professional point markers
 
 ## 🎯 Workflow Guide
 
@@ -174,6 +195,53 @@ DS Map Tool is an interactive map editor that combines powerful drawing capabili
 4. **Position and confirm** - Text appears with applied transformations
 5. **Edit existing text**: Select text feature and reopen dialog for modifications
 
+#### Split Tool Workflow
+1. **Select Split tool** from toolbar
+2. **Click on a LineString feature** (Polyline, Freehand, or Measure line)
+3. **Feature splits at click point** into two separate features
+4. **Properties are preserved** - Names get indexed (e.g., "Line (1)", "Line (2)")
+5. **Measure distances recalculated** automatically for split measure features
+
+#### Merge Tool Workflow
+1. **Select Merge tool** from toolbar
+2. **Select a LineString feature** you want to merge
+3. **Drag an endpoint** near another LineString's endpoint
+4. **Endpoints snap together** when within tolerance distance
+5. **Property conflict dialog** appears if features have different properties
+6. **Choose properties** from either feature using radio buttons
+7. **Merged feature created** with selected properties and combined geometry
+
+#### PDF Export Workflow
+1. **Click PDF Export button** in toolbar
+2. **Draw a rectangle** using DragBox to select export area
+3. **Configure export settings**:
+   - **Page Size**: A0-A5 (larger = slower but higher quality)
+   - **Resolution**: 72-3600 DPI (higher = better quality but slower)
+4. **Click Export** and monitor progress bar
+5. **PDF downloads automatically** when complete
+
+#### Icon Picker Usage
+1. **Select Point tool** from toolbar
+2. **Click on map** to place a point
+3. **Icon picker dialog opens** automatically
+4. **Search or browse** 400+ Google Earth icons across 8 categories
+5. **Click an icon** to select it for your point marker
+6. **Icon appears on map** at the selected location
+
+#### Location Search
+1. **Click Search button** or use Search tool
+2. **Type location name** in search box
+3. **Select from autocomplete suggestions** powered by Nominatim
+4. **Map zooms to location** with appropriate zoom level
+5. **Search results** show detailed address information
+
+#### Toggling Feature Visibility
+1. **Click "Open" button** at bottom-left of map
+2. **Slide-out panel appears** with all feature types
+3. **Check/uncheck feature types** to show/hide them
+4. **Changes apply instantly** to the map
+5. **Hidden features preserved** - data not deleted, just visually hidden
+
 ## 🏗️ Technical Architecture
 
 ### Frontend Stack
@@ -185,10 +253,12 @@ DS Map Tool is an interactive map editor that combines powerful drawing capabili
 - **Radix UI** - Accessible component library
 
 ### Key Libraries
-- **ol-ext 4.0.36** - Extended OpenLayers functionality (UndoRedo, advanced interactions)
-- **PGLite** - PostgreSQL-compatible local database for data persistence
-- **Lucide React** - Modern icon library
-- **Radix UI** - Accessible component library with comprehensive form controls
+- **ol-ext 4.0.36** - Extended OpenLayers functionality (UndoRedo, SearchNominatim, advanced interactions)
+- **PGLite 0.3.14** - PostgreSQL-compatible local database for data persistence
+- **jsPDF 3.0.4** - Client-side PDF generation with high-quality rendering
+- **JSZip 3.10.1** - KMZ file processing and creation
+- **Lucide React 0.552.0** - Modern icon library with extensive icon collection
+- **Radix UI** - Accessible component library (Dialog, Dropdown, Checkbox, Slider, Sheet, Toggle)
 
 ### Data Persistence
 - **Local Storage**: Basic settings and preferences
@@ -205,25 +275,33 @@ src/
 ├── components/          # React components
 │   ├── MapEditor.tsx   # Main application orchestrator
 │   ├── MapInstance.tsx # Map initialization and setup
-│   ├── MapInteractions.tsx # Select, Modify, Transform interactions
+│   ├── MapInteractions.tsx # Select, Modify, Transform, Split/Merge interactions
 │   ├── ToolManager.tsx # Drawing tool management
 │   ├── FeatureStyler.tsx # Feature styling logic
 │   ├── FileManager.tsx # File import/export operations
 │   ├── TextDialog.tsx  # Text input dialog with rotate/scale controls
 │   ├── PropertiesPanel.tsx # Feature properties display and editing
+│   ├── MergePropertiesDialog.tsx # Property conflict resolution for merges
+│   ├── IconPickerDialog.tsx # Google Earth icon selection dialog
+│   ├── PdfExportDialog.tsx # PDF export configuration and progress
+│   ├── DragBoxInstruction.tsx # PDF export area selection guidance
+│   ├── SearchPanel.tsx # Location search panel
+│   ├── SearchWrapper.tsx # Search functionality wrapper
+│   ├── TogglingObject.tsx # Feature visibility control panel
 │   ├── JobSelection.tsx # Multi-job project management
 │   ├── CreatingJob.tsx # New project creation dialog
 │   ├── ToolBar.tsx     # UI toolbar for tool selection
 │   ├── LegendDropdown.tsx # Legend management component
 │   ├── MapViewToggle.tsx # Map view switcher
 │   ├── LoadingOverlay.tsx # Loading overlay for transitions
-│   └── ui/             # Reusable UI components
+│   └── ui/             # Reusable UI components (Button, Dialog, Sheet, etc.)
 ├── hooks/              # Custom React hooks
 │   ├── useMapState.ts  # Map view state and layer management
 │   ├── useToolState.ts # Tool selection and legend state
 │   ├── useFeatureState.ts # Feature selection, editing, and clipboard
 │   ├── useKeyboardShortcuts.ts # Keyboard shortcuts management
 │   ├── useMapProjects.ts # Multi-job project management
+│   ├── useToggleObjects.ts # Feature visibility state management
 │   └── useClickHandlerManager.ts # OpenLayers event handling
 ├── utils/              # Utility functions
 │   ├── mapStateUtils.ts # Map state management and persistence
@@ -233,9 +311,13 @@ src/
 │   ├── colorUtils.ts   # Color manipulation utilities
 │   ├── interactionUtils.ts # Draw interaction creation
 │   ├── featureTypeUtils.ts # Feature selection and editability
-│   └── geometryUtils.ts # Geometry conversion utilities
+│   ├── geometryUtils.ts # Geometry conversion utilities
+│   ├── splitUtils.ts   # Split and merge utilities
+│   ├── iconUtils.ts    # Google Earth icon management
+│   ├── pdfExportUtils.ts # PDF export with canvas rendering
+│   └── searchUtils.ts  # Location search utilities
 ├── config/             # Configuration files
-│   └── toolConfig.ts   # Tool definitions and settings
+│   └── toolConfig.ts   # Tool definitions and settings (includes Split/Merge)
 ├── tools/              # Tool-specific configurations
 │   └── legendsConfig.ts # Legend type configurations
 ├── icons/              # Custom icon components
@@ -247,7 +329,9 @@ src/
 │   ├── JunctionPoint.ts # Junction Point icon
 │   └── ToolBoxIcon.tsx # Toolbox UI icon
 ├── lib/                # Shared utility functions
-└── types/              # TypeScript type definitions (including ol-ext types)
+└── types/              # TypeScript type definitions
+    ├── ol-ext.d.ts     # ol-ext library type definitions
+    └── pdf.ts          # PDF export configuration types
 ```
 
 ## ⌨️ Keyboard Shortcuts
@@ -297,15 +381,16 @@ npm run lint     # Run ESLint
 - **GeoJSON** - For web mapping applications
 - **KML** - For Google Earth integration with enhanced styling preservation
 - **KMZ** - Compressed format with media support
+- **PDF** - High-quality map export with configurable page sizes (A0-A5) and resolution (72-3600 DPI)
 - **Direct Download** - Client-side download functionality with automatic file naming
 
 ## 🎨 Feature Types & Properties
 
 ### Geometric Features
-- **Points**: Single location markers with custom icons
+- **Points**: Single location markers with 400+ Google Earth icon options
 - **Lines**: Connected point sequences with styling options
-- **Polylines**: Multi-segment lines with vertex control
-- **Freehand**: Hand-drawn irregular shapes
+- **Polylines**: Multi-segment lines with vertex control and split capability
+- **Freehand**: Hand-drawn irregular shapes with merge capability
 - **Arrows**: Directional indicators with customizable heads
 
 ### Special Features
@@ -313,6 +398,17 @@ npm run lint     # Run ESLint
 - **Measurements**: Distance calculations with automatic formatting and inline display
 - **Text Labels**: Place and edit text with rotation (0-360°) and scale (0.5-3.0) controls
 - **Icons**: Custom SVG markers (Tower, Junction, GP, Triangle, Pit, etc.) with click handlers
+- **Google Earth Icons**: 400+ professional icons across 8 categories:
+  - **Paddle**: Numbered/lettered markers (1-10, A-Z) with various colors
+  - **Pushpin**: Classic pushpin markers in 8 colors
+  - **Shapes**: POI icons (restaurants, hotels, gas stations, landmarks, etc.)
+  - **Map Files**: Directional arrows and traffic icons
+  - **Palettes 2-5**: General purpose icon collections
+  - **Track Directional**: Direction indicators for paths and routes
+
+### Line Operations
+- **Split**: Divide LineString features at any point while preserving properties
+- **Merge**: Combine LineString features by connecting endpoints with conflict resolution
 
 ### Styling Options
 - **Colors**: Full RGB color customization
@@ -360,11 +456,17 @@ npm run lint     # Run ESLint
 2. **Tools not working**: Verify OpenLayers library loading
 3. **Data not saving**: Check browser storage permissions
 4. **Import failing**: Validate file format and structure
+5. **PDF export slow**: Reduce resolution or page size for faster exports
+6. **Icons not displaying**: Verify Google Earth icon files are in public/google_earth_icons/
+7. **Search not working**: Check internet connection for Nominatim API access
+8. **Merge not working**: Ensure endpoints are within snap tolerance distance
 
 ### Performance Issues
 1. **Slow rendering**: Reduce number of features or simplify geometries
 2. **Memory usage**: Clear cache and restart browser
 3. **Network errors**: Check internet connectivity
+4. **PDF export timeout**: For large/complex maps, reduce resolution or select smaller area
+5. **Split/Merge lag**: Complex LineStrings with many vertices may take longer to process
 
 ### Browser Compatibility
 - **Chrome/Edge**: Full support
@@ -393,4 +495,15 @@ For support and questions:
 
 ---
 
+## 🎉 Feature Highlights Summary
+
+**Version 2.9 (tools branch)** brings powerful new capabilities:
+- ✂️ **Split & Merge** - Professional line editing with property management
+- 🎨 **Icon Library** - 400+ Google Earth icons for enhanced visualization
+- 📄 **PDF Export** - Publication-ready maps with high DPI output
+- 🔍 **Location Search** - Find places worldwide with Nominatim
+- 👁️ **Feature Toggling** - Control layer visibility without data loss
+
 Built with ❤️ using modern web technologies for professional map editing and data management.
+
+**Current Branch**: `tools` | **Main Technologies**: React 19 + TypeScript + OpenLayers 10 + PGLite + jsPDF

@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from "react";
-import { Modify, Select, Translate } from "ol/interaction";
+import { Modify, Select, Translate, Snap } from "ol/interaction";
 import { Collection } from "ol";
 import { click, altKeyOnly, shiftKeyOnly, always } from "ol/events/condition";
 import Transform from "ol-ext/interaction/Transform";
 import UndoRedo from "ol-ext/interaction/UndoRedo";
+import Split from "ol-ext/interaction/Split";
 import type Map from "ol/Map";
 import type VectorLayer from "ol/layer/Vector";
 import { Vector as VectorSource } from "ol/source";
@@ -14,6 +15,22 @@ import {
   isEditableFeature,
 } from "@/utils/featureTypeUtils";
 import { recalculateMeasureDistances } from "@/utils/interactionUtils";
+import {
+  isSplittableFeature,
+  copyFeatureProperties,
+  isMergeableFeature,
+  getLineEndpoints,
+  findNearbyEndpoint,
+} from "@/utils/splitUtils";
+
+// Custom event interface for merge requests
+export interface MergeRequestDetail {
+  feature1: Feature<Geometry>;
+  feature2: Feature<Geometry>;
+  feature1Endpoint: "start" | "end";
+  feature2Endpoint: "start" | "end";
+  vectorSource: VectorSource<Feature<Geometry>>;
+}
 
 export interface MapInteractionsProps {
   map: Map | null;
@@ -52,6 +69,10 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     null
   );
   const undoRedoInteractionRef = useRef<UndoRedo | null>(null);
+  const splitInteractionRef = useRef<Split | null>(null);
+  const mergeModifyInteractionRef = useRef<Modify | null>(null);
+  const mergeSelectInteractionRef = useRef<Select | null>(null);
+  const mergeSnapInteractionRef = useRef<Snap | null>(null);
 
   // Initialize UndoRedo interaction - only initialize once when map and vectorLayer are available
   useEffect(() => {
@@ -315,14 +336,214 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     };
   }, [activeTool, map, vectorLayer]);
 
-  // Handle select interaction activation/deactivation (unchanged)
+  // Handle split tool activation/deactivation
+  useEffect(() => {
+    if (!map || !vectorLayer) return;
+
+    if (activeTool === "split") {
+      // Disable select and modify during split
+      selectInteractionRef.current?.setActive(false);
+      modifyInteractionRef.current?.setActive(false);
+
+      const vectorSource = vectorLayer.getSource();
+      if (!vectorSource) return;
+
+      const splitInteraction = new Split({
+        sources: vectorSource,
+        filter: isSplittableFeature,
+        cursor: "crosshair",
+        snapDistance: 25,
+      });
+
+      // Handle split events - copy properties to new features
+      splitInteraction.on("aftersplit", (e) => {
+        copyFeatureProperties(e.original, e.features);
+      });
+
+      map.addInteraction(splitInteraction as any);
+      splitInteractionRef.current = splitInteraction;
+    } else {
+      // Remove split interaction when switching away
+      if (splitInteractionRef.current) {
+        map.removeInteraction(splitInteractionRef.current as any);
+        splitInteractionRef.current = null;
+      }
+    }
+
+    return () => {
+      // Cleanup split interaction
+      if (splitInteractionRef.current) {
+        map.removeInteraction(splitInteractionRef.current as any);
+        splitInteractionRef.current = null;
+      }
+    };
+  }, [activeTool, map, vectorLayer]);
+
+  // Handle merge tool activation/deactivation
+  useEffect(() => {
+    if (!map || !vectorLayer) return;
+
+    const vectorSource = vectorLayer.getSource();
+    if (!vectorSource) return;
+
+    if (activeTool === "merge") {
+      // Disable the default select and modify interactions
+      selectInteractionRef.current?.setActive(false);
+      modifyInteractionRef.current?.setActive(false);
+
+      // Create a select interaction for merge tool
+      const mergeSelectInteraction = new Select({
+        condition: click,
+        layers: [vectorLayer],
+        filter: isMergeableFeature,
+      });
+
+      // Create editable features collection for merge modify
+      const mergeEditableFeatures = new Collection<Feature<Geometry>>();
+
+      // Create a modify interaction for merge
+      const mergeModifyInteraction = new Modify({
+        features: mergeEditableFeatures,
+      });
+
+      // Create a snap interaction for magnetic effect - snaps to all features in the source
+      const mergeSnapInteraction = new Snap({
+        source: vectorSource,
+        pixelTolerance: 15, // Snap distance in pixels
+        vertex: true, // Snap to vertices (including endpoints)
+        edge: false, // Don't snap to edges, only to vertices/endpoints
+      });
+
+      // Tolerance in map units for detecting nearby endpoints
+      const MERGE_TOLERANCE = 50; // Adjust based on your map's coordinate system
+
+      // Handle modify end - check for merge opportunity
+      mergeModifyInteraction.on("modifyend", (event) => {
+        const modifiedFeatures = event.features.getArray();
+
+        for (const modifiedFeature of modifiedFeatures) {
+          if (!isMergeableFeature(modifiedFeature)) continue;
+
+          const endpoints = getLineEndpoints(modifiedFeature);
+          if (!endpoints) continue;
+
+          const allFeatures = vectorSource.getFeatures();
+
+          // Check if start endpoint is near another feature's endpoint
+          const startMatch = findNearbyEndpoint(
+            endpoints.start,
+            allFeatures,
+            modifiedFeature,
+            MERGE_TOLERANCE
+          );
+
+          if (startMatch) {
+            // Emit merge request event instead of auto-merging
+            const mergeEvent = new CustomEvent<MergeRequestDetail>('mergeRequest', {
+              detail: {
+                feature1: modifiedFeature,
+                feature2: startMatch.feature,
+                feature1Endpoint: "start",
+                feature2Endpoint: startMatch.endpoint,
+                vectorSource,
+              }
+            });
+            window.dispatchEvent(mergeEvent);
+            return; // Exit after emitting merge request
+          }
+
+          // Check if end endpoint is near another feature's endpoint
+          const endMatch = findNearbyEndpoint(
+            endpoints.end,
+            allFeatures,
+            modifiedFeature,
+            MERGE_TOLERANCE
+          );
+
+          if (endMatch) {
+            // Emit merge request event instead of auto-merging
+            const mergeEvent = new CustomEvent<MergeRequestDetail>('mergeRequest', {
+              detail: {
+                feature1: modifiedFeature,
+                feature2: endMatch.feature,
+                feature1Endpoint: "end",
+                feature2Endpoint: endMatch.endpoint,
+                vectorSource,
+              }
+            });
+            window.dispatchEvent(mergeEvent);
+            return; // Exit after emitting merge request
+          }
+
+          // Recalculate measure distance if it's a measure feature
+          if (modifiedFeature.get("isMeasure")) {
+            recalculateMeasureDistances([modifiedFeature]);
+          }
+        }
+      });
+
+      // Handle select event - add selected features to modify collection
+      mergeSelectInteraction.on("select", (e) => {
+        mergeEditableFeatures.clear();
+
+        e.selected.forEach((feature) => {
+          if (isMergeableFeature(feature as Feature<Geometry>)) {
+            mergeEditableFeatures.push(feature as Feature<Geometry>);
+          }
+        });
+
+        // Notify parent of selection
+        onFeatureSelect(e.selected[0] as Feature<Geometry> || null);
+      });
+
+      map.addInteraction(mergeSelectInteraction);
+      map.addInteraction(mergeModifyInteraction);
+      map.addInteraction(mergeSnapInteraction); // Add snap last so it takes precedence
+
+      mergeSelectInteractionRef.current = mergeSelectInteraction;
+      mergeModifyInteractionRef.current = mergeModifyInteraction;
+      mergeSnapInteractionRef.current = mergeSnapInteraction;
+    } else {
+      // Remove merge interactions when switching away
+      if (mergeSnapInteractionRef.current) {
+        map.removeInteraction(mergeSnapInteractionRef.current);
+        mergeSnapInteractionRef.current = null;
+      }
+      if (mergeModifyInteractionRef.current) {
+        map.removeInteraction(mergeModifyInteractionRef.current);
+        mergeModifyInteractionRef.current = null;
+      }
+      if (mergeSelectInteractionRef.current) {
+        map.removeInteraction(mergeSelectInteractionRef.current);
+        mergeSelectInteractionRef.current = null;
+      }
+    }
+
+    return () => {
+      // Cleanup merge interactions
+      if (mergeSnapInteractionRef.current) {
+        map.removeInteraction(mergeSnapInteractionRef.current);
+        mergeSnapInteractionRef.current = null;
+      }
+      if (mergeModifyInteractionRef.current) {
+        map.removeInteraction(mergeModifyInteractionRef.current);
+        mergeModifyInteractionRef.current = null;
+      }
+      if (mergeSelectInteractionRef.current) {
+        map.removeInteraction(mergeSelectInteractionRef.current);
+        mergeSelectInteractionRef.current = null;
+      }
+    };
+  }, [activeTool, map, vectorLayer, onFeatureSelect]);
+
+  // Handle select interaction activation/deactivation
   useEffect(() => {
     if (!map || !selectInteractionRef.current) return;
 
-    const selectEnabledTools = ["select", "transform", "copy", "cut"];
+    const selectEnabledTools = ["select", "transform", "copy"];
 
     if (selectEnabledTools.includes(activeTool)) {
-      // Enable selection for select, transform, copy, and cut tools
+      // Enable selection for select, transform, and copy tools
       selectInteractionRef.current.setActive(true);
     } else {
       // Disable selection for all other tools (drawing, navigation, icon tools, etc.)
