@@ -11,7 +11,6 @@ export function LayoutCanvas({
 }: LayoutCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const initialDataLoadedRef = useRef(false)
 
   // Initialize Canvas
   useEffect(() => {
@@ -31,14 +30,6 @@ export function LayoutCanvas({
     })
 
     fabricRef.current = canvas
-
-    // Load initial data if provided
-    if (initialData && !initialDataLoadedRef.current) {
-      initialDataLoadedRef.current = true
-      canvas.loadFromJSON(initialData).then(() => {
-        canvas.requestRenderAll()
-      })
-    }
 
     // Event listeners for selection
     const handleSelection = () => {
@@ -66,6 +57,16 @@ export function LayoutCanvas({
       canvas.dispose()
     }
   }, [])
+
+  // Load initial data when it changes
+  useEffect(() => {
+    const canvas = fabricRef.current
+    if (!canvas || !initialData) return
+
+    canvas.loadFromJSON(initialData).then(() => {
+      canvas.requestRenderAll()
+    })
+  }, [initialData])
 
   // Tool Logic
   useEffect(() => {

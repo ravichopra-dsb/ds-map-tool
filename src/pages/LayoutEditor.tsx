@@ -18,6 +18,11 @@ export default function LayoutEditor() {
   const [selectedObject, setSelectedObject] = useState<fabric.FabricObject | null>(null)
   const [currentLayoutId, setCurrentLayoutId] = useState<string | null>(layoutId ?? null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
+
+  // Sync URL param to state when navigating between layouts
+  useEffect(() => {
+    setCurrentLayoutId(layoutId ?? null)
+  }, [layoutId])
   const fabricRef = useRef<fabric.Canvas | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
