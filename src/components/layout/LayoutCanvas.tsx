@@ -12,6 +12,7 @@ export function LayoutCanvas({
   pageSize,
   zoom,
   onZoomChange,
+  backgroundImage,
 }: LayoutCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -86,12 +87,64 @@ export function LayoutCanvas({
     canvas.requestRenderAll()
   }, [pageSize, dimensions])
 
+  // Handle background image (Fabric.js v6+ API)
+  useEffect(() => {
+    const canvas = fabricRef.current;
+    if (!canvas || !backgroundImage) return;
+
+    let isCancelled = false;
+
+    fabric.FabricImage.fromURL(backgroundImage).then((img) => {
+      // Check if cancelled or canvas disposed
+      if (isCancelled || !fabricRef.current) return;
+
+      const currentCanvas = fabricRef.current;
+      if (!currentCanvas.width || !currentCanvas.height || !img.width || !img.height) return;
+
+      // Scale image to cover the canvas while maintaining aspect ratio
+      const canvasAspect = currentCanvas.width / currentCanvas.height;
+      const imgAspect = img.width / img.height;
+      let scaleX, scaleY;
+
+      if (canvasAspect > imgAspect) {
+        // Canvas is wider than image
+        scaleX = currentCanvas.width / img.width;
+        scaleY = scaleX;
+      } else {
+        // Canvas is taller than image
+        scaleY = currentCanvas.height / img.height;
+        scaleX = scaleY;
+      }
+
+      img.set({
+        scaleX,
+        scaleY,
+        originX: 'center',
+        originY: 'center',
+        top: currentCanvas.height / 2,
+        left: currentCanvas.width / 2,
+      });
+
+      // Fabric.js v6+: Set backgroundImage property directly
+      currentCanvas.backgroundImage = img;
+      currentCanvas.requestRenderAll();
+    }).catch((err) => {
+      if (!isCancelled) {
+        console.error('Failed to load background image:', err);
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [backgroundImage]);
+
   // Load initial data when it changes
   useEffect(() => {
     const canvas = fabricRef.current
     if (!canvas || !initialData) return
 
-    canvas.loadFromJSON(initialData).then(() => {
+    canvas.loadFromJSON(initialData, () => {
       canvas.requestRenderAll()
     })
   }, [initialData])

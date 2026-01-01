@@ -75,7 +75,7 @@ export default function LayoutsList() {
                   className="group relative bg-card border border-border rounded-xl overflow-hidden cursor-pointer hover:border-primary/50 hover:shadow-lg transition-all"
                 >
                   {/* Preview Image */}
-                  <div className="aspect-[4/3] bg-muted/30 relative overflow-hidden">
+                  <div className="aspect-4/3 bg-muted/30 relative overflow-hidden">
                     {layout.previewImage ? (
                       <img
                         src={layout.previewImage}

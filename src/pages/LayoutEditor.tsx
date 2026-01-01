@@ -19,10 +19,34 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Link, useParams, useNavigate } from "react-router";
 import { useLayoutStore } from "@/stores/layoutStore";
+import { useShallow } from "zustand/react/shallow";
 
 export default function LayoutEditor() {
   const { layoutId } = useParams<{ layoutId: string }>();
   const navigate = useNavigate();
+
+  // Zustand store - use useShallow to prevent infinite re-renders
+  const {
+    addLayout,
+    updateLayout,
+    getLayout,
+    pendingBackgroundImage,
+    pendingPageSize,
+    pendingLayoutId,
+    clearPendingBackground,
+  } = useLayoutStore(
+    useShallow((state) => ({
+      addLayout: state.addLayout,
+      updateLayout: state.updateLayout,
+      getLayout: state.getLayout,
+      pendingBackgroundImage: state.pendingBackgroundImage,
+      pendingPageSize: state.pendingPageSize,
+      pendingLayoutId: state.pendingLayoutId,
+      clearPendingBackground: state.clearPendingBackground,
+    }))
+  );
+
+  // Component state
   const [activeTool, setActiveTool] = useState<ToolType>("select");
   const [selectedObject, setSelectedObject] =
     useState<fabric.FabricObject | null>(null);
@@ -33,42 +57,63 @@ export default function LayoutEditor() {
   const [editingName, setEditingName] = useState("");
   const [pageSize, setPageSize] = useState<PageSize>("A4");
   const [zoom, setZoom] = useState(100);
-  const nameInputRef = useRef<HTMLInputElement>(null);
+  const [backgroundImage, setBackgroundImage] = useState<string | undefined>(
+    undefined
+  );
 
-  // Sync URL param to state when navigating between layouts
-  useEffect(() => {
-    setCurrentLayoutId(layoutId ?? null);
-  }, [layoutId]);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const fabricRef = useRef<fabric.Canvas | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const addLayout = useLayoutStore((state) => state.addLayout);
-  const updateLayout = useLayoutStore((state) => state.updateLayout);
-  const getLayout = useLayoutStore((state) => state.getLayout);
-
-  // Get the current layout if editing existing
   const currentLayout = currentLayoutId ? getLayout(currentLayoutId) : null;
-  useEffect(()=>{
-    if(currentLayout){
-      setEditingName(currentLayout?.name)
+
+  // Sync URL param to state
+  useEffect(() => {
+    setCurrentLayoutId(layoutId ?? null);
+  }, [layoutId]);
+
+  // Handle pending background image from map export
+  useEffect(() => {
+    if (pendingBackgroundImage && (!layoutId || layoutId === pendingLayoutId)) {
+      setBackgroundImage(pendingBackgroundImage);
+      if (pendingPageSize) {
+        // Convert page size format (e.g., 'a4' to 'A4')
+        setPageSize(pendingPageSize.toUpperCase() as PageSize);
+      }
+      // Consume the pending state
+      clearPendingBackground();
     }
-  },[currentLayout])
+  }, [
+    pendingBackgroundImage,
+    pendingPageSize,
+    pendingLayoutId,
+    layoutId,
+    clearPendingBackground,
+  ]);
+
+  // Load layout data when ID changes
+  useEffect(() => {
+    if (currentLayout) {
+      setEditingName(currentLayout.name);
+      if (currentLayout.backgroundImage) {
+        setBackgroundImage(currentLayout.backgroundImage);
+      }
+    } else {
+      // Reset for new layout
+      setEditingName("New Layout");
+      if (!pendingBackgroundImage) {
+        setBackgroundImage(undefined);
+      }
+    }
+  }, [currentLayout, pendingBackgroundImage]);
 
   // Delete keyboard shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!fabricRef.current) return;
-
-      // Don't delete if editing text
       const activeObj = fabricRef.current.getActiveObject();
-      if (
-        activeObj?.type === "i-text" &&
-        (activeObj as fabric.IText).isEditing
-      ) {
+      if (activeObj?.type === "i-text" && (activeObj as fabric.IText).isEditing)
         return;
-      }
-
-      // Delete
       if (e.key === "Delete" || e.key === "Backspace") {
         const activeObjects = fabricRef.current.getActiveObjects();
         if (activeObjects.length) {
@@ -79,7 +124,6 @@ export default function LayoutEditor() {
         }
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
@@ -87,7 +131,6 @@ export default function LayoutEditor() {
   const handlePropertyChange = (key: string, value: unknown) => {
     const canvas = fabricRef.current;
     const activeObj = canvas?.getActiveObject();
-
     if (activeObj) {
       activeObj.set(key as keyof fabric.FabricObject, value);
       canvas?.requestRenderAll();
@@ -112,20 +155,17 @@ export default function LayoutEditor() {
     }
     fabricRef.current?.requestRenderAll();
     setSelectedObject(null);
+    setBackgroundImage(undefined);
   };
 
-
   const handleSaveName = () => {
-    if (!currentLayoutId || !editingName.trim()) {
-      return;
+    if (currentLayoutId && editingName.trim()) {
+      updateLayout(currentLayoutId, { name: editingName.trim() });
     }
-    updateLayout(currentLayoutId, { name: editingName.trim() });
   };
 
   const handleNameKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSaveName();
-    }
+    if (e.key === "Enter") handleSaveName();
   };
 
   const handleImportImage = () => {
@@ -135,53 +175,39 @@ export default function LayoutEditor() {
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !fabricRef.current) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
-
       fabric.FabricImage.fromURL(dataUrl).then((img) => {
         const canvas = fabricRef.current;
-        if (!canvas) return;
-
-        // Scale image to fit canvas while maintaining aspect ratio
-        const maxWidth = canvas.width! * 0.8;
-        const maxHeight = canvas.height! * 0.8;
+        if (!canvas || !canvas.width || !canvas.height || !img.width || !img.height) return;
         const scale = Math.min(
-          maxWidth / img.width!,
-          maxHeight / img.height!,
+          (canvas.width * 0.8) / img.width,
+          (canvas.height * 0.8) / img.height,
           1
         );
-
         img.set({
           scaleX: scale,
           scaleY: scale,
-          left: canvas.width! / 2,
-          top: canvas.height! / 2,
+          left: canvas.width / 2,
+          top: canvas.height / 2,
           originX: "center",
           originY: "center",
         });
-
         canvas.add(img);
         canvas.setActiveObject(img);
         canvas.requestRenderAll();
       });
     };
     reader.readAsDataURL(file);
-
-    // Reset input so same file can be imported again
     e.target.value = "";
   };
 
   const handleSaveLayout = () => {
-    const canvas = fabricRef.current;
-    if (!canvas) return;
-
     if (currentLayoutId && currentLayout) {
-      // Update existing layout directly
       saveLayoutWithName(currentLayout.name);
-    } else {
-      // Show dialog for new layout
+    }
+    else {
       setShowSaveDialog(true);
     }
   };
@@ -190,52 +216,33 @@ export default function LayoutEditor() {
     const canvas = fabricRef.current;
     if (!canvas) return;
 
-    // Deselect all objects before generating preview
     canvas.discardActiveObject();
     canvas.requestRenderAll();
 
-    // Store original background
     const originalBg = canvas.backgroundColor;
-
-    // Set transparent background for preview
     canvas.backgroundColor = "transparent";
-
-    // Generate preview image with transparent background
-    const previewImage = canvas.toDataURL({
-      format: "png",
-      multiplier: 0.5, // Smaller preview for storage efficiency
-    });
-
-    // Restore original background
+    const previewImage = canvas.toDataURL({ format: "png", multiplier: 0.5 });
     canvas.backgroundColor = originalBg;
     canvas.requestRenderAll();
 
-    // Serialize canvas data
     const canvasData = canvas.toJSON();
 
-    if (currentLayoutId && currentLayout) {
-      // Update existing layout
-      updateLayout(currentLayoutId, {
-        name,
-        canvasData,
-        previewImage,
-      });
-      console.log("Layout updated:", currentLayoutId);
+    const layoutData: Partial<Omit<import("@/stores/layoutStore").Layout, "id">> = {
+      name,
+      canvasData,
+      previewImage,
+      backgroundImage: backgroundImage || currentLayout?.backgroundImage,
+    };
+
+    if (currentLayoutId) {
+      updateLayout(currentLayoutId, layoutData);
     } else {
-      // Create new layout
-      const newId = addLayout({
-        name,
-        canvasData,
-        previewImage,
-      });
+      const newId = addLayout(layoutData as any);
       setCurrentLayoutId(newId);
-      // Update URL to reflect the new layout ID
       navigate(`/layout/${newId}`, { replace: true });
-      console.log("Layout saved with ID:", newId);
     }
   };
 
-  // Ctrl+S keyboard shortcut for save
   useEffect(() => {
     const handleSaveShortcut = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
@@ -243,14 +250,12 @@ export default function LayoutEditor() {
         handleSaveLayout();
       }
     };
-
     window.addEventListener("keydown", handleSaveShortcut);
     return () => window.removeEventListener("keydown", handleSaveShortcut);
-  }, []);
+  }, [currentLayoutId, backgroundImage]); // Rerun if these change
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
-      {/* Header Bar */}
       <header className="h-14 border-b border-border bg-background flex items-center justify-between px-4 z-20 shadow-sm">
         <div className="flex items-center gap-4">
           <Link
@@ -260,20 +265,18 @@ export default function LayoutEditor() {
           >
             <ArrowLeft className="w-5 h-5 text-muted-foreground" />
           </Link>
-          <div>
-              <input
-                ref={nameInputRef}
-                type="text"
-                value={editingName}
-                onChange={(e) => setEditingName(e.target.value)}
-                onBlur={handleSaveName}
-                onKeyDown={handleNameKeyDown}
-                className="font-bold text-sm md:text-base bg-transparent  outline-none px-1 -ml-1 min-w-[100px]"
-              />
-          </div>
+          <input
+            ref={nameInputRef}
+            type="text"
+            value={editingName}
+            onChange={(e) => setEditingName(e.target.value)}
+            onBlur={handleSaveName}
+            onKeyDown={handleNameKeyDown}
+            placeholder="Layout Name"
+            className="font-bold text-sm md:text-base bg-transparent outline-none px-1 -ml-1 min-w-[100px]"
+          />
         </div>
 
-        {/* Page Size Selector */}
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Page Size:</span>
           <DropdownMenu>
@@ -299,7 +302,6 @@ export default function LayoutEditor() {
         </div>
       </header>
 
-      {/* Main Canvas Area */}
       <div className="flex-1 relative bg-muted/20 overflow-hidden">
         <LayoutToolbar
           activeTool={activeTool}
@@ -327,12 +329,10 @@ export default function LayoutEditor() {
           pageSize={pageSize}
           zoom={zoom}
           onZoomChange={setZoom}
+          backgroundImage={backgroundImage}
         />
 
-        <ZoomControls
-          zoom={zoom}
-          onZoomChange={setZoom}
-        />
+        <ZoomControls zoom={zoom} onZoomChange={setZoom} />
 
         <LayoutPropertiesPanel
           selectedObject={selectedObject}

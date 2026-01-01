@@ -36,12 +36,13 @@ import type { SearchResult } from "../components/SearchPanel";
 import { TogglingObject } from "../components/TogglingObject";
 import { PdfExportDialog } from "../components/PdfExportDialog";
 import { DragBoxInstruction } from "../components/DragBoxInstruction";
-import { exportMapToPdf, type PdfExportConfig } from "@/utils/pdfExportUtils";
+import { exportMapToImage, type MapImageExportResult, type ExportProgress } from "@/utils/mapImageExport";
 import { IconPickerDialog } from "../components/IconPickerDialog";
 import { handleIconClick } from "@/icons/IconPicker";
 import { MergePropertiesDialog } from "@/components/MergePropertiesDialog";
 import { type MergeRequestDetail } from "@/components/MapInteractions";
 import { performMerge } from "@/utils/splitUtils";
+import type { PdfExportConfig } from "@/types/pdf";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -80,7 +81,9 @@ const MapEditor: React.FC = () => {
     handleMapViewChange,
   } = useMapState();
 
-  const { activeTool, selectedLegend, setActiveTool, handleLegendSelect } =
+  const {
+    activeTool, selectedLegend, setActiveTool, handleLegendSelect
+  } =
     useToolState();
 
   const {
@@ -268,7 +271,7 @@ const MapEditor: React.FC = () => {
       saveMapState();
     } else {
       alert("Please select a feature to delete.");
-    }
+    };
   };
 
   const handleImportClick = () => {
@@ -464,31 +467,28 @@ const MapEditor: React.FC = () => {
 
   const handlePdfExport = async (
     config: PdfExportConfig,
-    onProgress: (progress: import("@/utils/pdfExportUtils").ExportProgress) => void
-  ) => {
+    onProgress: (progress: ExportProgress) => void
+  ): Promise<MapImageExportResult> => {
     if (!mapRef.current) {
-      alert('Map not ready for export');
-      return;
+      throw new Error('Map not ready for export');
     }
 
     if (!selectedExtent) {
-      alert('No area selected for export');
-      return;
+      throw new Error('No area selected for export');
     }
 
     setIsExportingPdf(true);
 
     try {
-      const pdfBlob = await exportMapToPdf(mapRef.current, config, onProgress, selectedExtent);
-      const fileName = `map-export-${new Date().toISOString().split('T')[0]}.pdf`;
-      downloadBlob(pdfBlob, fileName);
-      setPdfDialogOpen(false);
-      setSelectedExtent(null); // Clear selection after export
+      const imageResult = await exportMapToImage(mapRef.current, config, onProgress, selectedExtent);
+      return imageResult;
     } catch (error) {
       console.error('PDF export failed:', error);
-      alert(`PDF export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw error;
     } finally {
       setIsExportingPdf(false);
+      setPdfDialogOpen(false);
+      setSelectedExtent(null);
     }
   };
 

@@ -88,7 +88,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
 
   useEffect(() => {
     if (vectorLayerRef.current) {
-      vectorLayerRef.current.setStyle((feature, resolution) => {
+      vectorLayerRef.current.setStyle((feature) => {
         const type = feature.getGeometry()?.getType();
 
         // Only process text features with resolution-based visibility
@@ -124,17 +124,17 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           });
         }
         
-        if (hiddenTypes["pit"] && feature.get("isPit") && type === "MultiLineString") return new Style({stroke: null,})
-        if (hiddenTypes["tower"] && feature.get("isTower") && type === "GeometryCollection") return new Style({stroke: null,})
-        if (hiddenTypes["junction"] && feature.get("isJunction") && type === "GeometryCollection") return new Style({stroke: null,})
-        if (hiddenTypes["gp"] && feature.get("isGP") && type === "GeometryCollection") return new Style({stroke: null,})
-        if (hiddenTypes["triangle"] && feature.get("isTriangle") && type === "Polygon") return new Style({stroke: null,})
-        if (hiddenTypes["measure"] && feature.get("isMeasure") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: null,})
-        if (hiddenTypes["arrow"] && feature.get("isArrow") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: null,})
-        if (hiddenTypes["freehand"] && feature.get("isFreehand") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: null,})
-        if (hiddenTypes["polyline"] && feature.get("isPolyline") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: null,})
-        if (hiddenTypes["legends"] && feature.get("islegends") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: null,})
-        if (hiddenTypes["point"] && feature.get("isPoint")  && type === "Point") return new Style({stroke: null,})
+        if (hiddenTypes["pit"] && feature.get("isPit") && type === "MultiLineString") return new Style({stroke: undefined,})
+        if (hiddenTypes["tower"] && feature.get("isTower") && type === "GeometryCollection") return new Style({stroke: undefined,})
+        if (hiddenTypes["junction"] && feature.get("isJunction") && type === "GeometryCollection") return new Style({stroke: undefined,})
+        if (hiddenTypes["gp"] && feature.get("isGP") && type === "GeometryCollection") return new Style({stroke: undefined,})
+        if (hiddenTypes["triangle"] && feature.get("isTriangle") && type === "Polygon") return new Style({stroke: undefined,})
+        if (hiddenTypes["measure"] && feature.get("isMeasure") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: undefined,})
+        if (hiddenTypes["arrow"] && feature.get("isArrow") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: undefined,})
+        if (hiddenTypes["freehand"] && feature.get("isFreehand") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: undefined,})
+        if (hiddenTypes["polyline"] && feature.get("isPolyline") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: undefined,})
+        if (hiddenTypes["legends"] && feature.get("islegends") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: undefined,})
+        if (hiddenTypes["point"] && feature.get("isPoint")  && type === "Point") return new Style({stroke: undefined,})
 
         // Handle all other feature types normally
         return getFeatureStyle(feature);

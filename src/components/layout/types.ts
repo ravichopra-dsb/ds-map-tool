@@ -38,6 +38,7 @@ export interface LayoutCanvasProps {
   pageSize: PageSize
   zoom: number
   onZoomChange: (zoom: number) => void
+  backgroundImage?: string
 }
 
 export interface ZoomControlsProps {
