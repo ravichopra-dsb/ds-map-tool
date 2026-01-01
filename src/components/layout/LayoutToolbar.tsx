@@ -8,6 +8,8 @@ import {
   Pencil,
   Trash2,
   Eraser,
+  ImagePlus,
+  Save,
 } from "lucide-react"
 import {
   Tooltip,
@@ -32,6 +34,8 @@ export function LayoutToolbar({
   onToolChange,
   onDeleteSelected,
   onClear,
+  onImportImage,
+  onSaveLayout,
 }: LayoutToolbarProps) {
   return (
     <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
@@ -58,6 +62,30 @@ export function LayoutToolbar({
       </div>
 
       <div className="bg-background/80 backdrop-blur-sm border border-border p-2 rounded-2xl flex flex-col gap-1 shadow-lg">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onImportImage}
+              className="w-10 h-10 flex items-center justify-center rounded-xl transition-all hover:bg-accent hover:text-accent-foreground"
+            >
+              <ImagePlus className="w-5 h-5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Import Image (I)</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onSaveLayout}
+              className="w-10 h-10 flex items-center justify-center rounded-xl transition-all hover:bg-green-500/10 hover:text-green-600"
+            >
+              <Save className="w-5 h-5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Save Layout (Ctrl+S)</TooltipContent>
+        </Tooltip>
+
         <Tooltip>
           <TooltipTrigger asChild>
             <button

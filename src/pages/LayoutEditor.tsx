@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react"
-import type * as fabric from "fabric"
+import { useEffect, useRef, useState, type ChangeEvent } from "react"
+import * as fabric from "fabric"
 import {
   LayoutToolbar,
   LayoutCanvas,
@@ -8,11 +8,14 @@ import {
 } from "@/components/layout"
 import { ArrowLeft } from "lucide-react"
 import { Link } from "react-router"
+import { useLayoutStore } from "@/stores/layoutStore"
 
 export default function LayoutEditor() {
   const [activeTool, setActiveTool] = useState<ToolType>('select')
   const [selectedObject, setSelectedObject] = useState<fabric.FabricObject | null>(null)
   const fabricRef = useRef<fabric.Canvas | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const addLayout = useLayoutStore((state) => state.addLayout)
 
   // Delete keyboard shortcut
   useEffect(() => {
@@ -71,6 +74,100 @@ export default function LayoutEditor() {
     setSelectedObject(null)
   }
 
+  const handleImportImage = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !fabricRef.current) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string
+
+      fabric.FabricImage.fromURL(dataUrl).then((img) => {
+        const canvas = fabricRef.current
+        if (!canvas) return
+
+        // Scale image to fit canvas while maintaining aspect ratio
+        const maxWidth = canvas.width! * 0.8
+        const maxHeight = canvas.height! * 0.8
+        const scale = Math.min(maxWidth / img.width!, maxHeight / img.height!, 1)
+
+        img.set({
+          scaleX: scale,
+          scaleY: scale,
+          left: canvas.width! / 2,
+          top: canvas.height! / 2,
+          originX: 'center',
+          originY: 'center',
+        })
+
+        canvas.add(img)
+        canvas.setActiveObject(img)
+        canvas.requestRenderAll()
+      })
+    }
+    reader.readAsDataURL(file)
+
+    // Reset input so same file can be imported again
+    e.target.value = ''
+  }
+
+  const handleSaveLayout = () => {
+    const canvas = fabricRef.current
+    if (!canvas) return
+
+    // Deselect all objects before generating preview
+    canvas.discardActiveObject()
+    canvas.requestRenderAll()
+
+    // Store original background
+    const originalBg = canvas.backgroundColor
+
+    // Set transparent background for preview
+    canvas.backgroundColor = 'transparent'
+
+    // Generate preview image with transparent background
+    const previewImage = canvas.toDataURL({
+      format: 'png',
+      multiplier: 0.5, // Smaller preview for storage efficiency
+    })
+
+    // Restore original background
+    canvas.backgroundColor = originalBg
+    canvas.requestRenderAll()
+
+    // Serialize canvas data
+    const canvasData = canvas.toJSON()
+
+    // Generate a default name with timestamp
+    const name = `Layout ${new Date().toLocaleString()}`
+
+    // Save to store
+    const layoutId = addLayout({
+      name,
+      canvasData,
+      previewImage,
+    })
+
+    console.log('Layout saved with ID:', layoutId)
+  }
+
+  // Ctrl+S keyboard shortcut for save
+  useEffect(() => {
+    const handleSaveShortcut = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        handleSaveLayout()
+      }
+    }
+
+    window.addEventListener('keydown', handleSaveShortcut)
+    return () => window.removeEventListener('keydown', handleSaveShortcut)
+  }, [])
+
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background">
       {/* Header Bar */}
@@ -103,6 +200,16 @@ export default function LayoutEditor() {
           onToolChange={setActiveTool}
           onDeleteSelected={handleDeleteSelected}
           onClear={handleClear}
+          onImportImage={handleImportImage}
+          onSaveLayout={handleSaveLayout}
+        />
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          className="hidden"
         />
 
         <LayoutCanvas

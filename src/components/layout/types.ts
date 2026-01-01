@@ -7,6 +7,8 @@ export interface LayoutToolbarProps {
   onToolChange: (tool: ToolType) => void
   onDeleteSelected: () => void
   onClear: () => void
+  onImportImage: () => void
+  onSaveLayout: () => void
 }
 
 export interface LayoutCanvasProps {
