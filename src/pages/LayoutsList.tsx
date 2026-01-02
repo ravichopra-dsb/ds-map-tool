@@ -3,6 +3,24 @@ import { Link, useNavigate } from "react-router"
 import { useLayoutStore, type Layout as LayoutType } from "@/stores/layoutStore"
 import { ArrowLeft, Trash2, Plus, Layout, Download, Upload } from "lucide-react"
 
+function ImportLayoutCard({ onClick }: { onClick: () => void }) {
+  return (
+    <div
+      onClick={onClick}
+      className="group relative bg-card border-2 border-dashed border-border rounded-xl overflow-hidden cursor-pointer hover:border-primary/50 hover:bg-muted/20 transition-all"
+    >
+      <div className="aspect-4/3 flex flex-col items-center justify-center gap-3">
+        <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+          <Upload className="w-7 h-7 text-muted-foreground group-hover:text-primary transition-colors" />
+        </div>
+        <span className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
+          Import Layout
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function LayoutsList() {
   const navigate = useNavigate()
   const layouts = useLayoutStore((state) => state.layouts)
@@ -132,19 +150,8 @@ export default function LayoutsList() {
       {/* Content */}
       <main className="p-6">
         {layouts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Layout className="w-16 h-16 text-muted-foreground/50 mb-4" />
-            <h2 className="text-xl font-semibold text-foreground mb-2">No layouts saved yet</h2>
-            <p className="text-muted-foreground mb-6 max-w-md">
-              Create your first layout by clicking the button above or start designing in the layout editor.
-            </p>
-            <Link
-              to="/layout"
-              className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
-            >
-              <Plus className="w-5 h-5" />
-              Create New Layout
-            </Link>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <ImportLayoutCard onClick={handleImportClick} />
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -207,19 +214,7 @@ export default function LayoutsList() {
 
             {/* Import Layout Card */}
             {layouts.length < 3 && (
-              <div
-                onClick={handleImportClick}
-                className="group relative bg-card border-2 border-dashed border-border rounded-xl overflow-hidden cursor-pointer hover:border-primary/50 hover:bg-muted/20 transition-all"
-              >
-                <div className="aspect-4/3 flex flex-col items-center justify-center gap-3">
-                  <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                    <Upload className="w-7 h-7 text-muted-foreground group-hover:text-primary transition-colors" />
-                  </div>
-                  <span className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
-                    Import Layout
-                  </span>
-                </div>
-              </div>
+              <ImportLayoutCard onClick={handleImportClick} />
             )}
           </div>
         )}
