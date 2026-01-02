@@ -9,10 +9,8 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: MapEditor },
       { path: "layouts", Component: LayoutsList },
-      {
-        path: "layout",
-        Component: LayoutEditor,
-      },
+      { path: "layout", Component: LayoutEditor },
+      { path: "layout/:layoutId", Component: LayoutEditor },
     ],
   },
 ]);
