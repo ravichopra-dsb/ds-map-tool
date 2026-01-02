@@ -365,6 +365,7 @@ export default function LayoutEditor() {
           onImportImage={handleImportImage}
           onSaveLayout={handleSaveLayout}
           onDownloadPdf={handleDownloadPdf}
+          showSave={!backgroundImage}
         />
 
         <input

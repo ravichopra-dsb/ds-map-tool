@@ -38,6 +38,7 @@ export function LayoutToolbar({
   onImportImage,
   onSaveLayout,
   onDownloadPdf,
+  showSave = true,
 }: LayoutToolbarProps) {
   return (
     <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
@@ -76,17 +77,19 @@ export function LayoutToolbar({
           <TooltipContent side="right">Import Image (I)</TooltipContent>
         </Tooltip>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={onSaveLayout}
-              className="w-10 h-10 flex items-center justify-center rounded-xl transition-all hover:bg-green-500/10 hover:text-green-600"
-            >
-              <Save className="w-5 h-5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Save Layout (Ctrl+S)</TooltipContent>
-        </Tooltip>
+        {showSave && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onSaveLayout}
+                className="w-10 h-10 flex items-center justify-center rounded-xl transition-all hover:bg-green-500/10 hover:text-green-600"
+              >
+                <Save className="w-5 h-5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Save Layout (Ctrl+S)</TooltipContent>
+          </Tooltip>
+        )}
 
         <Tooltip>
           <TooltipTrigger asChild>
