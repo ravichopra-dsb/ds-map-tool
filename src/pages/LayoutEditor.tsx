@@ -13,7 +13,7 @@ import {
   type Orientation,
 } from "@/components/layout";
 import { getFabricExportSettings } from "@/utils/canvasExportUtils";
-import { RESOLUTION_OPTIONS, type Resolution, PAGE_SIZES as PDF_PAGE_SIZES } from "@/types/pdf";
+import { type Resolution, PAGE_SIZES as PDF_PAGE_SIZES } from "@/types/pdf";
 import { ArrowLeft, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
@@ -73,7 +73,7 @@ export default function LayoutEditor() {
   const [pageSize, setPageSize] = useState<PageSize>("A4");
   const [orientation, setOrientation] = useState<Orientation>("portrait");
   const [zoom, setZoom] = useState(100);
-  const [pdfResolution, setPdfResolution] = useState<Resolution>(3600);
+  const [pdfResolution] = useState<Resolution>(3600);
   const [backgroundImage, setBackgroundImage] = useState<string | undefined>(
     undefined
   );

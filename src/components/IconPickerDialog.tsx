@@ -19,7 +19,7 @@ interface IconPickerDialogProps {
 
 export function IconPickerDialog({ isOpen, onClose, onSelectIcon }: IconPickerDialogProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory] = useState<string | null>(null);
   const categories = getIconCategories();
 
   const handleIconClick = (categoryPath: string, iconName: string) => {

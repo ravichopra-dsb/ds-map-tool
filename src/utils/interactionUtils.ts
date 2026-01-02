@@ -187,7 +187,6 @@ export const createLegendDraw = (
 export const createMeasureDraw = (
   source: any,
   style: Style | Style[],
-  legendTypeId: string,
   onDrawEnd?: (event: any) => void
 ): Draw => {
   // Add measurement logic to the default handler

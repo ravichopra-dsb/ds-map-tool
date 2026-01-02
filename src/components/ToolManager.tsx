@@ -247,8 +247,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
 
           drawInteractionRef.current = createMeasureDraw(
             vectorSource,
-            measureDrawStyle,
-            "measure"
+            measureDrawStyle
           );
           map.addInteraction(drawInteractionRef.current);
         }

@@ -77,12 +77,6 @@ export function MergePropertiesDialog({
     );
   };
 
-  const handleSelectAll = (selected: "feature1" | "feature2") => {
-    setPropertyChoices((prev) =>
-      prev.map((choice) => ({ ...choice, selected }))
-    );
-  };
-
   const handleConfirm = () => {
     if (!feature1 || !feature2) return;
 
