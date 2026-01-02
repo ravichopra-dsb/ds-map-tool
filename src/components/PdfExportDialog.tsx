@@ -160,7 +160,7 @@ export function PdfExportDialog({
 
           {/* Layout Overlay Selector */}
           <div className="grid gap-2">
-            <Label htmlFor="layout-select">Layout Overlay (optional)</Label>
+            <Label htmlFor="layout-select">Layout Overlay</Label>
             <select
               id="layout-select"
               value={selectedLayoutId}

@@ -117,11 +117,10 @@ export default function LayoutEditor() {
     } else {
       // Reset for new layout
       setEditingName("New Layout");
-      if (!pendingBackgroundImage) {
-        setBackgroundImage(undefined);
-      }
+      // Only clear background if we're not coming from map export
+      // The pendingBackgroundImage is handled by the separate useEffect above
     }
-  }, [currentLayout, pendingBackgroundImage]);
+  }, [currentLayout]);
 
   // Delete keyboard shortcut
   useEffect(() => {
