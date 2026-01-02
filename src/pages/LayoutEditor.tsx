@@ -10,6 +10,7 @@ import {
   PAGE_SIZES,
   type ToolType,
   type PageSize,
+  type Orientation,
 } from "@/components/layout";
 import { ArrowLeft, ChevronDown } from "lucide-react";
 import {
@@ -68,6 +69,7 @@ export default function LayoutEditor() {
   const [showLimitWarning, setShowLimitWarning] = useState(false);
   const [editingName, setEditingName] = useState("");
   const [pageSize, setPageSize] = useState<PageSize>("A4");
+  const [orientation, setOrientation] = useState<Orientation>("portrait");
   const [zoom, setZoom] = useState(100);
   const [backgroundImage, setBackgroundImage] = useState<string | undefined>(
     undefined
@@ -242,10 +244,10 @@ export default function LayoutEditor() {
       multiplier: 2, // Higher resolution for better PDF quality
     });
 
-    // Create PDF with correct page size (portrait orientation)
+    // Create PDF with correct page size and orientation
     // jsPDF uses mm units and standard page format names
     const pdf = new jsPDF({
-      orientation: "portrait",
+      orientation: orientation,
       unit: "mm",
       format: pageSize.toLowerCase(),
     });
@@ -331,28 +333,58 @@ export default function LayoutEditor() {
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Page Size:</span>
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-muted hover:bg-muted/80 rounded-md transition-colors">
-              {pageSize}
-              <ChevronDown className="w-4 h-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {(Object.keys(PAGE_SIZES) as PageSize[]).map((size) => (
-                <DropdownMenuItem
-                  key={size}
-                  onClick={() => setPageSize(size)}
-                  className={pageSize === size ? "bg-accent" : ""}
-                >
-                  <span className="font-medium">{size}</span>
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    {PAGE_SIZES[size].label.replace(`${size} `, "")}
-                  </span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Page Size:</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium bg-muted hover:bg-muted/80 rounded-md transition-colors">
+                {pageSize}
+                <ChevronDown className="w-4 h-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {(Object.keys(PAGE_SIZES) as PageSize[]).map((size) => (
+                  <DropdownMenuItem
+                    key={size}
+                    onClick={() => setPageSize(size)}
+                    className={pageSize === size ? "bg-accent" : ""}
+                  >
+                    <span className="font-medium">{size}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {PAGE_SIZES[size].label.replace(`${size} `, "")}
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Orientation:</span>
+            <div className="flex rounded-md overflow-hidden border border-border">
+              <button
+                onClick={() => setOrientation("portrait")}
+                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                  orientation === "portrait"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted hover:bg-muted/80"
+                }`}
+                title="Portrait"
+              >
+                Portrait
+              </button>
+              <button
+                onClick={() => setOrientation("landscape")}
+                className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                  orientation === "landscape"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted hover:bg-muted/80"
+                }`}
+                title="Landscape"
+              >
+                Landscape
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -383,6 +415,7 @@ export default function LayoutEditor() {
           onSelect={setSelectedObject}
           initialData={currentLayout?.canvasData}
           pageSize={pageSize}
+          orientation={orientation}
           zoom={zoom}
           onZoomChange={setZoom}
           backgroundImage={backgroundImage}

@@ -10,6 +10,7 @@ export function LayoutCanvas({
   onSelect,
   initialData,
   pageSize,
+  orientation,
   zoom,
   onZoomChange,
   backgroundImage,
@@ -17,7 +18,11 @@ export function LayoutCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const dimensions = PAGE_SIZES[pageSize]
+  const baseDimensions = PAGE_SIZES[pageSize]
+  // Swap width/height for landscape orientation
+  const dimensions = orientation === 'landscape'
+    ? { width: baseDimensions.height, height: baseDimensions.width, label: baseDimensions.label }
+    : baseDimensions
   const scale = zoom / 100
 
   // Handle mouse wheel zoom (Ctrl for canvas, Shift for selected map image)
@@ -101,7 +106,7 @@ export function LayoutCanvas({
     }
   }, [handleWheel])
 
-  // Update canvas dimensions when page size changes
+  // Update canvas dimensions when page size or orientation changes
   useEffect(() => {
     const canvas = fabricRef.current
     if (!canvas) return
@@ -111,7 +116,7 @@ export function LayoutCanvas({
       height: dimensions.height,
     })
     canvas.requestRenderAll()
-  }, [pageSize, dimensions])
+  }, [pageSize, orientation, dimensions.width, dimensions.height])
 
   // Handle map image as a selectable/movable object
   useEffect(() => {

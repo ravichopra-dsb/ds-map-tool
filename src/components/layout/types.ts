@@ -4,6 +4,8 @@ export type ToolType = 'select' | 'rect' | 'circle' | 'triangle' | 'line' | 'tex
 
 export type PageSize = 'A0' | 'A1' | 'A2' | 'A3' | 'A4' | 'A5'
 
+export type Orientation = 'portrait' | 'landscape'
+
 export interface PageDimensions {
   width: number
   height: number
@@ -38,6 +40,7 @@ export interface LayoutCanvasProps {
   onSelect: (object: fabric.FabricObject | null) => void
   initialData?: object // Fabric.js JSON data to load on init
   pageSize: PageSize
+  orientation: Orientation
   zoom: number
   onZoomChange: (zoom: number) => void
   backgroundImage?: string
