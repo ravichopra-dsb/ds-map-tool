@@ -8,10 +8,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FilePlus, Menu, Trash2, ArrowDownToLine } from "lucide-react";
+import { FilePlus, Menu, ArrowDownToLine } from "lucide-react";
 import { TOOLS } from "../tools/toolConfig";
 import { LegendDropdown } from "./LegendDropdown";
 import type { LegendType } from "@/tools/legendsConfig";
+import { Link } from "react-router";
 
 interface ToolbarProps {
   onFileImport: () => void;
@@ -117,11 +118,10 @@ const Toolbar = ({
       </DropdownMenu>
       <Button
         variant="outline"
-        className="cursor-pointer text-red-600"
-        title="Delete GeoJson"
-        onClick={onDeleteFeature}
+        className="cursor-pointer p-0 overflow-hidden"
+        title="Redirect to Layouts"
       >
-        <Trash2 /> Delete
+        <Link to={'/layouts'} target="_blank" className="p-3">Layouts</Link>
       </Button>
     </div>
   );
