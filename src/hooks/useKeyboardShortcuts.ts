@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import type Map from "ol/Map";
 import { Feature } from "ol";
 import type { Geometry } from "ol/geom";
-import { getCopyableFeatures } from "@/utils/interactionUtils";
+import { getCopyableFeatures, isDrawing } from "@/utils/interactionUtils";
 import { Select } from "ol/interaction";
 
 export interface KeyboardShortcutsProps {
@@ -81,8 +81,12 @@ export const useKeyboardShortcuts = ({
           case 'z':
             // Undo operation
             if (!event.shiftKey) {
-              event.preventDefault();
-              onUndoOperation?.();
+              // Don't trigger global undo if we're currently drawing
+              // The draw-specific handler will handle Ctrl+Z during drawing
+              if (!isDrawing()) {
+                event.preventDefault();
+                onUndoOperation?.();
+              }
             }
             break;
 

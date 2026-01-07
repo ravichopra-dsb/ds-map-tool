@@ -58,6 +58,63 @@ export const DRAW_CONFIGS = {
 } as const;
 
 /**
+ * Global flag to track if we're currently in an active drawing session
+ * Used to disable global Ctrl+Z handler during drawing
+ */
+let isCurrentlyDrawing = false;
+
+/**
+ * Check if we're currently in an active drawing session
+ * @returns true if drawing is in progress, false otherwise
+ */
+export const isDrawing = (): boolean => {
+  return isCurrentlyDrawing;
+};
+
+/**
+ * Setup keyboard event handlers for draw interactions
+ * Handles Ctrl+Z to remove last point and Escape to finish drawing
+ * Only active during drawing (between drawstart and drawend)
+ * @param draw - Draw interaction
+ */
+const setupDrawKeyboardHandlers = (draw: Draw): void => {
+  // Mark that we're now drawing
+  isCurrentlyDrawing = true;
+  const handleKeyDown = (evt: KeyboardEvent) => {
+    // Check if Ctrl+Z was pressed to remove last point
+    if ((evt.ctrlKey || evt.metaKey) && evt.key === 'z') {
+      evt.preventDefault();
+      evt.stopImmediatePropagation();
+      draw.removeLastPoint();
+    }
+    // Check if Escape was pressed to finish drawing
+    else if (evt.key === 'Escape') {
+      evt.preventDefault();
+      evt.stopImmediatePropagation();
+      draw.finishDrawing();
+    }
+  };
+
+  // Store the handler reference for cleanup
+  (draw as any)._keydownHandler = handleKeyDown;
+  window.addEventListener('keydown', handleKeyDown);
+};
+
+/**
+ * Remove keyboard event handlers from a draw interaction
+ * @param draw - Draw interaction
+ */
+const removeDrawKeyboardHandlers = (draw: Draw): void => {
+  const handler = (draw as any)._keydownHandler;
+  if (handler) {
+    window.removeEventListener('keydown', handler);
+    (draw as any)._keydownHandler = null;
+  }
+  // Mark that we're no longer drawing - global Ctrl+Z can work again
+  isCurrentlyDrawing = false;
+};
+
+/**
  * Factory function to create draw interactions with standardized configuration
  * @param config - Draw interaction configuration
  * @returns Configured Draw interaction
@@ -70,22 +127,33 @@ export const createDrawInteraction = (config: DrawInteractionConfig): Draw => {
     style: config.style,
   });
 
-  // Set feature properties on draw end if specified
-  if (config.featureProperties) {
-    drawInteraction.on("drawend", (event) => {
+  // Setup keyboard handlers ONLY when drawing starts (not when tool is just selected)
+  drawInteraction.on("drawstart", () => {
+    setupDrawKeyboardHandlers(drawInteraction);
+  });
+
+  // Remove keyboard handlers when drawing ends or is aborted
+  drawInteraction.on("drawend", (event) => {
+    removeDrawKeyboardHandlers(drawInteraction);
+
+    // Set feature properties if specified
+    if (config.featureProperties) {
       const feature = event.feature;
       Object.entries(config.featureProperties!).forEach(([key, value]) => {
         feature.set(key, value);
       });
+    }
 
-      // Call custom onDrawEnd handler if provided
-      if (config.onDrawEnd) {
-        config.onDrawEnd(event);
-      }
-    });
-  } else if (config.onDrawEnd) {
-    drawInteraction.on("drawend", config.onDrawEnd);
-  }
+    // Call custom onDrawEnd handler if provided
+    if (config.onDrawEnd) {
+      config.onDrawEnd(event);
+    }
+  });
+
+  // Also remove handlers if drawing is aborted (e.g., user right-clicks to cancel)
+  drawInteraction.on("drawabort", () => {
+    removeDrawKeyboardHandlers(drawInteraction);
+  });
 
   return drawInteraction;
 };
