@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Vector as VectorSource } from "ol/source";
 import { Feature } from "ol";
 import type { Geometry } from "ol/geom";
@@ -344,9 +344,9 @@ const MapEditor: React.FC = () => {
     }
   };
 
-  const handleSelectInteractionReady = (selectInteraction: Select | null) => {
+  const handleSelectInteractionReady = useCallback((selectInteraction: Select | null) => {
     selectInteractionRef.current = selectInteraction;
-  };
+  }, []);
 
   const handleUndoInteractionReady = (undoInteraction: any) => {
     undoRedoInteractionRef.current = undoInteraction;
@@ -865,6 +865,12 @@ const MapEditor: React.FC = () => {
     }
   };
 
+  // Multi-select handler (memoized to prevent Select interaction recreation)
+  const handleMultiSelectChange = useCallback((features: Feature<Geometry>[]) => {
+    // Set the first feature as primary selection for properties panel
+    setSelectedFeature(features[0] || null);
+  }, [setSelectedFeature]);
+
   // Keyboard shortcuts
   useKeyboardShortcuts({
     map: mapRef.current,
@@ -958,10 +964,7 @@ const MapEditor: React.FC = () => {
         onPasteFeatures={handlePasteOperation}
         onSelectInteractionReady={handleSelectInteractionReady}
         onUndoInteractionReady={handleUndoInteractionReady}
-        onMultiSelectChange={(features) => {
-          // Set the first feature as primary selection for properties panel
-          setSelectedFeature(features[0] || null);
-        }}
+        onMultiSelectChange={handleMultiSelectChange}
       />
 
       <ToolManager
