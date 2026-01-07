@@ -168,18 +168,16 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     map.addInteraction(modifyInteraction);
     map.addInteraction(translate);
 
+    // Initialize DragPan reference eagerly
+    map.getInteractions().forEach((interaction) => {
+      if (interaction instanceof DragPan) {
+        dragPanRef.current = interaction;
+      }
+    });
+
     // 🆕 Updated select event handler for multi-select
     selectInteraction.on("select", (e) => {
       const allSelectedFeatures = selectInteraction.getFeatures().getArray();
-
-      // Find DragPan interaction on first selection
-      if (!dragPanRef.current && map) {
-        map.getInteractions().forEach((interaction) => {
-          if (interaction instanceof DragPan) {
-            dragPanRef.current = interaction;
-          }
-        });
-      }
 
       if (allSelectedFeatures.length > 0) {
         // Enable translate for ANY selected features (single or multi)
@@ -698,6 +696,21 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     } else {
       // Disable selection for all other tools (drawing, navigation, icon tools, etc.)
       selectInteractionRef.current.setActive(false);
+
+      // Clear any existing selection to prevent stale state
+      selectInteractionRef.current.getFeatures().clear();
+
+      // Disable translate since nothing is selected
+      translateRef.current?.setActive(false);
+
+      // Re-enable panning when switching away from selection tools
+      dragPanRef.current?.setActive(true);
+
+      // Notify parent that selection was cleared
+      onFeatureSelect(null);
+      if (onMultiSelectChange) {
+        onMultiSelectChange([]);
+      }
     }
   }, [activeTool, map]);
 
