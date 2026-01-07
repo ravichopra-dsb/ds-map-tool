@@ -38,11 +38,11 @@ import { PdfExportDialog } from "../components/PdfExportDialog";
 import { DragBoxInstruction } from "../components/DragBoxInstruction";
 import { exportMapToImage, type MapImageExportResult, type ExportProgress } from "@/utils/mapImageExport";
 import { IconPickerDialog } from "../components/IconPickerDialog";
-import { handleIconClick } from "@/icons/IconPicker";
 import { MergePropertiesDialog } from "@/components/MergePropertiesDialog";
 import { type MergeRequestDetail } from "@/components/MapInteractions";
-import { performMerge } from "@/utils/splitUtils";
+import { performMerge, createOffsetLineString } from "@/utils/splitUtils";
 import type { PdfExportConfig } from "@/types/pdf";
+import { OffsetDialog, type OffsetDirection } from "@/components/OffsetDialog";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -82,9 +82,15 @@ const MapEditor: React.FC = () => {
   } = useMapState();
 
   const {
-    activeTool, selectedLegend, setActiveTool, handleLegendSelect
-  } =
-    useToolState();
+    activeTool,
+    selectedLegend,
+    selectedIconPath,
+    setActiveTool,
+    handleLegendSelect,
+    handleIconSelect: handleIconSelectFromHook,
+  } = useToolState();
+
+  const skipNextPickerOpen = useRef(false);
 
   const {
     selectedFeature,
@@ -112,6 +118,10 @@ const MapEditor: React.FC = () => {
   // Merge properties dialog state
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   const [pendingMerge, setPendingMerge] = useState<MergeRequestDetail | null>(null);
+
+  // Offset dialog state
+  const [offsetDialogOpen, setOffsetDialogOpen] = useState(false);
+  const [offsetFeature, setOffsetFeature] = useState<Feature<Geometry> | null>(null);
 
   // PDF export dialog state
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
@@ -261,21 +271,26 @@ const MapEditor: React.FC = () => {
   };
 
   const handleToolActivation = (toolId: string) => {
-    setActiveTool(toolId);
-  };
+    // Special handling for icons tool - if already active, dispatch event to reopen picker
+    if (toolId === "icons" && activeTool === "icons") {
+      const iconPickerEvent = new CustomEvent('iconPickerOpen');
+      window.dispatchEvent(iconPickerEvent);
+      return;
+    }
 
-  const handleDelete = () => {
-    if (selectedFeature) {
-      vectorSourceRef.current.removeFeature(selectedFeature);
-      setSelectedFeature(null);
-      saveMapState();
-    } else {
-      alert("Please select a feature to delete.");
-    };
+    setActiveTool(toolId);
   };
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleClearSelection = () => {
+    setSelectedFeature(null);
+  };
+
+  const handleDeleteFromKeyboard = () => {
+    saveMapState();
   };
 
   const handleCopyOperation = (
@@ -634,9 +649,13 @@ const MapEditor: React.FC = () => {
     };
   }, []);
 
-  // Icon picker event listener
+  // Icon picker event listener with guard
   useEffect(() => {
     const handleIconPickerOpen = () => {
+      if (skipNextPickerOpen.current) {
+        skipNextPickerOpen.current = false;
+        return;
+      }
       setIconPickerOpen(true);
     };
 
@@ -660,6 +679,20 @@ const MapEditor: React.FC = () => {
 
     return () => {
       window.removeEventListener('mergeRequest', handleMergeRequest as EventListener);
+    };
+  }, []);
+
+  // Offset request event listener
+  useEffect(() => {
+    const handleOffsetRequest = (event: CustomEvent<{ feature: Feature<Geometry>; vectorSource: VectorSource<Feature<Geometry>> }>) => {
+      setOffsetFeature(event.detail.feature);
+      setOffsetDialogOpen(true);
+    };
+
+    window.addEventListener('offsetRequest', handleOffsetRequest as EventListener);
+
+    return () => {
+      window.removeEventListener('offsetRequest', handleOffsetRequest as EventListener);
     };
   }, []);
 
@@ -721,29 +754,25 @@ const MapEditor: React.FC = () => {
   const handleIconSelect = (iconPath: string) => {
     if (!mapRef.current) return;
 
-    // Switch to select tool immediately to prevent dialog from reopening
-    setActiveTool('select');
+    // Set guard to prevent picker from reopening
+    skipNextPickerOpen.current = true;
 
-    // Register a one-time click handler to place the icon
-    const handleMapClick = (evt: any) => {
-      const coordinate = evt.coordinate;
-      handleIconClick(vectorSourceRef.current, coordinate, iconPath);
+    // Use the hook to set the icon path and activate icons tool
+    handleIconSelectFromHook(iconPath);
 
-      // Save map state after adding icon
-      saveMapState();
+    // Close the dialog
+    setIconPickerOpen(false);
 
-      // Remove the click listener after placing the icon
-      mapRef.current?.un('click', handleMapClick);
-    };
-
-    // Add the click listener
-    mapRef.current.on('click', handleMapClick);
+    // Save map state
+    saveMapState();
   };
 
   const handleIconPickerClose = () => {
     setIconPickerOpen(false);
-    // Switch back to select tool to prevent dialog from reopening
-    setActiveTool('select');
+    // Only switch to select tool if no icon is selected
+    if (!selectedIconPath) {
+      setActiveTool('select');
+    }
   };
 
   // Merge dialog handlers
@@ -779,6 +808,57 @@ const MapEditor: React.FC = () => {
     setPendingMerge(null);
   };
 
+  // Offset dialog handlers
+  const handleOffsetConfirm = (direction: OffsetDirection, distance: number) => {
+    if (!offsetFeature) return;
+
+    const vectorSource = vectorSourceRef.current;
+
+    // Create offset(s) based on direction
+    if (direction === "left") {
+      const offsetLeft = createOffsetLineString(offsetFeature, distance);
+      if (offsetLeft) {
+        vectorSource.addFeature(offsetLeft);
+      }
+    } else if (direction === "right") {
+      const offsetRight = createOffsetLineString(offsetFeature, -distance);
+      if (offsetRight) {
+        vectorSource.addFeature(offsetRight);
+      }
+    } else if (direction === "both") {
+      const offsetLeft = createOffsetLineString(offsetFeature, distance);
+      const offsetRight = createOffsetLineString(offsetFeature, -distance);
+      if (offsetLeft) {
+        vectorSource.addFeature(offsetLeft);
+      }
+      if (offsetRight) {
+        // Update name to distinguish from left offset
+        const name = offsetRight.get("name");
+        if (name && name.includes("(offset)")) {
+          offsetRight.set("name", name.replace("(offset)", "(offset right)"));
+        }
+        vectorSource.addFeature(offsetRight);
+      }
+      // Update left offset name for clarity
+      if (offsetLeft) {
+        const name = offsetLeft.get("name");
+        if (name && name.includes("(offset)")) {
+          offsetLeft.set("name", name.replace("(offset)", "(offset left)"));
+        }
+      }
+    }
+
+    // Save state to database after creating offsets
+    if (isProjectReadyRef.current && currentDb) {
+      saveMapState();
+    }
+  };
+
+  const handleOffsetDialogClose = () => {
+    setOffsetDialogOpen(false);
+    setOffsetFeature(null);
+  };
+
   const handleRedoOperation = () => {
     if (undoRedoInteractionRef.current?.hasRedo()) {
       undoRedoInteractionRef.current.redo();
@@ -796,6 +876,8 @@ const MapEditor: React.FC = () => {
     onSetActiveTool: setActiveTool,
     onUndoOperation: handleUndoOperation,
     onRedoOperation: handleRedoOperation,
+    onClearSelection: handleClearSelection,
+    onDeleteOperation: handleDeleteFromKeyboard,
     disabled: false,
   });
 
@@ -850,6 +932,13 @@ const MapEditor: React.FC = () => {
         feature2={pendingMerge?.feature2 || null}
       />
 
+      <OffsetDialog
+        isOpen={offsetDialogOpen}
+        onClose={handleOffsetDialogClose}
+        onConfirm={handleOffsetConfirm}
+        feature={offsetFeature}
+      />
+
       <PdfExportDialog
         isOpen={pdfDialogOpen}
         onClose={() => setPdfDialogOpen(false)}
@@ -869,6 +958,10 @@ const MapEditor: React.FC = () => {
         onPasteFeatures={handlePasteOperation}
         onSelectInteractionReady={handleSelectInteractionReady}
         onUndoInteractionReady={handleUndoInteractionReady}
+        onMultiSelectChange={(features) => {
+          // Set the first feature as primary selection for properties panel
+          setSelectedFeature(features[0] || null);
+        }}
       />
 
       <ToolManager
@@ -876,13 +969,13 @@ const MapEditor: React.FC = () => {
         vectorSource={vectorSourceRef.current}
         activeTool={activeTool}
         selectedLegend={selectedLegend}
+        selectedIconPath={selectedIconPath}
         onFeatureSelect={setSelectedFeature}
         onToolChange={setActiveTool}
       />
 
       <Toolbar
         onFileImport={handleImportClick}
-        onDeleteFeature={handleDelete}
         onToolActivate={handleToolActivation}
         activeTool={activeTool}
         selectedLegend={selectedLegend}

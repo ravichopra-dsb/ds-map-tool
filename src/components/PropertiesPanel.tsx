@@ -65,12 +65,22 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
     const allProperties: CustomProperty[] = [];
 
-    // Add name, long, and lat first
+    // Add lon/lat for all geometries except LineString
+    const geometry = feature.getGeometry();
+    const geometryType = geometry?.getType();
+
+    // Add name first
     allProperties.push(
-      { id: 'prop-name', key: 'name', value: coords.name },
-      { id: 'prop-long', key: 'long', value: coords.long },
-      { id: 'prop-lat', key: 'lat', value: coords.lat }
+      { id: 'prop-name', key: 'name', value: coords.name }
     );
+
+    // Add lon/lat for all features except LineString
+    if (geometryType !== 'LineString') {
+      allProperties.push(
+        { id: 'prop-long', key: 'long', value: coords.long },
+        { id: 'prop-lat', key: 'lat', value: coords.lat }
+      );
+    }
 
     // Add custom properties
     const filteredEntries = Object.entries(properties).filter(

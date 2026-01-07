@@ -225,3 +225,12 @@ export function getIconCategories(): IconCategory[] {
 export function getIconFullPath(categoryPath: string, iconName: string): string {
   return `/${categoryPath}/${iconName}`;
 }
+
+/**
+ * Extract icon name from icon path for feature naming
+ * @param iconPath - Full icon path (e.g., "/google_earth_icons/shapes/airports.png")
+ * @returns Clean icon name (e.g., "airports")
+ */
+export function getIconNameFromPath(iconPath: string): string {
+  return iconPath.split('/').pop()?.replace('.png', '') || "Icon";
+}

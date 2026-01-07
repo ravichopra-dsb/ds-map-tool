@@ -3,6 +3,7 @@ import { Point } from "ol/geom";
 import { Icon, Style } from "ol/style";
 import { Vector as VectorSource } from "ol/source";
 import type { Geometry } from "ol/geom";
+import { getIconNameFromPath } from "@/utils/iconUtils";
 
 /**
  * Create and add a custom icon feature to the map
@@ -23,7 +24,7 @@ export function handleIconClick(
   // Set feature properties
   iconFeature.set("isIcon", true);
   iconFeature.set("iconPath", iconPath);
-  iconFeature.set("name", iconPath.split('/').pop()?.replace('.png', '') || "Icon");
+  iconFeature.set("name", getIconNameFromPath(iconPath));
 
   // Create and set the icon style
   const iconStyle = new Style({

@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import type Map from "ol/Map";
 import { Feature } from "ol";
 import type { Geometry } from "ol/geom";
-import { getCopyableFeatures } from "@/utils/interactionUtils";
+import { getCopyableFeatures, isDrawing } from "@/utils/interactionUtils";
 import { Select } from "ol/interaction";
 
 export interface KeyboardShortcutsProps {
@@ -15,6 +15,8 @@ export interface KeyboardShortcutsProps {
   onSetActiveTool?: (tool: string) => void;
   onUndoOperation?: () => void;
   onRedoOperation?: () => void;
+  onClearSelection?: () => void;
+  onDeleteOperation?: () => void;
   disabled?: boolean;
 }
 
@@ -28,14 +30,33 @@ export const useKeyboardShortcuts = ({
   onSetActiveTool,
   onUndoOperation,
   onRedoOperation,
+  onClearSelection,
+  onDeleteOperation,
   disabled = false,
 }: KeyboardShortcutsProps) => {
   const currentCursorCoordinates = useRef<number[] | null>(null);
+
+  // Use ref to always have the latest clipboard features (avoids stale closure)
+  const clipboardFeaturesRef = useRef<Feature<Geometry>[]>(clipboardFeatures);
+  clipboardFeaturesRef.current = clipboardFeatures;
 
   useEffect(() => {
     if (disabled || !map) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Ignore if user is typing in an input field
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      // Handle Delete and Backspace keys (NOT with Ctrl modifier)
+      if ((event.key === 'Delete' || event.key === 'Backspace') && !event.ctrlKey && !event.metaKey) {
+        event.preventDefault();
+        handleDeleteOperation();
+        return;
+      }
+
       // Handle Ctrl/Cmd + key combinations
       if ((event.ctrlKey || event.metaKey) && !event.altKey) {
         switch (event.key.toLowerCase()) {
@@ -60,8 +81,12 @@ export const useKeyboardShortcuts = ({
           case 'z':
             // Undo operation
             if (!event.shiftKey) {
-              event.preventDefault();
-              onUndoOperation?.();
+              // Don't trigger global undo if we're currently drawing
+              // The draw-specific handler will handle Ctrl+Z during drawing
+              if (!isDrawing()) {
+                event.preventDefault();
+                onUndoOperation?.();
+              }
             }
             break;
 
@@ -97,6 +122,11 @@ export const useKeyboardShortcuts = ({
 
       // If this is a cut operation, remove the features from the source
       if (isCut) {
+        // Clear selection FIRST before removing features to prevent stale references
+        selectInteraction.getFeatures().clear();
+        onClearSelection?.();
+
+        // Then remove features from source
         featuresArray.forEach(feature => {
           vectorSource.removeFeature(feature);
         });
@@ -108,13 +138,38 @@ export const useKeyboardShortcuts = ({
       }
     };
 
+    const handleDeleteOperation = () => {
+      if (!selectInteraction || !vectorSource) return;
+
+      const selectedFeatures = selectInteraction.getFeatures();
+      if (selectedFeatures.getLength() === 0) return;
+
+      // Get a copy of the array before clearing
+      const featuresArray = selectedFeatures.getArray().slice();
+
+      // Clear selection FIRST
+      selectedFeatures.clear();
+      onClearSelection?.();
+
+      // Remove all selected features
+      featuresArray.forEach(feature => {
+        vectorSource.removeFeature(feature);
+      });
+
+      // Notify parent to update state
+      onDeleteOperation?.();
+    };
+
     const handlePasteOperation = () => {
       if (!onPasteOperation) {
         return;
       }
 
+      // Use ref to get latest clipboard features (avoids stale closure)
+      const currentClipboardFeatures = clipboardFeaturesRef.current;
+
       // Check if we have clipboard features
-      if (clipboardFeatures.length === 0) {
+      if (currentClipboardFeatures.length === 0) {
         console.warn('No features in clipboard to paste');
         return;
       }
@@ -137,7 +192,7 @@ export const useKeyboardShortcuts = ({
       }
 
       // Trigger paste operation with actual clipboard features at cursor position
-      onPasteOperation(clipboardFeatures, coordinates);
+      onPasteOperation(currentClipboardFeatures, coordinates);
     };
 
     // Add event listeners
@@ -153,12 +208,14 @@ export const useKeyboardShortcuts = ({
     map,
     vectorSource,
     selectInteraction,
-    clipboardFeatures,
+    // clipboardFeatures removed - using ref instead to avoid stale closure
     onCopyOperation,
     onPasteOperation,
     onSetActiveTool,
     onUndoOperation,
     onRedoOperation,
+    onClearSelection,
+    onDeleteOperation,
     disabled
   ]);
 

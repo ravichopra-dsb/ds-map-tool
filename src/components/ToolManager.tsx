@@ -24,12 +24,14 @@ import { createLineStyle } from "@/utils/styleUtils";
 import { useClickHandlerManager } from "@/hooks/useClickHandlerManager";
 import { TOWER_CONFIG } from "@/config/toolConfig";
 import { getTextAlongLineStyle } from "./FeatureStyler";
+import { handleIconClick } from "@/icons/IconPicker";
 
 export interface ToolManagerProps {
   map: Map | null;
   vectorSource: VectorSource<Feature<Geometry>>;
   activeTool: string;
   selectedLegend?: LegendType;
+  selectedIconPath?: string;
   onToolChange: (tool: string) => void;
   onFeatureSelect?: (feature: Feature | null) => void;
 }
@@ -39,6 +41,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
   vectorSource,
   activeTool,
   selectedLegend,
+  selectedIconPath,
   onToolChange,
   onFeatureSelect,
 }) => {
@@ -58,6 +61,17 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
       onToolChange("legends");
     }
   }, [selectedLegend, map, onToolChange]);
+
+  // Auto-activate icons tool when selectedIconPath changes
+  useEffect(() => {
+    if (selectedIconPath) {
+      if (drawInteractionRef.current) {
+        map?.removeInteraction(drawInteractionRef.current);
+        drawInteractionRef.current = null;
+      }
+      onToolChange("icons");
+    }
+  }, [selectedIconPath, map, onToolChange]);
 
   // Handle tool activation
   useEffect(() => {
@@ -226,9 +240,24 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         break;
 
       case "icons":
-        // Trigger custom event to open icon picker dialog
+        // Always open picker when icons tool is activated from toolbar
         const iconPickerEvent = new CustomEvent('iconPickerOpen');
         window.dispatchEvent(iconPickerEvent);
+
+        // If an icon is already selected, also register the click handler
+        if (selectedIconPath) {
+          registerClickHandler(
+            map,
+            {
+              toolId: "icons",
+              handlerKey: "IconClickHandler",
+              onClick: (coordinate) => {
+                handleIconClick(vectorSource, coordinate, selectedIconPath);
+              },
+            },
+            vectorSource
+          );
+        }
         break;
 
       case "measure":
@@ -284,6 +313,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
     map,
     vectorSource,
     selectedLegend,
+    selectedIconPath,
     registerClickHandler,
     removeAllClickHandlers,
   ]);

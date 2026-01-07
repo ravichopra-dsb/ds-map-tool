@@ -1,11 +1,10 @@
 import React, { useEffect, useRef } from "react";
-import { Modify, Select, Translate, Snap } from "ol/interaction";
+import { Modify, Select, Translate, Snap, DragBox, DragPan } from "ol/interaction";
 import { Collection } from "ol";
-import { click, altKeyOnly, shiftKeyOnly, always } from "ol/events/condition";
+import { click, altKeyOnly, shiftKeyOnly, always, platformModifierKeyOnly } from "ol/events/condition";
 import Transform from "ol-ext/interaction/Transform";
 import UndoRedo from "ol-ext/interaction/UndoRedo";
 import Split from "ol-ext/interaction/Split";
-import Offset from "ol-ext/interaction/Offset";
 import type Map from "ol/Map";
 import type VectorLayer from "ol/layer/Vector";
 import { Vector as VectorSource } from "ol/source";
@@ -75,7 +74,9 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   const mergeModifyInteractionRef = useRef<Modify | null>(null);
   const mergeSelectInteractionRef = useRef<Select | null>(null);
   const mergeSnapInteractionRef = useRef<Snap | null>(null);
-  const offsetInteractionRef = useRef<Offset | null>(null);
+  const featureSelectionDragBoxRef = useRef<DragBox | null>(null);
+  const dragPanRef = useRef<DragPan | null>(null);
+  const translateRef = useRef<Translate | null>(null);
 
   // Initialize UndoRedo interaction - only initialize once when map and vectorLayer are available
   useEffect(() => {
@@ -137,9 +138,11 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
 
     const selectInteraction = new Select(selectConfig);
 
+    // Create translate interaction and store in ref
     const translate = new Translate({
       features: selectInteraction.getFeatures(),
     });
+    translateRef.current = translate;
 
     const editableFeatures = new Collection<Feature<Geometry>>();
     const modifyInteraction = new Modify({
@@ -169,10 +172,28 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     selectInteraction.on("select", (e) => {
       const allSelectedFeatures = selectInteraction.getFeatures().getArray();
 
-      if (allSelectedFeatures.length > 1) {
-        translate.setActive(true);
+      // Find DragPan interaction on first selection
+      if (!dragPanRef.current && map) {
+        map.getInteractions().forEach((interaction) => {
+          if (interaction instanceof DragPan) {
+            dragPanRef.current = interaction;
+          }
+        });
+      }
+
+      if (allSelectedFeatures.length > 0) {
+        // Enable translate for ANY selected features (single or multi)
+        translateRef.current?.setActive(true);
+        // Disable DragPan to prevent panning while selecting/moving features
+        if (dragPanRef.current) {
+          dragPanRef.current.setActive(false);
+        }
       } else {
-        translate.setActive(false);
+        // No selection - disable translate, re-enable panning
+        translateRef.current?.setActive(false);
+        if (dragPanRef.current) {
+          dragPanRef.current.setActive(true);
+        }
       }
 
       // 🆕 Send all selected features to parent
@@ -209,6 +230,10 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
       if (modifyInteractionRef.current) {
         map.removeInteraction(modifyInteractionRef.current);
       }
+      if (translateRef.current) {
+        map.removeInteraction(translateRef.current);
+        translateRef.current = null;
+      }
     };
   }, [
     map,
@@ -218,6 +243,72 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     onMultiSelectChange,
     multiSelectMode,
   ]); // 🆕 Added deps
+
+  // 🆕 Initialize DragBox for Ctrl+Drag feature selection
+  useEffect(() => {
+    if (!map || !vectorLayer || !selectInteractionRef.current) return;
+
+    const vectorSource = vectorLayer.getSource();
+    if (!vectorSource) return;
+
+    // Create DragBox with Ctrl/Cmd modifier condition
+    const dragBox = new DragBox({
+      condition: platformModifierKeyOnly,
+    });
+
+    dragBox.on("boxend", () => {
+      const extent = dragBox.getGeometry()?.getExtent();
+      if (!extent) return;
+
+      // Find all features intersecting the drag box extent
+      const selectedFeatures: Feature<Geometry>[] = [];
+      vectorSource.forEachFeatureIntersectingExtent(extent, (feature) => {
+        if (isSelectableFeature(feature as Feature<Geometry>)) {
+          selectedFeatures.push(feature as Feature<Geometry>);
+        }
+      });
+
+      // Clear current selection and add new features
+      selectInteractionRef.current?.getFeatures().clear();
+      selectedFeatures.forEach((feature) => {
+        selectInteractionRef.current?.getFeatures().push(feature);
+      });
+
+      // Handle selection state - same as shift-click selection
+      if (selectedFeatures.length > 0) {
+        // Enable translate for dragging selected features
+        translateRef.current?.setActive(true);
+        // Disable DragPan to prevent panning while moving features
+        if (dragPanRef.current) {
+          dragPanRef.current.setActive(false);
+        }
+      } else {
+        // No selection - disable translate, re-enable panning
+        translateRef.current?.setActive(false);
+        if (dragPanRef.current) {
+          dragPanRef.current.setActive(true);
+        }
+      }
+
+      // Notify parent about multi-selection (same as shift-click)
+      if (onMultiSelectChange) {
+        onMultiSelectChange(selectedFeatures);
+      }
+
+      // Backward compatibility: send first feature as primary selection
+      onFeatureSelect(selectedFeatures[0] || null);
+    });
+
+    map.addInteraction(dragBox);
+    featureSelectionDragBoxRef.current = dragBox;
+
+    return () => {
+      if (featureSelectionDragBoxRef.current) {
+        map.removeInteraction(featureSelectionDragBoxRef.current);
+        featureSelectionDragBoxRef.current = null;
+      }
+    };
+  }, [map, vectorLayer, onMultiSelectChange, onFeatureSelect]);
 
   // Handle transform tool activation/deactivation (unchanged)
   useEffect(() => {
@@ -551,60 +642,46 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
       const vectorSource = vectorLayer.getSource();
       if (!vectorSource) return;
 
-      const offsetInteraction = new Offset({
-        source: vectorSource,
-        filter: isOffsettableFeature,
-      });
+      // Add click handler for offset tool
+      const offsetClickHandler = (evt: any) => {
+        const pixel = evt.pixel;
+        const features: Feature<Geometry>[] = [];
 
-      // Handle offset events - copy properties to new offset feature
-      offsetInteraction.on("offsetend", (e) => {
-        const originalFeature = e.feature;
-        if (!originalFeature) return;
+        map.forEachFeatureAtPixel(pixel, (feature) => {
+          if (isOffsettableFeature(feature as Feature<Geometry>)) {
+            features.push(feature as Feature<Geometry>);
+          }
+        });
 
-        // Copy properties from original to the newly created offset feature
-        // The offset interaction creates a new feature automatically
-        // We need to find it in the source (it's the last added feature)
-        const features = vectorSource.getFeatures();
-        const newFeature = features[features.length - 1];
-
-        if (newFeature && newFeature !== originalFeature) {
-          // Copy all properties except geometry
-          const properties = originalFeature.getProperties();
-          const { geometry, ...otherProps } = properties;
-
-          Object.entries(otherProps).forEach(([key, value]) => {
-            newFeature.set(key, value);
+        if (features.length > 0) {
+          // Emit custom event to open offset dialog
+          const offsetEvent = new CustomEvent('offsetRequest', {
+            detail: {
+              feature: features[0],
+              vectorSource,
+            }
           });
-
-          // Append "(offset)" to name if exists
-          const originalName = originalFeature.get("name");
-          if (originalName) {
-            newFeature.set("name", `${originalName} (offset)`);
-          }
-
-          // Recalculate distance for measure features
-          if (originalFeature.get("isMeasure")) {
-            newFeature.set("isMeasure", true);
-            recalculateMeasureDistances([newFeature]);
-          }
+          window.dispatchEvent(offsetEvent);
         }
-      });
+      };
 
-      map.addInteraction(offsetInteraction as any);
-      offsetInteractionRef.current = offsetInteraction;
+      map.on('click', offsetClickHandler);
+
+      // Store the handler for cleanup
+      (map as any)._offsetClickHandler = offsetClickHandler;
     } else {
-      // Remove offset interaction when switching away
-      if (offsetInteractionRef.current) {
-        map.removeInteraction(offsetInteractionRef.current as any);
-        offsetInteractionRef.current = null;
+      // Remove offset click handler when switching away
+      if ((map as any)._offsetClickHandler) {
+        map.un('click', (map as any)._offsetClickHandler);
+        delete (map as any)._offsetClickHandler;
       }
     }
 
     return () => {
-      // Cleanup offset interaction
-      if (offsetInteractionRef.current) {
-        map.removeInteraction(offsetInteractionRef.current as any);
-        offsetInteractionRef.current = null;
+      // Cleanup offset click handler
+      if ((map as any)._offsetClickHandler) {
+        map.un('click', (map as any)._offsetClickHandler);
+        delete (map as any)._offsetClickHandler;
       }
     };
   }, [activeTool, map, vectorLayer]);

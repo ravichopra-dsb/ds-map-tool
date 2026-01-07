@@ -4,6 +4,7 @@ import type { Geometry } from "ol/geom";
 import { getLength } from "ol/sphere";
 import type { Coordinate } from "ol/coordinate";
 import type { Vector as VectorSource } from "ol/source";
+import { transform } from "ol/proj";
 
 /**
  * Check if a feature is splittable
@@ -271,4 +272,151 @@ export const performMerge = (
   vectorSource.addFeature(mergedFeature);
 
   return mergedFeature;
+};
+
+// ============== OFFSET UTILITIES ==============
+
+/**
+ * Create an offset (parallel) copy of a LineString at a specified distance
+ * @param feature - The LineString feature to offset
+ * @param distance - Distance in meters to offset (positive for left, negative for right)
+ * @returns New LineString feature offset from the original
+ */
+export const createOffsetLineString = (
+  feature: Feature<Geometry>,
+  distance: number
+): Feature<Geometry> | null => {
+  const geometry = feature.getGeometry();
+  if (!geometry || geometry.getType() !== "LineString") {
+    return null;
+  }
+
+  const lineString = geometry as LineString;
+  const coords = lineString.getCoordinates();
+
+  if (coords.length < 2) {
+    return null;
+  }
+
+  // Create offset coordinates
+  const offsetCoords: Coordinate[] = [];
+
+  for (let i = 0; i < coords.length; i++) {
+    const current = coords[i];
+    let perpendicular: [number, number];
+
+    if (i === 0) {
+      // First point: use direction to next point
+      const next = coords[i + 1];
+      perpendicular = getPerpendicularVector(current, next, distance, current);
+    } else if (i === coords.length - 1) {
+      // Last point: use direction from previous point
+      const prev = coords[i - 1];
+      perpendicular = getPerpendicularVector(prev, current, distance, current);
+    } else {
+      // Middle points: average of perpendiculars from both segments
+      const prev = coords[i - 1];
+      const next = coords[i + 1];
+      const perp1 = getPerpendicularVector(prev, current, distance, current);
+      const perp2 = getPerpendicularVector(current, next, distance, current);
+      perpendicular = [
+        (perp1[0] + perp2[0]) / 2,
+        (perp1[1] + perp2[1]) / 2,
+      ];
+    }
+
+    offsetCoords.push([
+      current[0] + perpendicular[0],
+      current[1] + perpendicular[1],
+    ]);
+  }
+
+  // Create new feature with offset geometry
+  const offsetGeometry = new LineString(offsetCoords);
+  const offsetFeature = new Feature({ geometry: offsetGeometry });
+
+  // Copy properties from original feature
+  const properties = feature.getProperties();
+  const { geometry: _, ...otherProps } = properties;
+  Object.entries(otherProps).forEach(([key, value]) => {
+    offsetFeature.set(key, value);
+  });
+
+  // Append "(offset)" to name if exists
+  const originalName = feature.get("name");
+  if (originalName) {
+    offsetFeature.set("name", `${originalName} (offset)`);
+  }
+
+  // Recalculate distance for measure features
+  if (feature.get("isMeasure")) {
+    offsetFeature.set("isMeasure", true);
+    const length = getLength(offsetGeometry);
+    offsetFeature.set("distance", length);
+  }
+
+  return offsetFeature;
+};
+
+/**
+ * Convert meters to projection units at a given coordinate
+ * In Web Mercator (EPSG:3857), the scale varies with latitude
+ * Scale factor = 1 / cos(latitude)
+ * @param meters - Distance in meters
+ * @param coord - Coordinate in EPSG:3857 (Web Mercator)
+ * @returns Distance in projection units
+ */
+const metersToProjectionUnits = (
+  meters: number,
+  coord: Coordinate
+): number => {
+  // Convert coordinate from EPSG:3857 to EPSG:4326 to get latitude
+  const lonLat = transform(coord, "EPSG:3857", "EPSG:4326");
+  const latitudeRadians = (lonLat[1] * Math.PI) / 180;
+
+  // In Web Mercator, the scale factor at a given latitude is 1/cos(lat)
+  // So to convert meters to projection units: meters * scale = meters / cos(lat)
+  const scaleFactor = 1 / Math.cos(latitudeRadians);
+
+  return meters * scaleFactor;
+};
+
+/**
+ * Calculate perpendicular vector for a line segment
+ * @param start - Start coordinate of the segment
+ * @param end - End coordinate of the segment
+ * @param distance - Distance to offset in meters (positive for left, negative for right)
+ * @param referenceCoord - Coordinate to use for projection scale calculation
+ * @returns Perpendicular vector [dx, dy] in projection units
+ */
+const getPerpendicularVector = (
+  start: Coordinate,
+  end: Coordinate,
+  distance: number,
+  referenceCoord: Coordinate
+): [number, number] => {
+  // Calculate direction vector
+  const dx = end[0] - start[0];
+  const dy = end[1] - start[1];
+
+  // Calculate length of direction vector
+  const length = Math.sqrt(dx * dx + dy * dy);
+
+  if (length === 0) {
+    return [0, 0];
+  }
+
+  // Normalize direction vector
+  const nx = dx / length;
+  const ny = dy / length;
+
+  // Convert meters to projection units at this location
+  const distanceInProjectionUnits = metersToProjectionUnits(
+    distance,
+    referenceCoord
+  );
+
+  // Perpendicular vector (rotate 90 degrees counterclockwise for left)
+  // For right offset, distance should be negative
+  return [-ny * distanceInProjectionUnits, nx * distanceInProjectionUnits];
 };
