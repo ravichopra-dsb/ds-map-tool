@@ -16,7 +16,6 @@ import { Link } from "react-router";
 
 interface ToolbarProps {
   onFileImport: () => void;
-  onDeleteFeature: () => void;
   onToolActivate: (toolId: string) => void;
   activeTool: string;
   selectedLegend?: LegendType;
@@ -27,7 +26,6 @@ interface ToolbarProps {
 
 const Toolbar = ({
   onFileImport,
-  onDeleteFeature,
   onToolActivate,
   activeTool,
   selectedLegend,

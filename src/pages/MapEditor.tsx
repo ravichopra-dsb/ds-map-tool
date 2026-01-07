@@ -281,29 +281,6 @@ const MapEditor: React.FC = () => {
     setActiveTool(toolId);
   };
 
-  const handleDelete = () => {
-    // Get all selected features from the select interaction
-    const selectedFeatures = selectInteractionRef.current?.getFeatures();
-
-    if (selectedFeatures && selectedFeatures.getLength() > 0) {
-      // Get a copy of the array before clearing
-      const featuresArray = selectedFeatures.getArray().slice();
-
-      // Clear selection first
-      selectedFeatures.clear();
-      setSelectedFeature(null);
-
-      // Remove all selected features
-      featuresArray.forEach(feature => {
-        vectorSourceRef.current.removeFeature(feature);
-      });
-
-      saveMapState();
-    } else {
-      alert("Please select a feature to delete.");
-    }
-  };
-
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
@@ -999,7 +976,6 @@ const MapEditor: React.FC = () => {
 
       <Toolbar
         onFileImport={handleImportClick}
-        onDeleteFeature={handleDelete}
         onToolActivate={handleToolActivation}
         activeTool={activeTool}
         selectedLegend={selectedLegend}
