@@ -3,7 +3,9 @@ import { Style } from "ol/style";
 import { createPointStyle, createLineStyle } from "./styleUtils";
 import { getLength } from "ol/sphere";
 import { Feature } from "ol";
-import { Geometry } from "ol/geom";
+import { Geometry, LineString } from "ol/geom";
+import { Vector as VectorSource } from "ol/source";
+import type { Coordinate } from "ol/coordinate";
 
 /**
  * Draw interaction configuration interface
@@ -179,15 +181,28 @@ export const createPointDraw = (
  * Create a polyline draw interaction
  * @param source - Vector source to draw on
  * @param onDrawEnd - Optional callback for when drawing ends
+ * @param color - Optional custom line color
+ * @param width - Optional custom line width
  * @returns Polyline draw interaction
  */
 export const createPolylineDraw = (
   source: any,
-  onDrawEnd?: (event: any) => void
+  onDrawEnd?: (event: any) => void,
+  color?: string,
+  width?: number
 ): Draw => {
+  const customColor = color || "#00ff00";
+  const customWidth = width || 4;
+
   return createDrawInteraction({
     ...DRAW_CONFIGS.polyline,
     source,
+    style: createLineStyle(customColor, customWidth),
+    featureProperties: {
+      isPolyline: true,
+      lineColor: customColor,
+      lineWidth: customWidth,
+    },
     onDrawEnd,
   });
 };
@@ -196,15 +211,28 @@ export const createPolylineDraw = (
  * Create a freehand draw interaction
  * @param source - Vector source to draw on
  * @param onDrawEnd - Optional callback for when drawing ends
+ * @param color - Optional custom line color
+ * @param width - Optional custom line width
  * @returns Freehand draw interaction
  */
 export const createFreehandDraw = (
   source: any,
-  onDrawEnd?: (event: any) => void
+  onDrawEnd?: (event: any) => void,
+  color?: string,
+  width?: number
 ): Draw => {
+  const customColor = color || "#00ff00";
+  const customWidth = width || 4;
+
   return createDrawInteraction({
     ...DRAW_CONFIGS.freehand,
     source,
+    style: createLineStyle(customColor, customWidth),
+    featureProperties: {
+      isFreehand: true,
+      lineColor: customColor,
+      lineWidth: customWidth,
+    },
     onDrawEnd,
   });
 };
@@ -213,15 +241,28 @@ export const createFreehandDraw = (
  * Create an arrow draw interaction
  * @param source - Vector source to draw on
  * @param onDrawEnd - Optional callback for when drawing ends
+ * @param color - Optional custom line color
+ * @param width - Optional custom line width
  * @returns Arrow draw interaction
  */
 export const createArrowDraw = (
   source: any,
-  onDrawEnd?: (event: any) => void
+  onDrawEnd?: (event: any) => void,
+  color?: string,
+  width?: number
 ): Draw => {
+  const customColor = color || "#000000";
+  const customWidth = width || 4;
+
   return createDrawInteraction({
     ...DRAW_CONFIGS.arrow,
     source,
+    style: createLineStyle(customColor, customWidth),
+    featureProperties: {
+      isArrow: true,
+      lineColor: customColor,
+      lineWidth: customWidth,
+    },
     onDrawEnd,
   });
 };
@@ -369,4 +410,151 @@ export const offsetFeature = (
 export const getCopyableFeatures = (selectedFeatures: Feature<Geometry>[]): Feature<Geometry>[] => {
   // All selectable features can be copied
   return selectedFeatures.filter(feature => feature.getGeometry() !== undefined);
+};
+
+// ============== CONTINUATION DRAW UTILITIES ==============
+
+/**
+ * Configuration for continuation drawing
+ */
+export interface ContinuationConfig {
+  feature: Feature<Geometry>;
+  endpoint: "start" | "end";
+  featureType: "polyline" | "freehand" | "arrow" | "measure";
+  onComplete: (newCoordinates: Coordinate[]) => void;
+  onCancel: () => void;
+}
+
+/**
+ * Get style for continuation drawing based on feature type
+ * @param feature - The feature being extended
+ * @param featureType - Type of the feature
+ * @returns Style for the draw interaction
+ */
+const getContinuationStyle = (
+  feature: Feature<Geometry>,
+  featureType: string
+): Style | Style[] => {
+  // Get existing feature's style properties if available
+  const strokeColor = feature.get("strokeColor") || "#00ff00";
+  const strokeWidth = feature.get("strokeWidth") || 4;
+
+  if (featureType === "measure") {
+    return createLineStyle("#3b4352", 2, 1, [12, 8]);
+  }
+
+  if (featureType === "arrow") {
+    return createLineStyle("#000000", 4);
+  }
+
+  return createLineStyle(strokeColor, strokeWidth);
+};
+
+/**
+ * Create a Draw interaction for continuing an existing LineString
+ * The Draw interaction starts from the endpoint and allows adding new coordinates
+ * @param source - Vector source (not used for drawing, just for reference)
+ * @param config - Continuation configuration
+ * @returns Configured Draw interaction
+ */
+export const createContinuationDraw = (
+  _source: VectorSource<Feature<Geometry>>,
+  config: ContinuationConfig
+): Draw => {
+  const { feature, endpoint, featureType, onComplete, onCancel } = config;
+  const geometry = feature.getGeometry() as LineString;
+  const existingCoords = geometry.getCoordinates();
+
+  // Determine starting point based on which endpoint is being extended
+  const startCoord =
+    endpoint === "end"
+      ? existingCoords[existingCoords.length - 1]
+      : existingCoords[0];
+
+  // Freehand mode for freehand features
+  const isFreehand = featureType === "freehand";
+
+  // Get appropriate style
+  const style = getContinuationStyle(feature, featureType);
+
+  // Create temporary source for the continuation segment
+  // We don't add to the main source - we'll extend the original feature instead
+  const tempSource = new VectorSource<Feature<Geometry>>();
+
+  const drawInteraction = new Draw({
+    source: tempSource,
+    type: "LineString",
+    freehand: isFreehand,
+    style: style,
+    // Custom geometry function to connect visually to the existing endpoint
+    geometryFunction: (coordinates, geom) => {
+      if (!geom) {
+        geom = new LineString([startCoord]);
+      }
+      // Prepend the start coordinate to make it appear connected
+      // coordinates is an array of Coordinate for LineString type
+      const coordArray = coordinates as Coordinate[];
+      const allCoords: Coordinate[] = [startCoord, ...coordArray.slice(1)];
+      (geom as LineString).setCoordinates(allCoords);
+      return geom;
+    },
+  });
+
+  // Setup keyboard handlers when drawing starts
+  drawInteraction.on("drawstart", () => {
+    // Mark that we're currently drawing
+    isCurrentlyDrawing = true;
+
+    const handleKeyDown = (evt: KeyboardEvent) => {
+      if ((evt.ctrlKey || evt.metaKey) && evt.key === "z") {
+        evt.preventDefault();
+        evt.stopImmediatePropagation();
+        drawInteraction.removeLastPoint();
+      } else if (evt.key === "Escape") {
+        evt.preventDefault();
+        evt.stopImmediatePropagation();
+        drawInteraction.abortDrawing();
+      }
+    };
+
+    (drawInteraction as any)._continuationKeydownHandler = handleKeyDown;
+    window.addEventListener("keydown", handleKeyDown);
+  });
+
+  // Handle draw completion
+  drawInteraction.on("drawend", (event) => {
+    // Remove keyboard handler
+    const handler = (drawInteraction as any)._continuationKeydownHandler;
+    if (handler) {
+      window.removeEventListener("keydown", handler);
+      (drawInteraction as any)._continuationKeydownHandler = null;
+    }
+    isCurrentlyDrawing = false;
+
+    const drawnGeom = event.feature.getGeometry() as LineString;
+    const newCoords = drawnGeom.getCoordinates();
+
+    // Remove the prepended start coordinate to get only new points
+    const extensionCoords = newCoords.slice(1);
+
+    if (extensionCoords.length > 0) {
+      onComplete(extensionCoords);
+    } else {
+      onCancel();
+    }
+  });
+
+  // Handle draw abort (e.g., Escape key)
+  drawInteraction.on("drawabort", () => {
+    // Remove keyboard handler
+    const handler = (drawInteraction as any)._continuationKeydownHandler;
+    if (handler) {
+      window.removeEventListener("keydown", handler);
+      (drawInteraction as any)._continuationKeydownHandler = null;
+    }
+    isCurrentlyDrawing = false;
+    onCancel();
+  });
+
+  return drawInteraction;
 };

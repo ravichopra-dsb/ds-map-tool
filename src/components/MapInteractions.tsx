@@ -22,7 +22,13 @@ import {
   getLineEndpoints,
   findNearbyEndpoint,
   isOffsettableFeature,
+  isContinuableFeature,
+  detectEndpointClick,
+  getLineStringType,
+  extendLineStringCoordinates,
 } from "@/utils/splitUtils";
+import { createContinuationDraw } from "@/utils/interactionUtils";
+import type { Draw } from "ol/interaction";
 import { createHoverStyle } from "@/utils/styleUtils";
 
 // Custom event interface for merge requests
@@ -79,6 +85,9 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   const dragPanRef = useRef<DragPan | null>(null);
   const translateRef = useRef<Translate | null>(null);
   const hoverInteractionRef = useRef<Select | null>(null);
+  const continuationDrawRef = useRef<Draw | null>(null);
+  const isContinuingRef = useRef<boolean>(false);
+  const currentSelectedFeatureRef = useRef<Feature<Geometry> | null>(null);
 
   // Initialize UndoRedo interaction - only initialize once when map and vectorLayer are available
   useEffect(() => {
@@ -205,6 +214,10 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     selectInteraction.on("select", (e) => {
       const allSelectedFeatures = selectInteraction.getFeatures().getArray();
 
+      // Track current selected feature for continuation (only when single feature selected)
+      currentSelectedFeatureRef.current =
+        allSelectedFeatures.length === 1 ? allSelectedFeatures[0] : null;
+
       if (allSelectedFeatures.length > 0) {
         // Enable translate for ANY selected features (single or multi)
         translateRef.current?.setActive(true);
@@ -239,6 +252,71 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
       });
     });
 
+    // ============== CONTINUATION LOGIC ==============
+    // Helper function to end continuation mode
+    const endContinuation = () => {
+      if (continuationDrawRef.current) {
+        map.removeInteraction(continuationDrawRef.current);
+        continuationDrawRef.current = null;
+      }
+      isContinuingRef.current = false;
+      modifyInteraction.setActive(true);
+    };
+
+    // Helper function to start continuation from an endpoint
+    const startContinuation = (
+      feature: Feature<Geometry>,
+      endpoint: "start" | "end"
+    ) => {
+      const vectorSource = vectorLayer.getSource();
+      if (!vectorSource) return;
+
+      isContinuingRef.current = true;
+      modifyInteraction.setActive(false); // Disable modify during continuation
+
+      const featureType = getLineStringType(feature);
+
+      continuationDrawRef.current = createContinuationDraw(vectorSource, {
+        feature,
+        endpoint,
+        featureType: featureType || "polyline",
+        onComplete: (newCoords) => {
+          extendLineStringCoordinates(feature, newCoords, endpoint);
+          endContinuation();
+        },
+        onCancel: () => {
+          endContinuation();
+        },
+      });
+
+      map.addInteraction(continuationDrawRef.current);
+    };
+
+    // Click handler for endpoint detection - intercepts clicks on endpoints
+    const handleEndpointClick = (evt: any) => {
+      // Skip if already in continuation mode
+      if (isContinuingRef.current) return;
+
+      // Must have a single selected continuable feature
+      const selectedFeature = currentSelectedFeatureRef.current;
+      if (!selectedFeature || !isContinuableFeature(selectedFeature)) return;
+
+      const coordinate = evt.coordinate;
+      const clickedEndpoint = detectEndpointClick(
+        selectedFeature,
+        coordinate,
+        50 // tolerance in map units
+      );
+
+      if (clickedEndpoint) {
+        // Start continuation mode
+        startContinuation(selectedFeature, clickedEndpoint);
+      }
+    };
+
+    // Register click handler for endpoint detection
+    map.on("singleclick", handleEndpointClick);
+
     selectInteractionRef.current = selectInteraction;
     modifyInteractionRef.current = modifyInteraction;
 
@@ -248,6 +326,17 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     }
 
     return () => {
+      // Clean up continuation mode
+      if (continuationDrawRef.current) {
+        map.removeInteraction(continuationDrawRef.current);
+        continuationDrawRef.current = null;
+      }
+      isContinuingRef.current = false;
+      currentSelectedFeatureRef.current = null;
+
+      // Remove endpoint click handler
+      map.un("singleclick", handleEndpointClick);
+
       if (selectInteractionRef.current) {
         map.removeInteraction(selectInteractionRef.current);
       }
@@ -716,6 +805,14 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
 
     const selectEnabledTools = ["select", "transform", "copy"];
 
+    // Always clean up continuation mode when tool changes
+    if (continuationDrawRef.current) {
+      continuationDrawRef.current.abortDrawing();
+      map.removeInteraction(continuationDrawRef.current);
+      continuationDrawRef.current = null;
+    }
+    isContinuingRef.current = false;
+
     if (selectEnabledTools.includes(activeTool)) {
       // Enable selection for select, transform, and copy tools
       selectInteractionRef.current.setActive(true);
@@ -725,6 +822,9 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
 
       // Clear any existing selection to prevent stale state
       selectInteractionRef.current.getFeatures().clear();
+
+      // Clear tracked feature for continuation
+      currentSelectedFeatureRef.current = null;
 
       // Disable translate since nothing is selected
       translateRef.current?.setActive(false);

@@ -85,7 +85,11 @@ const MapEditor: React.FC = () => {
     activeTool,
     selectedLegend,
     selectedIconPath,
+    lineColor,
+    lineWidth,
     setActiveTool,
+    setLineColor,
+    setLineWidth,
     handleLegendSelect,
     handleIconSelect: handleIconSelectFromHook,
   } = useToolState();
@@ -974,6 +978,8 @@ const MapEditor: React.FC = () => {
         activeTool={activeTool}
         selectedLegend={selectedLegend}
         selectedIconPath={selectedIconPath}
+        lineColor={lineColor}
+        lineWidth={lineWidth}
         onFeatureSelect={setSelectedFeature}
         onToolChange={setActiveTool}
       />
@@ -986,6 +992,10 @@ const MapEditor: React.FC = () => {
         onLegendSelect={handleLegendSelect}
         onExportClick={handleExportClick}
         onPdfExportClick={handlePdfExportClick}
+        lineColor={lineColor}
+        lineWidth={lineWidth}
+        onLineColorChange={setLineColor}
+        onLineWidthChange={setLineWidth}
       />
 
       <FileManager
