@@ -13,7 +13,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { supportsCustomLineStyle, DEFAULT_LINE_STYLE } from "@/utils/featureTypeUtils";
+import {
+  supportsCustomLineStyle,
+  DEFAULT_LINE_STYLE,
+} from "@/utils/featureTypeUtils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@radix-ui/react-dropdown-menu";
 
 interface PropertiesPanelProps {
   map: Map | null;
@@ -40,7 +52,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   onClose,
   onSave,
 }) => {
-  console.log("Selected Features : ", selectedFeature)
+  console.log("Selected Features : ", selectedFeature);
   const [isEditing, setIsEditing] = useState(false);
   const [coordinates, setCoordinates] = useState<CoordinateState>({
     long: "",
@@ -63,8 +75,12 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   // Line style state
   const [lineColor, setLineColor] = useState<string>(DEFAULT_LINE_STYLE.color);
   const [lineWidth, setLineWidth] = useState<number>(DEFAULT_LINE_STYLE.width);
-  const [originalLineColor, setOriginalLineColor] = useState<string>(DEFAULT_LINE_STYLE.color);
-  const [originalLineWidth, setOriginalLineWidth] = useState<number>(DEFAULT_LINE_STYLE.width);
+  const [originalLineColor, setOriginalLineColor] = useState<string>(
+    DEFAULT_LINE_STYLE.color
+  );
+  const [originalLineWidth, setOriginalLineWidth] = useState<number>(
+    DEFAULT_LINE_STYLE.width
+  );
 
   // Check if selected feature supports custom line styling
   const supportsLineStyle = useMemo(() => {
@@ -85,15 +101,13 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     const geometryType = geometry?.getType();
 
     // Add name first
-    allProperties.push(
-      { id: 'prop-name', key: 'name', value: coords.name }
-    );
+    allProperties.push({ id: "prop-name", key: "name", value: coords.name });
 
     // Add lon/lat for all features except LineString
-    if (geometryType !== 'LineString') {
+    if (geometryType !== "LineString") {
       allProperties.push(
-        { id: 'prop-long', key: 'long', value: coords.long },
-        { id: 'prop-lat', key: 'lat', value: coords.lat }
+        { id: "prop-long", key: "long", value: coords.long },
+        { id: "prop-lat", key: "lat", value: coords.lat }
       );
     }
 
@@ -114,7 +128,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
       });
     });
 
-    console.log(allProperties)
+    console.log(allProperties);
     return allProperties;
   };
 
@@ -187,8 +201,10 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
       // Initialize line style if supported
       if (supportsCustomLineStyle(selectedFeature)) {
-        const color = selectedFeature.get("lineColor") || DEFAULT_LINE_STYLE.color;
-        const width = selectedFeature.get("lineWidth") || DEFAULT_LINE_STYLE.width;
+        const color =
+          selectedFeature.get("lineColor") || DEFAULT_LINE_STYLE.color;
+        const width =
+          selectedFeature.get("lineWidth") || DEFAULT_LINE_STYLE.width;
         setLineColor(color);
         setLineWidth(width);
         setOriginalLineColor(color);
@@ -215,23 +231,23 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     if (!selectedFeature) return;
 
     // Extract coordinates from properties
-    const nameProp = properties.find(p => p.key === 'name');
-    const longProp = properties.find(p => p.key === 'long');
-    const latProp = properties.find(p => p.key === 'lat');
+    const nameProp = properties.find((p) => p.key === "name");
+    const longProp = properties.find((p) => p.key === "long");
+    const latProp = properties.find((p) => p.key === "lat");
 
     // Update coordinates if they exist
     if (longProp && latProp) {
       const lon = parseFloat(longProp.value);
       const lat = parseFloat(latProp.value);
       if (!isNaN(lon) && !isNaN(lat)) {
-        updateFeatureCoordinates(lon, lat, nameProp?.value || '');
+        updateFeatureCoordinates(lon, lat, nameProp?.value || "");
       }
     } else if (nameProp) {
       // Update name if only name is provided
       if (nameProp.value.trim()) {
-        selectedFeature.set('name', nameProp.value.trim());
+        selectedFeature.set("name", nameProp.value.trim());
       } else {
-        selectedFeature.unset('name');
+        selectedFeature.unset("name");
       }
     }
 
@@ -251,8 +267,11 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
     // Set new custom properties
     properties.forEach((prop) => {
-      if (prop.key.trim() && prop.value.trim() &&
-          !['name', 'long', 'lat'].includes(prop.key)) {
+      if (
+        prop.key.trim() &&
+        prop.value.trim() &&
+        !["name", "long", "lat"].includes(prop.key)
+      ) {
         selectedFeature.set(prop.key.trim(), prop.value.trim());
       }
     });
@@ -432,18 +451,18 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     }
 
     // Update coordinates state for consistency
-    const nameProp = customProperties.find(p => p.key === 'name');
-    const longProp = customProperties.find(p => p.key === 'long');
-    const latProp = customProperties.find(p => p.key === 'lat');
+    const nameProp = customProperties.find((p) => p.key === "name");
+    const longProp = customProperties.find((p) => p.key === "long");
+    const latProp = customProperties.find((p) => p.key === "lat");
 
     if (longProp && latProp) {
       setOriginalCoordinates({
-        name: nameProp?.value || '',
+        name: nameProp?.value || "",
         long: longProp.value,
         lat: latProp.value,
       });
       setCoordinates({
-        name: nameProp?.value || '',
+        name: nameProp?.value || "",
         long: longProp.value,
         lat: latProp.value,
       });
@@ -466,7 +485,6 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     setIsEditing(false);
   };
 
-  
   if (!selectedFeature) {
     return null;
   }
@@ -505,7 +523,9 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     <div className="text-4xl mb-2">📋</div>
                     <div className="text-sm font-medium">No properties</div>
-                    <div className="text-xs mt-1">Click Edit to add properties</div>
+                    <div className="text-xs mt-1">
+                      Click Edit to add properties
+                    </div>
                   </div>
                 ) : (
                   customProperties.map((prop) => (
@@ -517,7 +537,9 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         {prop.key}:
                       </span>
                       <span className="text-gray-600 dark:text-gray-400 truncate ml-2">
-                        {prop.value || <span className="text-gray-400 italic">Empty</span>}
+                        {prop.value || (
+                          <span className="text-gray-400 italic">Empty</span>
+                        )}
                       </span>
                     </div>
                   ))
@@ -529,11 +551,15 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
                     <div className="text-3xl mb-2">➕</div>
                     <div className="text-sm font-medium">No properties yet</div>
-                    <div className="text-xs mt-1">Click "Add" to create your first property</div>
+                    <div className="text-xs mt-1">
+                      Click "Add" to create your first property
+                    </div>
                   </div>
                 ) : (
                   customProperties.map((prop) => {
-                    const isReadOnly = ['name', 'long', 'lat'].includes(prop.key);
+                    const isReadOnly = ["name", "long", "lat"].includes(
+                      prop.key
+                    );
 
                     return (
                       <div key={prop.id} className="flex gap-2 items-center">
@@ -543,18 +569,32 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                           onChange={(e) =>
                             updateCustomProperty(prop.id, "key", e.target.value)
                           }
-                          className={`flex-1 text-sm ${isReadOnly ? 'bg-gray-50 dark:bg-slate-700' : ''}`}
+                          className={`flex-1 text-sm ${
+                            isReadOnly ? "bg-gray-50 dark:bg-slate-700" : ""
+                          }`}
                           disabled={isReadOnly}
                         />
                         <Input
                           placeholder="Value"
                           value={prop.value}
                           onChange={(e) =>
-                            updateCustomProperty(prop.id, "value", e.target.value)
+                            updateCustomProperty(
+                              prop.id,
+                              "value",
+                              e.target.value
+                            )
                           }
                           className="flex-1 text-sm"
-                          type={prop.key === 'long' || prop.key === 'lat' ? 'number' : 'text'}
-                          step={prop.key === 'long' || prop.key === 'lat' ? 'any' : undefined}
+                          type={
+                            prop.key === "long" || prop.key === "lat"
+                              ? "number"
+                              : "text"
+                          }
+                          step={
+                            prop.key === "long" || prop.key === "lat"
+                              ? "any"
+                              : undefined
+                          }
                         />
                         {!isReadOnly && (
                           <Button
@@ -585,7 +625,9 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               {!isEditing ? (
                 <div className="space-y-2">
                   <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-                    <span className="font-medium text-gray-700 dark:text-gray-300">Color:</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                      Color:
+                    </span>
                     <div className="flex items-center gap-2">
                       <div
                         className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
@@ -597,8 +639,12 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     </div>
                   </div>
                   <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-                    <span className="font-medium text-gray-700 dark:text-gray-300">Width:</span>
-                    <span className="text-gray-600 dark:text-gray-400">{lineWidth}px</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">
+                      Width:
+                    </span>
+                    <span className="text-gray-600 dark:text-gray-400">
+                      {lineWidth}px
+                    </span>
                   </div>
                 </div>
               ) : (
@@ -615,18 +661,56 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                         onChange={(e) => setLineColor(e.target.value)}
                         className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
                       />
-                      <Input
+                      {/* <Input
                         type="text"
                         value={lineColor}
                         onChange={(e) => setLineColor(e.target.value)}
                         placeholder="#00ff00"
                         className="flex-1 text-sm font-mono"
                         pattern="^#[0-9A-Fa-f]{6}$"
-                      />
+                      /> */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-10 px-3"
+                          >
+                            Choose Color
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-48 p-1 bg-white rounded-sm shadow-lg z-10">
+                          <DropdownMenuSeparator />
+                          <DropdownMenuRadioGroup
+                            value={lineColor}
+                            onValueChange={(value) => setLineColor(value)}
+                          >
+                            {[
+                              { name: "Green", color: "#00ff00" },
+                              { name: "Red", color: "#ff0000" },
+                              { name: "Yellow", color: "#ffff00" },
+                              { name: "Cyan", color: "#00ffff" },
+                              { name: "Blue", color: "#0000ff" },
+                              { name: "Magenta", color: "#ff00ff" },
+                              { name: "White", color: "#ffffff" },
+                              { name: "Black", color: "#000000" },
+                            ].map((colorOption) => (
+                              <DropdownMenuRadioItem
+                                key={colorOption.color}
+                                value={colorOption.color}
+                                className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
+                              >
+                                <div
+                                  className="w-4 h-4 rounded"
+                                  style={{ backgroundColor: colorOption.color }}
+                                />
+                                <span>{colorOption.name}</span>
+                              </DropdownMenuRadioItem>
+                            ))}
+                          </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Click color box or enter hex code
-                    </p>
                   </div>
 
                   {/* Width Slider */}

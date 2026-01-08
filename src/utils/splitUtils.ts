@@ -420,3 +420,90 @@ const getPerpendicularVector = (
   // For right offset, distance should be negative
   return [-ny * distanceInProjectionUnits, nx * distanceInProjectionUnits];
 };
+
+// ============== CONTINUATION UTILITIES ==============
+
+/**
+ * Check if a feature can be continued (extended from endpoint)
+ * All LineString features can be continued: Polyline, Freehand, Arrow, Measure
+ */
+export const isContinuableFeature = (feature: Feature<Geometry>): boolean => {
+  const geometry = feature.getGeometry();
+  return geometry !== null && geometry !== undefined && geometry.getType() === "LineString";
+};
+
+/**
+ * Detect which endpoint (if any) was clicked
+ * @param feature - The LineString feature to check
+ * @param coordinate - The click coordinate
+ * @param tolerance - Distance tolerance in map units
+ * @returns 'start' | 'end' | null
+ */
+export const detectEndpointClick = (
+  feature: Feature<Geometry>,
+  coordinate: Coordinate,
+  tolerance: number
+): "start" | "end" | null => {
+  const endpoints = getLineEndpoints(feature);
+  if (!endpoints) return null;
+
+  const distToStart = getCoordinateDistance(coordinate, endpoints.start);
+  const distToEnd = getCoordinateDistance(coordinate, endpoints.end);
+
+  // Return whichever endpoint is within tolerance (prefer closer one)
+  if (distToStart <= tolerance && distToEnd <= tolerance) {
+    return distToStart <= distToEnd ? "start" : "end";
+  }
+  if (distToStart <= tolerance) return "start";
+  if (distToEnd <= tolerance) return "end";
+  return null;
+};
+
+/**
+ * Get feature type for determining draw behavior and styling
+ * @param feature - The LineString feature
+ * @returns Feature type string or null
+ */
+export const getLineStringType = (
+  feature: Feature<Geometry>
+): "polyline" | "freehand" | "arrow" | "measure" | null => {
+  if (feature.get("isPolyline")) return "polyline";
+  if (feature.get("isFreehand")) return "freehand";
+  if (feature.get("isArrow")) return "arrow";
+  if (feature.get("isMeasure")) return "measure";
+  // Default to polyline for unmarked LineStrings
+  return "polyline";
+};
+
+/**
+ * Extend a LineString feature with new coordinates
+ * @param feature - The feature to extend
+ * @param newCoords - New coordinates to add
+ * @param endpoint - Which endpoint was extended ('start' or 'end')
+ */
+export const extendLineStringCoordinates = (
+  feature: Feature<Geometry>,
+  newCoords: Coordinate[],
+  endpoint: "start" | "end"
+): void => {
+  const geometry = feature.getGeometry() as LineString;
+  const existingCoords = geometry.getCoordinates();
+
+  let mergedCoords: Coordinate[];
+
+  if (endpoint === "end") {
+    // Append new coordinates to the end
+    mergedCoords = [...existingCoords, ...newCoords];
+  } else {
+    // Prepend new coordinates to the start (reverse them to maintain direction)
+    mergedCoords = [...newCoords.reverse(), ...existingCoords];
+  }
+
+  geometry.setCoordinates(mergedCoords);
+
+  // Recalculate measure distance if applicable
+  if (feature.get("isMeasure")) {
+    const length = getLength(geometry);
+    feature.set("distance", length);
+  }
+};

@@ -11,8 +11,12 @@ import {
 import { FilePlus, Menu, ArrowDownToLine } from "lucide-react";
 import { TOOLS } from "../tools/toolConfig";
 import { LegendDropdown } from "./LegendDropdown";
+import { ColorPickerDropdown } from "./ColorPickerDropdown";
 import type { LegendType } from "@/tools/legendsConfig";
 import { Link } from "react-router";
+
+// Tools that support custom line color/width
+const LINE_STYLE_TOOLS = ["polyline", "freehand", "arrow"];
 
 interface ToolbarProps {
   onFileImport: () => void;
@@ -22,6 +26,10 @@ interface ToolbarProps {
   onLegendSelect: (legend: LegendType) => void;
   onExportClick: (format: "geojson" | "kml" | "kmz") => void;
   onPdfExportClick: () => void;
+  lineColor: string;
+  lineWidth: number;
+  onLineColorChange: (color: string) => void;
+  onLineWidthChange: (width: number) => void;
 }
 
 const Toolbar = ({
@@ -32,8 +40,15 @@ const Toolbar = ({
   onLegendSelect,
   onExportClick,
   onPdfExportClick,
+  lineColor,
+  lineWidth,
+  onLineColorChange,
+  onLineWidthChange,
 }: ToolbarProps) => {
   const [open, setOpen] = useState(true);
+
+  // Show color picker when active tool supports line styling
+  const showColorPicker = LINE_STYLE_TOOLS.includes(activeTool);
 
   const handleToolClick = (toolId: string) => {
     onToolActivate(toolId);
@@ -91,6 +106,17 @@ const Toolbar = ({
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {/* Color/Width Picker - shows when line style tools are active */}
+      {/* {showColorPicker && (
+        <ColorPickerDropdown
+          selectedColor={lineColor}
+          selectedWidth={lineWidth}
+          onColorChange={onLineColorChange}
+          onWidthChange={onLineWidthChange}
+        />
+      )} */}
+
       <Button
         variant="outline"
         className="cursor-pointer"
