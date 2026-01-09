@@ -1,11 +1,13 @@
 import { Draw } from "ol/interaction";
+import { createBox } from "ol/interaction/Draw";
 import { Style } from "ol/style";
-import { createPointStyle, createLineStyle } from "./styleUtils";
+import { createPointStyle, createLineStyle, createPolygonStyle } from "./styleUtils";
 import { getLength } from "ol/sphere";
 import { Feature } from "ol";
-import { Geometry, LineString } from "ol/geom";
+import { Geometry, LineString, Circle as CircleGeom } from "ol/geom";
 import { Vector as VectorSource } from "ol/source";
 import type { Coordinate } from "ol/coordinate";
+import { circleToPolygon } from "./geometryUtils";
 
 /**
  * Draw interaction configuration interface
@@ -55,6 +57,20 @@ export const DRAW_CONFIGS = {
     style: createLineStyle("#000000", 4),
     featureProperties: {
       isArrow: true,
+    },
+  },
+  box: {
+    type: "Circle" as const, // Uses Circle type with createBox() geometry function
+    style: createPolygonStyle("#3b82f6", 2, 1, "#3b82f6", 0.2),
+    featureProperties: {
+      isBox: true,
+    },
+  },
+  circle: {
+    type: "Circle" as const,
+    style: createPolygonStyle("#8b5cf6", 2, 1, "#8b5cf6", 0.2),
+    featureProperties: {
+      isCircle: true,
     },
   },
 } as const;
@@ -265,6 +281,109 @@ export const createArrowDraw = (
     },
     onDrawEnd,
   });
+};
+
+/**
+ * Create a box draw interaction
+ * @param source - Vector source to draw on
+ * @param onDrawEnd - Optional callback for when drawing ends
+ * @param strokeColor - Optional custom stroke color
+ * @param fillColor - Optional custom fill color
+ * @returns Box draw interaction
+ */
+export const createBoxDraw = (
+  source: any,
+  onDrawEnd?: (event: any) => void,
+  strokeColor?: string,
+  fillColor?: string
+): Draw => {
+  const customStrokeColor = strokeColor || "#3b82f6";
+  const customFillColor = fillColor || "#3b82f6";
+
+  const drawInteraction = new Draw({
+    source: source,
+    type: "Circle",
+    geometryFunction: createBox(),
+    style: createPolygonStyle(customStrokeColor, 2, 1, customFillColor, 0.2),
+  });
+
+  // Setup keyboard handlers when drawing starts
+  drawInteraction.on("drawstart", () => {
+    setupDrawKeyboardHandlers(drawInteraction);
+  });
+
+  drawInteraction.on("drawend", (event) => {
+    removeDrawKeyboardHandlers(drawInteraction);
+
+    // Set feature properties
+    event.feature.set("isBox", true);
+    event.feature.set("strokeColor", customStrokeColor);
+    event.feature.set("fillColor", customFillColor);
+
+    if (onDrawEnd) {
+      onDrawEnd(event);
+    }
+  });
+
+  drawInteraction.on("drawabort", () => {
+    removeDrawKeyboardHandlers(drawInteraction);
+  });
+
+  return drawInteraction;
+};
+
+/**
+ * Create a circle draw interaction
+ * Draws as Circle geometry but converts to Polygon on completion for GeoJSON compatibility
+ * @param source - Vector source to draw on
+ * @param onDrawEnd - Optional callback for when drawing ends
+ * @param strokeColor - Optional custom stroke color
+ * @param fillColor - Optional custom fill color
+ * @returns Circle draw interaction
+ */
+export const createCircleDraw = (
+  source: any,
+  onDrawEnd?: (event: any) => void,
+  strokeColor?: string,
+  fillColor?: string
+): Draw => {
+  const customStrokeColor = strokeColor || "#8b5cf6";
+  const customFillColor = fillColor || "#8b5cf6";
+
+  const drawInteraction = new Draw({
+    source: source,
+    type: "Circle",
+    style: createPolygonStyle(customStrokeColor, 2, 1, customFillColor, 0.2),
+  });
+
+  // Setup keyboard handlers when drawing starts
+  drawInteraction.on("drawstart", () => {
+    setupDrawKeyboardHandlers(drawInteraction);
+  });
+
+  drawInteraction.on("drawend", (event) => {
+    removeDrawKeyboardHandlers(drawInteraction);
+
+    // Convert Circle geometry to Polygon for GeoJSON compatibility
+    const circleGeometry = event.feature.getGeometry() as CircleGeom;
+    const polygonGeometry = circleToPolygon(circleGeometry, 64);
+    event.feature.setGeometry(polygonGeometry);
+
+    // Set feature properties
+    event.feature.set("isCircle", true);
+    event.feature.set("strokeColor", customStrokeColor);
+    event.feature.set("fillColor", customFillColor);
+
+    if (onDrawEnd) {
+      onDrawEnd(event);
+    }
+  });
+
+  drawInteraction.on("drawabort", () => {
+    removeDrawKeyboardHandlers(drawInteraction);
+  });
+
+  return drawInteraction;
 };
 
 /**

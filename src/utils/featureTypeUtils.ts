@@ -56,6 +56,11 @@ export const isEditableFeature = (feature: FeatureLike): boolean => {
     return false;
   }
 
+  // NOT editable: Box and Circle shapes (no vertex editing)
+  if (feature.get("isBox") || feature.get("isCircle")) {
+    return false;
+  }
+
   // Editable: LineString/MultiLineString features (Polyline, Freehand) but not icon features
   if (geometryType === "LineString" || geometryType === "MultiLineString") {
     return true;

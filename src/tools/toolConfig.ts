@@ -14,6 +14,8 @@ import {
   Scissors,
   Spline,
   CopySlash,
+  Square,
+  CircleDot,
 } from "lucide-react";
 
 export type ToolCategory = "edit" | "draw" | "symbols";
@@ -104,6 +106,18 @@ export const TOOLS: ToolItem[] = [
     id: 'measure',
     name: 'Measure',
     icon: RulerDimensionLine,
+    category: "draw",
+  },
+  {
+    id: 'box',
+    name: 'Box',
+    icon: Square,
+    category: "draw",
+  },
+  {
+    id: 'circle',
+    name: 'Circle',
+    icon: CircleDot,
     category: "draw",
   },
   // SYMBOL TOOLS

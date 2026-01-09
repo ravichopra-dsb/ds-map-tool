@@ -7,7 +7,7 @@ import type { LegendType } from "@/tools/legendsConfig";
 import { getLegendById } from "@/tools/legendsConfig";
 import { applyOpacityToColor } from "@/utils/colorUtils";
 import { getFeatureTypeStyle } from "@/utils/featureUtils";
-import { createPointStyle, createLineStyle } from "@/utils/styleUtils";
+import { createPointStyle, createLineStyle, createPolygonStyle } from "@/utils/styleUtils";
 import { getTextStyle } from "@/icons/Text";
 import { supportsCustomLineStyle, DEFAULT_LINE_STYLE } from "@/utils/featureTypeUtils";
 
@@ -215,6 +215,20 @@ export const getFeatureStyle = (
   const iconStyle = getFeatureTypeStyle(feature);
   if (iconStyle) {
     return iconStyle;
+  }
+
+  // Handle Box features
+  if (feature.get("isBox") && (type === "Polygon" || type === "MultiPolygon")) {
+    const strokeColor = feature.get("strokeColor") || "#3b82f6";
+    const fillColor = feature.get("fillColor") || "#3b82f6";
+    return createPolygonStyle(strokeColor, 2, 1, fillColor, 0.2);
+  }
+
+  // Handle Circle features
+  if (feature.get("isCircle") && (type === "Polygon" || type === "MultiPolygon")) {
+    const strokeColor = feature.get("strokeColor") || "#8b5cf6";
+    const fillColor = feature.get("fillColor") || "#8b5cf6";
+    return createPolygonStyle(strokeColor, 2, 1, fillColor, 0.2);
   }
 
   if (

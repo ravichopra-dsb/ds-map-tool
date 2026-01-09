@@ -19,6 +19,8 @@ import {
   createArrowDraw,
   createLegendDraw,
   createMeasureDraw,
+  createBoxDraw,
+  createCircleDraw,
 } from "@/utils/interactionUtils";
 import { createLineStyle } from "@/utils/styleUtils";
 import { useClickHandlerManager } from "@/hooks/useClickHandlerManager";
@@ -299,6 +301,16 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           );
           map.addInteraction(drawInteractionRef.current);
         }
+        break;
+
+      case "box":
+        drawInteractionRef.current = createBoxDraw(vectorSource);
+        map.addInteraction(drawInteractionRef.current);
+        break;
+
+      case "circle":
+        drawInteractionRef.current = createCircleDraw(vectorSource);
+        map.addInteraction(drawInteractionRef.current);
         break;
 
       case "split":

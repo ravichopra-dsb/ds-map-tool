@@ -179,6 +179,22 @@ export const TOOLS_CONFIG: Record<string, ToolConfig> = {
     clickHandlerKey: "IconClickHandler",
     description: "Requires selected icon to be active",
   },
+  box: {
+    id: "box",
+    name: "Box",
+    requiresDrawInteraction: true,
+    drawType: "Polygon",
+    modifyDisabled: true,
+    description: "Draw rectangular box shapes",
+  },
+  circle: {
+    id: "circle",
+    name: "Circle",
+    requiresDrawInteraction: true,
+    drawType: "Polygon",
+    modifyDisabled: true,
+    description: "Draw circle shapes",
+  },
 };
 
 /**
