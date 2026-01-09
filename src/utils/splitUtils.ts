@@ -75,22 +75,10 @@ export const copyFeatureProperties = (
 
 /**
  * Check if a feature can be merged
- * Only LineString features (not arrows) can be merged
+ * Reuses same criteria as splittable: LineString features except Arrow
+ * DRY: Alias to isSplittableFeature since criteria is identical
  */
-export const isMergeableFeature = (feature: Feature<Geometry>): boolean => {
-  const geometry = feature.getGeometry();
-
-  if (!geometry || geometry.getType() !== "LineString") {
-    return false;
-  }
-
-  // Exclude arrow features
-  if (feature.get("isArrow")) {
-    return false;
-  }
-
-  return true;
-};
+export const isMergeableFeature = isSplittableFeature;
 
 /**
  * Get the start and end coordinates of a LineString feature

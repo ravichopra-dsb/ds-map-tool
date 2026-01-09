@@ -9,6 +9,9 @@ import { fromLonLat } from "ol/proj";
 import { defaults as defaultControls } from "ol/control";
 import { getFeatureStyle } from "./FeatureStyler";
 import { useHiddenFeatures } from "@/hooks/useToggleObjects";
+import { isFeatureHidden, isTextFeatureHidden } from "@/utils/features/visibilityUtils";
+import { STYLE_DEFAULTS, COLORS } from "@/constants/styleDefaults";
+import type { Geometry } from "ol/geom";
 
 export interface MapInstanceProps {
   onMapReady: (map: Map) => void;
@@ -90,6 +93,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
     if (vectorLayerRef.current) {
       vectorLayerRef.current.setStyle((feature) => {
         const type = feature.getGeometry()?.getType();
+        const typedFeature = feature as Feature<Geometry>;
 
         // Only process text features with resolution-based visibility
         if (feature.get("isText") && type === "Point") {
@@ -97,8 +101,8 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           const textScale = feature.get("textScale") || 1;
           const textRotation = feature.get("textRotation") || 0;
 
-          // Hide text when zoomed out beyond zoom level ~8.5 (resolution 500)
-          if (hiddenTypes["text"]) {
+          // Hide text when toggled off
+          if (isTextFeatureHidden(typedFeature, hiddenTypes)) {
             return new Style({
               text: new Text({ text: '' }) // OpenLayers pattern: empty text = hidden
             });
@@ -108,33 +112,26 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           return new Style({
             text: new Text({
               text: textContent,
-              font: `${14 * textScale}px Arial, sans-serif`,
+              font: `${STYLE_DEFAULTS.TEXT_FONT_SIZE * textScale}px Arial, sans-serif`,
               scale: textScale,
               rotation: textRotation * Math.PI / 180,
-              fill: new Fill({ color: '#000000' }),
+              fill: new Fill({ color: COLORS.BLACK }),
               stroke: new Stroke({
-                color: '#ffffff',
-                width: 3
+                color: COLORS.WHITE,
+                width: STYLE_DEFAULTS.TEXT_STROKE_WIDTH
               }),
               padding: [4, 6, 4, 6],
               textAlign: 'center',
               textBaseline: 'middle',
             }),
-            zIndex: 100,
+            zIndex: STYLE_DEFAULTS.Z_INDEX_TEXT,
           });
         }
-        
-        if (hiddenTypes["pit"] && feature.get("isPit") && type === "MultiLineString") return new Style({stroke: undefined,})
-        if (hiddenTypes["tower"] && feature.get("isTower") && type === "GeometryCollection") return new Style({stroke: undefined,})
-        if (hiddenTypes["junction"] && feature.get("isJunction") && type === "GeometryCollection") return new Style({stroke: undefined,})
-        if (hiddenTypes["gp"] && feature.get("isGP") && type === "GeometryCollection") return new Style({stroke: undefined,})
-        if (hiddenTypes["triangle"] && feature.get("isTriangle") && type === "Polygon") return new Style({stroke: undefined,})
-        if (hiddenTypes["measure"] && feature.get("isMeasure") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: undefined,})
-        if (hiddenTypes["arrow"] && feature.get("isArrow") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: undefined,})
-        if (hiddenTypes["freehand"] && feature.get("isFreehand") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: undefined,})
-        if (hiddenTypes["polyline"] && feature.get("isPolyline") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: undefined,})
-        if (hiddenTypes["legends"] && feature.get("islegends") && (type === "LineString" || type === "MultiLineString")) return new Style({stroke: undefined,})
-        if (hiddenTypes["point"] && feature.get("isPoint")  && type === "Point") return new Style({stroke: undefined,})
+
+        // Check if feature should be hidden using consolidated visibility utility
+        if (isFeatureHidden(typedFeature, hiddenTypes)) {
+          return new Style({ stroke: undefined });
+        }
 
         // Handle all other feature types normally
         return getFeatureStyle(feature);

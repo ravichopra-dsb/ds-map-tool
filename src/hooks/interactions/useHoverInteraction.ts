@@ -1,0 +1,43 @@
+import { useEffect, useRef } from 'react';
+import { Select } from 'ol/interaction';
+import { pointerMove } from 'ol/events/condition';
+import type Map from 'ol/Map';
+import type VectorLayer from 'ol/layer/Vector';
+import type { Vector as VectorSource } from 'ol/source';
+import type { Feature } from 'ol';
+import type { Geometry } from 'ol/geom';
+import { createHoverStyle } from '@/utils/styleUtils';
+import { STYLE_DEFAULTS } from '@/constants/styleDefaults';
+
+interface UseHoverInteractionOptions {
+  map: Map | null;
+  vectorLayer: VectorLayer<VectorSource<Feature<Geometry>>> | null;
+}
+
+export const useHoverInteraction = ({
+  map,
+  vectorLayer,
+}: UseHoverInteractionOptions): void => {
+  const hoverInteractionRef = useRef<Select | null>(null);
+
+  useEffect(() => {
+    if (!map || !vectorLayer) return;
+
+    const hoverInteraction = new Select({
+      condition: pointerMove,
+      layers: [vectorLayer],
+      style: (feature) => createHoverStyle(feature as Feature<Geometry>),
+      hitTolerance: STYLE_DEFAULTS.HIT_TOLERANCE,
+    });
+
+    map.addInteraction(hoverInteraction);
+    hoverInteractionRef.current = hoverInteraction;
+
+    return () => {
+      if (hoverInteractionRef.current) {
+        map.removeInteraction(hoverInteractionRef.current);
+        hoverInteractionRef.current = null;
+      }
+    };
+  }, [map, vectorLayer]);
+};
