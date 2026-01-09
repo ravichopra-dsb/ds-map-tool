@@ -1130,6 +1130,9 @@ const MapEditor: React.FC = () => {
         lineWidth={lineWidth}
         onLineColorChange={setLineColor}
         onLineWidthChange={setLineWidth}
+        projects={projects}
+        currentProjectId={currentProjectId}
+        onSelectProject={loadProject}
       />
 
       <FileManager
@@ -1144,12 +1147,6 @@ const MapEditor: React.FC = () => {
         ref={fileInputRef}
         onChange={handleFileChange}
         style={{ display: "none" }}
-      />
-
-      <JobSelection
-        projects={projects}
-        currentProjectId={currentProjectId}
-        onSelectProject={loadProject}
       />
 
       <LoadingOverlay

@@ -301,7 +301,7 @@ export const SearchPanel = forwardRef<SearchPanelRef, SearchPanelProps>(({
   }), [query, performSearch, handleClear]);
 
   return (
-    <div className={`absolute top-2 right-40 z-50 w-64 ${className}`}>
+    <div className={`absolute top-17 left-2 z-50 w-64 ${className}`}>
       <Card className="bg-white/95 backdrop-blur-sm shadow-lg border-0 p-0">
         <CardContent className="p-0">
           <div className="relative">

@@ -5,17 +5,25 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
-import { FilePlus, Menu, ArrowDownToLine } from "lucide-react";
-import { TOOLS } from "../tools/toolConfig";
+import {
+  FilePlus,
+  ArrowDownToLine,
+  Loader2,
+  FolderIcon,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
+import { TOOLS, type ToolCategory } from "../tools/toolConfig";
 import { LegendDropdown } from "./LegendDropdown";
 import type { LegendType } from "@/tools/legendsConfig";
 import { Link } from "react-router";
-
-// Tools that support custom line color/width
-// const LINE_STYLE_TOOLS = ["polyline", "freehand", "arrow"];
+import type { Project } from "@/hooks/useMapProjects";
+import type { PGlite } from "@electric-sql/pglite";
+import { JobSelection } from "./JobSelection";
 
 interface ToolbarProps {
   onFileImport: () => void;
@@ -29,7 +37,16 @@ interface ToolbarProps {
   lineWidth: number;
   onLineColorChange: (color: string) => void;
   onLineWidthChange: (width: number) => void;
+  projects?: Project[];
+  currentProjectId: string | null;
+  onSelectProject: (projectId: string) => Promise<PGlite | null>;
 }
+
+const CATEGORY_LABELS: Record<ToolCategory, string> = {
+  edit: "Edit",
+  draw: "Draw",
+  symbols: "Symbols",
+};
 
 const Toolbar = ({
   onFileImport,
@@ -39,109 +56,170 @@ const Toolbar = ({
   onLegendSelect,
   onExportClick,
   onPdfExportClick,
+  projects = [],
+  currentProjectId,
+  onSelectProject,
 }: ToolbarProps) => {
-  const [open, setOpen] = useState(true);
+  const [activeCategory, setActiveCategory] = useState<ToolCategory>("edit");
+  const [isSwitchingJob, setIsSwitchingJob] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
-  // Show color picker when active tool supports line styling
-  // const showColorPicker = LINE_STYLE_TOOLS.includes(activeTool);
+  const handleJobSelect = async (projectId: string) => {
+    if (!onSelectProject) return;
+    setIsSwitchingJob(true);
+    try {
+      await onSelectProject(projectId);
+    } finally {
+      setIsSwitchingJob(false);
+    }
+  };
 
   const handleToolClick = (toolId: string) => {
     onToolActivate(toolId);
   };
 
+  const getToolsByCategory = (category: ToolCategory) => {
+    return TOOLS.filter((tool) => tool.category === category);
+  };
+
+  const categories: ToolCategory[] = ["edit", "draw", "symbols"];
+
   return (
-    <div className="absolute left-2 top-2 flex gap-2 z-50">
-      {/* Tools Dropdown */}
-      <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="cursor-pointer">
-            <Menu />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          className="mt-3"
-          align="start"
-          onInteractOutside={(e) => e.preventDefault()}
-          onPointerDown={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
-          <DropdownMenuLabel className="px-3">Tool</DropdownMenuLabel>
-          <DropdownMenuGroup className="my-2 px-3">
-            <div className="grid grid-cols-2 gap-4">
-              {TOOLS.map((tool) => {
-                if (tool.id === "legends") {
-                  return (
-                    <div key={tool.id} className="flex justify-center">
-                      <LegendDropdown
-                        selectedLegend={selectedLegend}
-                        onLegendSelect={onLegendSelect}
-                      />
-                    </div>
-                  );
-                }
+    <div className="absolute top-0 left-0 right-0 z-50">
+      {/* Main Toolbar Container */}
+      <div className="bg-white/95 backdrop-blur-sm border border-gray-200 rounded-b-lg shadow-md">
+        {/* Tab Navigation */}
+        <div className="flex items-center justify-between px-2 py-2 border-b border-gray-200">
+          <div className="flex gap-1">
+            {categories.map((category) => (
+              <button
+                key={category}
+                onClick={() => {setActiveCategory(category);setIsCollapsed(false)}}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-all cursor-pointer ${
+                  activeCategory === category
+                    ? "bg-blue-100 text-blue-900 border border-blue-300"
+                    : "text-gray-700 hover:bg-gray-100 border border-transparent"
+                }`}
+              >
+                {CATEGORY_LABELS[category]}
+              </button>
+            ))}
+          </div>
 
-                const Icon = tool.icon;
-                return (
-                  <DropdownMenuItem
-                    key={tool.id}
-                    onSelect={(e) => e.preventDefault()}
-                    className={`w-full cursor-pointer ${
-                      activeTool === tool.id
-                        ? "bg-[#e0dfff] focus:bg-[#e0dfff]"
-                        : "focus:bg-zinc-200/60"
-                    } hover:bg-[#e0dfff]  delay-75 transition-all flex justify-center `}
-                    onClick={() => handleToolClick(tool.id)}
-                    title={tool.name}
-                  >
-                    <Icon />
+          {/* Right-side Actions */}
+          <div className="flex items-center gap-2">
+            <div className="w-px h-6 bg-gray-200"></div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="cursor-pointer h-8 px-3"
+              title="Import GeoJson/Kml/Kmz"
+              onClick={onFileImport}
+            >
+              <FilePlus className="w-4 h-4" />
+              <span className="ml-1 text-xs">Import</span>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="cursor-pointer h-8 px-3"
+                >
+                  <ArrowDownToLine className="w-4 h-4" />
+                  <span className="ml-1 text-xs">Export</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-32">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={() => onExportClick("geojson")}>
+                    GeoJson
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onExportClick("kml")}>
+                    KML
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onExportClick("kmz")}>
+                    KMZ
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onPdfExportClick}>
+                    PDF
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="cursor-pointer h-8 px-3"
+              title="Redirect to Layouts"
+              asChild
+            >
+              <Link to={"/layouts"} target="_blank" className="text-xs">
+                Layouts
+              </Link>
+            </Button>
+
+            {/* Job Selector Dropdown */}
+            <JobSelection
+              projects={projects}
+              currentProjectId={currentProjectId}
+              onSelectProject={onSelectProject}
+            />
+
+            {/* Tools Section Collapsable */}
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="p-1 hover:bg-gray-100 rounded transition-colors cursor-pointer"
+              title={isCollapsed ? "Expand tools" : "Collapse tools"}
+            >
+              {isCollapsed ? (
+                <ChevronDown className="w-4 h-4 text-gray-700" />
+              ) : (
+                <ChevronUp className="w-4 h-4 text-gray-700" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Tools Display */}
+        <div
+          className={`overflow-hidden transition-all ease-in-out duration-500 ${
+            isCollapsed ? "max-h-0" : "max-h-96"
+          }`}
+        >
+          <div className="flex flex-wrap items-center gap-2 px-3 py-3">
+            {getToolsByCategory(activeCategory).map((tool) => {
+              if (tool.id === "legends") {
+                return (
+                  <div key={tool.id}>
+                    <LegendDropdown
+                      selectedLegend={selectedLegend}
+                      onLegendSelect={onLegendSelect}
+                    />
+                  </div>
                 );
-              })}
-            </div>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+              }
 
-      {/* Color/Width Picker - shows when line style tools are active */}
-      {/* {showColorPicker && (
-        <ColorPickerDropdown
-          selectedColor={lineColor}
-          selectedWidth={lineWidth}
-          onColorChange={onLineColorChange}
-          onWidthChange={onLineWidthChange}
-        />
-      )} */}
-
-      <Button
-        variant="outline"
-        className="cursor-pointer"
-        title="Import GeoJson/Kml/Kmz"
-        onClick={onFileImport}
-      >
-        <FilePlus /> Import
-      </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline">
-            <ArrowDownToLine /> Export
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-32" align="start">
-          <DropdownMenuGroup>
-            <DropdownMenuItem onClick={() => onExportClick("geojson")}>GeoJson</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onExportClick("kml")}>Kml</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onExportClick("kmz")}>Kmz</DropdownMenuItem>
-            <DropdownMenuItem onClick={onPdfExportClick}>PDF</DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <Button
-        variant="outline"
-        className="cursor-pointer p-0 overflow-hidden"
-        title="Redirect to Layouts"
-      >
-        <Link to={'/layouts'} target="_blank" className="p-3">Layouts</Link>
-      </Button>
+              const Icon = tool.icon;
+              return (
+                <button
+                  key={tool.id}
+                  onClick={() => handleToolClick(tool.id)}
+                  title={tool.name}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md transition-all cursor-pointer ${
+                    activeTool === tool.id
+                      ? "bg-blue-500 text-white shadow-md"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="text-xs font-medium">{tool.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
