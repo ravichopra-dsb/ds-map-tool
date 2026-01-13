@@ -30,7 +30,7 @@ export function handleIconClick(
   const iconStyle = new Style({
     image: new Icon({
       src: iconPath,
-      scale: 0.1, // Adjust scale as needed
+      scale: 0.3, // Adjust scale as needed
       anchor: [0.5, 0.5],
       anchorXUnits: "fraction",
       anchorYUnits: "fraction",

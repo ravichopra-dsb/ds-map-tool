@@ -10,7 +10,7 @@ export interface CustomProperty {
 }
 
 /** Properties that cannot have their key changed */
-export const PROTECTED_PROPERTY_KEYS = ["name", "long", "lat"] as const;
+export const PROTECTED_PROPERTY_KEYS = ["name", "long", "lat", "label"] as const;
 
 /**
  * Check if a property key is protected (cannot be deleted or renamed)
@@ -67,6 +67,7 @@ const shouldExcludeProperty = (key: string): boolean => {
   if (key === "nonEditable") return true;
   if (key.startsWith("_")) return true;
   if (key === "name") return true;
+  if (key === "label") return true;
   // Style properties have their own UI section in the panel
   if (isStyleProperty(key)) return true;
   return false;
@@ -74,7 +75,7 @@ const shouldExcludeProperty = (key: string): boolean => {
 
 /**
  * Extracts all displayable properties from a feature.
- * Includes coordinates (name, long, lat) and custom properties.
+ * Includes coordinates (name, long, lat), label property, and custom properties.
  */
 export const extractAllProperties = (feature: Feature): CustomProperty[] => {
   const coords = extractCoordinates(feature);
@@ -87,6 +88,10 @@ export const extractAllProperties = (feature: Feature): CustomProperty[] => {
 
   // Add name first
   allProperties.push({ id: "prop-name", key: "name", value: coords.name });
+
+  // Add label property (which property to use as display label)
+  const labelValue = feature.get("label") || "name";
+  allProperties.push({ id: "prop-label", key: "label", value: labelValue });
 
   // Add lon/lat for all features except LineString
   if (geometryType !== "LineString") {
@@ -157,6 +162,7 @@ export const applyPropertiesToFeature = (
   const PRESERVED_KEYS = [
     "geometry",
     "name",
+    "label",
     "nonEditable",
     // Style properties
     "lineColor",
@@ -176,6 +182,12 @@ export const applyPropertiesToFeature = (
       feature.unset(key);
     }
   });
+
+  // Handle label property
+  const labelProp = properties.find((p) => p.key === "label");
+  if (labelProp) {
+    feature.set("label", labelProp.value.trim() || "name");
+  }
 
   // Set new custom properties (skip protected and style properties)
   properties.forEach((prop) => {

@@ -125,6 +125,9 @@ export const extractStyleMetadata = (feature: Feature<Geometry>): any => {
   // Store name property for PropertiesPanel
   if (feature.get("name")) properties.name = feature.get("name");
 
+  // Store label property for custom label selection
+  if (feature.get("label")) properties.label = feature.get("label");
+
   // Store shape type identifiers (Box, Circle, Arc, Revision Cloud)
   if (feature.get("isBox")) properties.isBox = true;
   if (feature.get("isCircle")) properties.isCircle = true;

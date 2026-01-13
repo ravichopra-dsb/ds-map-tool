@@ -66,6 +66,10 @@ export const handlePitClick = (
     pitFeature.set("isPit", true);
     pitFeature.set("nonEditable", true);
 
+    // Add label/name properties for text display
+    pitFeature.set("label", "name");
+    pitFeature.set("name", `Pit`);
+
     // Add to vector source
     vectorSource.addFeature(pitFeature);
   } catch (error) {

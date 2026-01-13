@@ -96,6 +96,10 @@ export const handleJunctionClick = (
     junctionFeature.set("isJunction", true);
     junctionFeature.set("nonEditable", true);
 
+    // Add label/name properties for text display
+    junctionFeature.set("label", "name");
+    junctionFeature.set("name", `Junction`);
+
     // Add to vector source
     vectorSource.addFeature(junctionFeature);
   } catch (error) {

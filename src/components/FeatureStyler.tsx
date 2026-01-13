@@ -2,6 +2,7 @@ import { Style, Text, RegularShape } from "ol/style";
 import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
 import { Point } from "ol/geom";
+import { getCenter } from "ol/extent";
 import type { FeatureLike } from "ol/Feature";
 import type { LegendType } from "@/tools/legendsConfig";
 import { getLegendById } from "@/tools/legendsConfig";
@@ -145,10 +146,10 @@ export const getArrowStyle = (feature: FeatureLike) => {
 };
 
 /**
- * Check if a feature should display its name
- * Only Point features should show names
+ * Check if a feature should display a label
+ * Supports Point features and icon features (GP, Tower, Junction, Triangle, Pit)
  */
-const shouldShowName = (feature: FeatureLike): boolean => {
+const shouldShowLabel = (feature: FeatureLike): boolean => {
   // Skip features that already have their own text display systems
   if (feature.get("isArrow") ||
       feature.get("isText") ||
@@ -157,33 +158,66 @@ const shouldShowName = (feature: FeatureLike): boolean => {
     return false;
   }
 
-  // Only show names on Point geometry
   const geometry = feature.getGeometry();
-  return geometry?.getType() === "Point";
+  if (!geometry) return false;
+
+  const geometryType = geometry.getType();
+
+  // Point geometry (standard points and custom icons)
+  if (geometryType === "Point") return true;
+
+  // Icon features with non-Point geometry
+  if (feature.get("isTriangle") && geometryType === "Polygon") return true;
+  if (feature.get("isPit") && geometryType === "MultiLineString") return true;
+  if ((feature.get("isGP") || feature.get("isTower") || feature.get("isJunction"))
+      && geometryType === "GeometryCollection") return true;
+
+  return false;
 };
 
 
 /**
- * Create text style for feature names (Point features only)
+ * Create text style for feature labels
+ * Uses the 'label' property to determine which property to display as label
  */
-const getNameTextStyle = (feature: FeatureLike): Style | null => {
-  const name = feature.get("name");
-  if (!name) return null;
+const getLabelTextStyle = (feature: FeatureLike): Style | null => {
+  // Get which property to use as label (default to "name")
+  const labelProperty = feature.get("label") || "name";
+  const labelValue = feature.get(labelProperty);
+
+  // If no value for the selected property, don't show label
+  if (!labelValue) return null;
 
   const geometry = feature.getGeometry();
-  if (!geometry || geometry.getType() !== "Point") return null;
+  if (!geometry) return null;
+
+  const geometryType = geometry.getType();
+  let labelGeometry: Point;
+
+  if (geometryType === "Point") {
+    labelGeometry = geometry as Point;
+  } else {
+    // For non-Point geometries, use center of extent
+    const extent = geometry.getExtent();
+    const center = getCenter(extent);
+    labelGeometry = new Point(center);
+  }
+
+  // Adjust offset based on geometry type
+  let offsetY = -15;
+  if (geometryType !== "Point") offsetY = -20;
 
   return new Style({
     text: new Text({
-      text: String(name),
+      text: String(labelValue),
       font: "14px Arial, sans-serif",
       fill: new Fill({ color: "#000000" }),
       stroke: new Stroke({ color: "#ffffff", width: 3 }),
       textAlign: "center",
       textBaseline: "middle",
-      offsetY: -15, // Position text above the point
+      offsetY: offsetY,
     }),
-    geometry: geometry as Point,
+    geometry: labelGeometry,
     zIndex: 100, // High z-index to ensure text appears above features
   });
 };
@@ -214,6 +248,17 @@ export const getFeatureStyle = (
   // Handle icon features using utility
   const iconStyle = getFeatureTypeStyle(feature);
   if (iconStyle) {
+    // Check if icon feature should also show a label
+    if (shouldShowLabel(feature)) {
+      const labelTextStyle = getLabelTextStyle(feature);
+      if (labelTextStyle) {
+        // Combine icon style with label text style
+        if (Array.isArray(iconStyle)) {
+          return [...iconStyle, labelTextStyle];
+        }
+        return [iconStyle, labelTextStyle];
+      }
+    }
     return iconStyle;
   }
 
@@ -290,8 +335,8 @@ export const getFeatureStyle = (
     return styles;
   }
 
-  // Handle name display for Point and icon features
-  if (shouldShowName(feature)) {
+  // Handle label display for Point and icon features
+  if (shouldShowLabel(feature)) {
     const baseStyle = type === "LineString" || type === "MultiLineString"
       ? createLineStyle("#00ff00", 4)
       : type === "Point" || type === "MultiPoint"
@@ -303,15 +348,15 @@ export const getFeatureStyle = (
         })
       : getFeatureTypeStyle(feature) || new Style();
 
-    const nameTextStyle = getNameTextStyle(feature);
+    const labelTextStyle = getLabelTextStyle(feature);
 
-    if (nameTextStyle) {
+    if (labelTextStyle) {
       // If baseStyle is already an array, append text style
       if (Array.isArray(baseStyle)) {
-        return [...baseStyle, nameTextStyle];
+        return [...baseStyle, labelTextStyle];
       }
       // Otherwise, convert to array
-      return [baseStyle, nameTextStyle];
+      return [baseStyle, labelTextStyle];
     }
 
     return baseStyle;

@@ -61,6 +61,19 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     properties.isEditing
   );
 
+  // Get current label property value
+  const currentLabel = properties.customProperties.find(
+    (p) => p.key === "label"
+  )?.value || "name";
+
+  const handleLabelSelect = (propertyKey: string) => {
+    // Find the label property and update its value
+    const labelProp = properties.customProperties.find((p) => p.key === "label");
+    if (labelProp) {
+      properties.updateProperty(labelProp.id, "value", propertyKey);
+    }
+  };
+
   const handleSave = () => {
     properties.save();
     lineStyle.commitLineStyle();
@@ -105,12 +118,17 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
           <div className="space-y-2">
             {!properties.isEditing ? (
-              <PropertyDisplayList properties={properties.customProperties} />
+              <PropertyDisplayList
+                properties={properties.customProperties}
+                currentLabel={currentLabel}
+              />
             ) : (
               <PropertyEditList
                 properties={properties.customProperties}
                 onUpdate={properties.updateProperty}
                 onDelete={properties.deleteProperty}
+                currentLabel={currentLabel}
+                onLabelSelect={handleLabelSelect}
               />
             )}
           </div>
@@ -185,12 +203,71 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
 // Sub-components
 
+interface LabelSelectorProps {
+  propertyKey: string;
+  currentLabel: string;
+  onSelect: (key: string) => void;
+  disabled?: boolean;
+}
+
+const LabelSelector: React.FC<LabelSelectorProps> = ({
+  propertyKey,
+  currentLabel,
+  onSelect,
+  disabled = false,
+}) => {
+  const isSelected = currentLabel === propertyKey;
+
+  // Don't show selector for these properties (they can't be used as labels)
+  if (
+    propertyKey === "label" ||
+    propertyKey === "long" ||
+    propertyKey === "lat" ||
+    propertyKey === "length" ||
+    propertyKey === "vertex"
+  ) {
+    return <div className="" />; // Spacer
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => !disabled && onSelect(propertyKey)}
+      disabled={disabled}
+      className={`w-3 h-3 rounded-full border-2 flex items-center justify-center transition-all shrink-0 absolute -top-1.5 -left-1.5 z-10
+        ${
+          disabled
+            ? "cursor-default opacity-50"
+            : "cursor-pointer hover:border-blue-400"
+        }
+        ${
+          isSelected
+            ? "border-blue-500 bg-blue-500"
+            : "border-gray-300 dark:border-gray-600 bg-white"
+        }`}
+      title={`Use "${propertyKey}" as label`}
+    >
+      {isSelected && (
+        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            fillRule="evenodd"
+            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+            clipRule="evenodd"
+          />
+        </svg>
+      )}
+    </button>
+  );
+};
+
 interface PropertyDisplayListProps {
   properties: { id: string; key: string; value: string }[];
+  currentLabel: string;
 }
 
 const PropertyDisplayList: React.FC<PropertyDisplayListProps> = ({
   properties,
+  currentLabel,
 }) => {
   if (properties.length === 0) {
     return (
@@ -207,9 +284,9 @@ const PropertyDisplayList: React.FC<PropertyDisplayListProps> = ({
       {properties.map((prop) => (
         <div
           key={prop.id}
-          className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+          className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
         >
-          <span className="font-medium text-gray-700 dark:text-gray-300 capitalize">
+          <span className="font-medium text-gray-700 dark:text-gray-300 capitalize flex-1">
             {prop.key}:
           </span>
           <span className="text-gray-600 dark:text-gray-400 truncate ml-2">
@@ -225,12 +302,16 @@ interface PropertyEditListProps {
   properties: { id: string; key: string; value: string }[];
   onUpdate: (id: string, field: "key" | "value", value: string) => void;
   onDelete: (id: string) => void;
+  currentLabel: string;
+  onLabelSelect: (key: string) => void;
 }
 
 const PropertyEditList: React.FC<PropertyEditListProps> = ({
   properties,
   onUpdate,
   onDelete,
+  currentLabel,
+  onLabelSelect,
 }) => {
   if (properties.length === 0) {
     return (
@@ -249,7 +330,13 @@ const PropertyEditList: React.FC<PropertyEditListProps> = ({
         const isCalculated = isCalculatedProperty(prop.key);
 
         return (
-          <div key={prop.id} className="flex gap-2 items-center">
+          <div key={prop.id} className="flex gap-2 items-center relative">
+            <LabelSelector
+              propertyKey={prop.key}
+              currentLabel={currentLabel}
+              onSelect={onLabelSelect}
+              disabled={false}
+            />
             <Input
               placeholder="Property name"
               value={prop.key}

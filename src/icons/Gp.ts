@@ -92,6 +92,10 @@ export const handleGPClick = (
     gpFeature.set("isGP", true);
     gpFeature.set("nonEditable", true);
 
+    // Add label/name properties for text display
+    gpFeature.set("label", "name");
+    gpFeature.set("name", `GP`);
+
     // Add to vector source (single feature = selectable as one unit)
     vectorSource.addFeature(gpFeature);
   } catch (error) {

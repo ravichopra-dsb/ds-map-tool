@@ -165,6 +165,10 @@ export const createFeatureFromSvgPath = (
   feature.set("isTower", true);
   feature.set("nonEditable", true);
 
+  // Add label/name properties for text display
+  feature.set("label", "name");
+  feature.set("name", `Tower`);
+
   return feature;
 };
 

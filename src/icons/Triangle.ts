@@ -48,6 +48,10 @@ export const handleTriangleClick = (
     triangleFeature.set("isTriangle", true);
     triangleFeature.set("nonEditable", true);
 
+    // Add label/name properties for text display
+    triangleFeature.set("label", "name");
+    triangleFeature.set("name", `Triangle`);
+
     // Add to vector source
     vectorSource.addFeature(triangleFeature);
 
