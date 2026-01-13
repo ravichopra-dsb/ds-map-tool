@@ -1,4 +1,6 @@
 import type Feature from "ol/Feature";
+import type { LineString } from "ol/geom";
+import { getLength } from "ol/sphere";
 import { extractCoordinates } from "./coordinateUtils";
 
 export interface CustomProperty {
@@ -17,6 +19,28 @@ export const isProtectedProperty = (key: string): boolean => {
   return PROTECTED_PROPERTY_KEYS.includes(
     key as (typeof PROTECTED_PROPERTY_KEYS)[number]
   );
+};
+
+/** Properties that are calculated and fully read-only (both key and value) */
+export const CALCULATED_PROPERTY_KEYS = ["length", "vertex"] as const;
+
+/**
+ * Check if a property is calculated (completely read-only)
+ */
+export const isCalculatedProperty = (key: string): boolean => {
+  return CALCULATED_PROPERTY_KEYS.includes(
+    key as (typeof CALCULATED_PROPERTY_KEYS)[number]
+  );
+};
+
+/**
+ * Format length in meters to human-readable string
+ */
+const formatLength = (meters: number): string => {
+  if (meters < 1000) {
+    return `${Math.round(meters)}m`;
+  }
+  return `${(meters / 1000).toFixed(2)}km`;
 };
 
 /** Style properties that have their own UI section */
@@ -69,6 +93,18 @@ export const extractAllProperties = (feature: Feature): CustomProperty[] => {
     allProperties.push(
       { id: "prop-long", key: "long", value: coords.long },
       { id: "prop-lat", key: "lat", value: coords.lat }
+    );
+  }
+
+  // Add length and vertex count for LineString features
+  if (geometryType === "LineString" && geometry) {
+    const lineString = geometry as LineString;
+    const coords = lineString.getCoordinates();
+    const length = getLength(geometry);
+
+    allProperties.push(
+      { id: "prop-length", key: "length", value: formatLength(length) },
+      { id: "prop-vertex", key: "vertex", value: String(coords.length) }
     );
   }
 

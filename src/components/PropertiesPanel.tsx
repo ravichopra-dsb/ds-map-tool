@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { DEFAULT_LINE_STYLE } from "@/utils/featureTypeUtils";
-import { isProtectedProperty } from "@/utils/propertyUtils";
+import { isProtectedProperty, isCalculatedProperty } from "@/utils/propertyUtils";
 import { usePropertiesPanel } from "@/hooks/usePropertiesPanel";
 import { useLineStyleEditor } from "@/hooks/useLineStyleEditor";
 import { useShapeStyleEditor } from "@/hooks/useShapeStyleEditor";
@@ -246,6 +246,7 @@ const PropertyEditList: React.FC<PropertyEditListProps> = ({
     <div className="space-y-2">
       {properties.map((prop) => {
         const isReadOnly = isProtectedProperty(prop.key);
+        const isCalculated = isCalculatedProperty(prop.key);
 
         return (
           <div key={prop.id} className="flex gap-2 items-center">
@@ -254,19 +255,22 @@ const PropertyEditList: React.FC<PropertyEditListProps> = ({
               value={prop.key}
               onChange={(e) => onUpdate(prop.id, "key", e.target.value)}
               className={`flex-1 text-sm ${
-                isReadOnly ? "bg-gray-50 dark:bg-slate-700" : ""
+                isReadOnly || isCalculated ? "bg-gray-50 dark:bg-slate-700" : ""
               }`}
-              disabled={isReadOnly}
+              disabled={isReadOnly || isCalculated}
             />
             <Input
               placeholder="Value"
               value={prop.value}
               onChange={(e) => onUpdate(prop.id, "value", e.target.value)}
-              className="flex-1 text-sm"
+              className={`flex-1 text-sm ${
+                isCalculated ? "bg-gray-50 dark:bg-slate-700" : ""
+              }`}
+              disabled={isCalculated}
               type={prop.key === "long" || prop.key === "lat" ? "number" : "text"}
               step={prop.key === "long" || prop.key === "lat" ? "any" : undefined}
             />
-            {!isReadOnly && (
+            {!isReadOnly && !isCalculated && (
               <Button
                 variant="ghost"
                 size="icon-sm"
