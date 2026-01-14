@@ -697,6 +697,14 @@ const MapEditor: React.FC = () => {
     }
   }, [activeTool, setSelectedFeature]);
 
+  // Auto-close Offset Dialog when switching tools
+  useEffect(() => {
+    if (activeTool !== "offset" && offsetDialogOpen) {
+      setOffsetDialogOpen(false);
+      setOffsetFeature(null);
+    }
+  }, [activeTool, offsetDialogOpen]);
+
   // Text tool event listener
   useEffect(() => {
     const handleTextToolClick = (event: CustomEvent) => {

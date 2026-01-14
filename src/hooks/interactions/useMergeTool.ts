@@ -49,8 +49,9 @@ export const useMergeTool = ({
     if (!vectorSource) return;
 
     if (isActive) {
-      // Disable the default select and modify interactions
+      // Disable the default select and modify interactions, clear any existing selection
       selectInteraction?.setActive(false);
+      selectInteraction?.getFeatures().clear();
       modifyInteraction?.setActive(false);
 
       // Create a select interaction for merge tool

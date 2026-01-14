@@ -26,8 +26,9 @@ export const useOffsetTool = ({
     if (!map || !vectorLayer) return;
 
     if (isActive) {
-      // Disable select and modify during offset
+      // Disable select and modify during offset, clear any existing selection
       selectInteraction?.setActive(false);
+      selectInteraction?.getFeatures().clear();
       modifyInteraction?.setActive(false);
 
       const vectorSource = vectorLayer.getSource();

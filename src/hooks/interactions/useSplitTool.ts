@@ -29,8 +29,9 @@ export const useSplitTool = ({
     if (!map || !vectorLayer) return;
 
     if (isActive) {
-      // Disable select and modify during split
+      // Disable select and modify during split, clear any existing selection
       selectInteraction?.setActive(false);
+      selectInteraction?.getFeatures().clear();
       modifyInteraction?.setActive(false);
 
       const vectorSource = vectorLayer.getSource();
