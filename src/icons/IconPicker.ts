@@ -14,7 +14,7 @@ export function handleIconClick(
   vectorSource: VectorSource<Feature<Geometry>>,
   coordinate: number[],
   iconPath: string
-): void {
+): Feature<Geometry> {
   // Create a new point feature at the clicked coordinate
   const iconFeature = new Feature({
     geometry: new Point(coordinate),
@@ -29,4 +29,6 @@ export function handleIconClick(
   // Note: Style is handled by layer's style function (getFeatureStyle) which
   // uses getFeatureTypeStyle() to render the icon and includes label support
   vectorSource.addFeature(iconFeature);
+
+  return iconFeature;
 }

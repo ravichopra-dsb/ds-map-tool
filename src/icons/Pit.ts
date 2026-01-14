@@ -52,7 +52,7 @@ export const handlePitClick = (
   vectorSource: VectorSource,
   coordinate: number[],
   size: number = 6
-): void => {
+): Feature | null => {
   try {
     // Create pit geometry
     const pitGeometry = createPitGeometry(coordinate, size);
@@ -72,8 +72,11 @@ export const handlePitClick = (
 
     // Add to vector source
     vectorSource.addFeature(pitFeature);
+
+    return pitFeature;
   } catch (error) {
     console.error("Error creating pit:", error);
+    return null;
   }
 };
 

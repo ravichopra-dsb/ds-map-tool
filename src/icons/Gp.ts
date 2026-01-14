@@ -84,7 +84,7 @@ export const handleGPClick = (
   coordinate: number[],
   outerRadius: number = 8,
   innerRadius: number = 2
-): void => {
+): Feature<Geometry> | null => {
   try {
     const gpFeature = createGPGeometry(coordinate, outerRadius, innerRadius);
 
@@ -98,8 +98,11 @@ export const handleGPClick = (
 
     // Add to vector source (single feature = selectable as one unit)
     vectorSource.addFeature(gpFeature);
+
+    return gpFeature;
   } catch (error) {
     console.error("Error creating GP:", error);
+    return null;
   }
 };
 

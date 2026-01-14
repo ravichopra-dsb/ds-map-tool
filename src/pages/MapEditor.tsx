@@ -688,6 +688,15 @@ const MapEditor: React.FC = () => {
     };
   }, [interactionReady, currentProjectId, currentDb, currentMapView]);
 
+  // Auto-close Properties Panel when switching tools (except select tool)
+  useEffect(() => {
+    // Only keep selection when switching TO select tool
+    // Clear selection when switching to other tools to auto-close Properties Panel
+    if (activeTool !== "select") {
+      setSelectedFeature(null);
+    }
+  }, [activeTool, setSelectedFeature]);
+
   // Text tool event listener
   useEffect(() => {
     const handleTextToolClick = (event: CustomEvent) => {
@@ -951,23 +960,27 @@ const MapEditor: React.FC = () => {
     if (!offsetFeature) return;
 
     const vectorSource = vectorSourceRef.current;
+    let createdFeature: Feature<Geometry> | null = null;
 
     // Create offset(s) based on direction
     if (direction === "left") {
       const offsetLeft = createOffsetLineString(offsetFeature, distance);
       if (offsetLeft) {
         vectorSource.addFeature(offsetLeft);
+        createdFeature = offsetLeft;
       }
     } else if (direction === "right") {
       const offsetRight = createOffsetLineString(offsetFeature, -distance);
       if (offsetRight) {
         vectorSource.addFeature(offsetRight);
+        createdFeature = offsetRight;
       }
     } else if (direction === "both") {
       const offsetLeft = createOffsetLineString(offsetFeature, distance);
       const offsetRight = createOffsetLineString(offsetFeature, -distance);
       if (offsetLeft) {
         vectorSource.addFeature(offsetLeft);
+        createdFeature = offsetLeft; // Select the first created offset
       }
       if (offsetRight) {
         // Update name to distinguish from left offset
@@ -976,6 +989,9 @@ const MapEditor: React.FC = () => {
           offsetRight.set("name", name.replace("(offset)", "(offset right)"));
         }
         vectorSource.addFeature(offsetRight);
+        if (!createdFeature) {
+          createdFeature = offsetRight;
+        }
       }
       // Update left offset name for clarity
       if (offsetLeft) {
@@ -984,6 +1000,11 @@ const MapEditor: React.FC = () => {
           offsetLeft.set("name", name.replace("(offset)", "(offset left)"));
         }
       }
+    }
+
+    // Select the created offset feature to open Properties Panel
+    if (createdFeature) {
+      setSelectedFeature(createdFeature);
     }
 
     // Save state to database after creating offsets

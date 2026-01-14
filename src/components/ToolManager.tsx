@@ -116,7 +116,11 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
       case "polyline":
         drawInteractionRef.current = createPolylineDraw(
           vectorSource,
-          undefined,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              onFeatureSelect(event.feature);
+            }
+          },
           lineColor,
           lineWidth
         );
@@ -126,7 +130,11 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
       case "freehand":
         drawInteractionRef.current = createFreehandDraw(
           vectorSource,
-          undefined,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              onFeatureSelect(event.feature);
+            }
+          },
           lineColor,
           lineWidth
         );
@@ -136,7 +144,11 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
       case "arrow":
         drawInteractionRef.current = createArrowDraw(
           vectorSource,
-          undefined,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              onFeatureSelect(event.feature);
+            }
+          },
           lineColor,
           lineWidth
         );
@@ -177,7 +189,12 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         drawInteractionRef.current = createLegendDraw(
           vectorSource,
           drawStyle,
-          selectedLegend.id
+          selectedLegend.id,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              onFeatureSelect(event.feature);
+            }
+          }
         );
         map.addInteraction(drawInteractionRef.current);
         break;
@@ -188,8 +205,12 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           {
             toolId: "triangle",
             handlerKey: "triangleClickHandler",
-            onClick: (coordinate) =>
-              handleTriangleClick(vectorSource, coordinate),
+            onClick: (coordinate) => {
+              const feature = handleTriangleClick(vectorSource, coordinate);
+              if (feature && onFeatureSelect) {
+                onFeatureSelect(feature);
+              }
+            },
           },
           vectorSource
         );
@@ -201,7 +222,12 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           {
             toolId: "pit",
             handlerKey: "PitClickHandler",
-            onClick: (coordinate) => handlePitClick(vectorSource, coordinate),
+            onClick: (coordinate) => {
+              const feature = handlePitClick(vectorSource, coordinate);
+              if (feature && onFeatureSelect) {
+                onFeatureSelect(feature);
+              }
+            },
           },
           vectorSource
         );
@@ -213,7 +239,12 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           {
             toolId: "gp",
             handlerKey: "GpClickHandler",
-            onClick: (coordinate) => handleGPClick(vectorSource, coordinate),
+            onClick: (coordinate) => {
+              const feature = handleGPClick(vectorSource, coordinate);
+              if (feature && onFeatureSelect) {
+                onFeatureSelect(feature);
+              }
+            },
           },
           vectorSource
         );
@@ -225,8 +256,12 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           {
             toolId: "junction",
             handlerKey: "JuctionPointClickHandler",
-            onClick: (coordinate) =>
-              handleJunctionClick(vectorSource, coordinate),
+            onClick: (coordinate) => {
+              const feature = handleJunctionClick(vectorSource, coordinate);
+              if (feature && onFeatureSelect) {
+                onFeatureSelect(feature);
+              }
+            },
           },
           vectorSource
         );
@@ -239,13 +274,16 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
             toolId: "tower",
             handlerKey: "TowerClickHandler",
             onClick: (coordinate) => {
-              handleTowerClickFromSvg(
+              const feature = handleTowerClickFromSvg(
                 vectorSource,
                 coordinate,
                 TOWER_CONFIG.svgPath,
                 TOWER_CONFIG.scale,
                 TOWER_CONFIG.strokeWidth
               );
+              if (feature && onFeatureSelect) {
+                onFeatureSelect(feature);
+              }
             },
           },
           vectorSource
@@ -283,7 +321,10 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
               toolId: "icons",
               handlerKey: "IconClickHandler",
               onClick: (coordinate) => {
-                handleIconClick(vectorSource, coordinate, selectedIconPath);
+                const feature = handleIconClick(vectorSource, coordinate, selectedIconPath);
+                if (feature && onFeatureSelect) {
+                  onFeatureSelect(feature);
+                }
               },
             },
             vectorSource
@@ -307,26 +348,49 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
 
           drawInteractionRef.current = createMeasureDraw(
             vectorSource,
-            measureDrawStyle
+            measureDrawStyle,
+            (event) => {
+              if (onFeatureSelect && event.feature) {
+                onFeatureSelect(event.feature);
+              }
+            }
           );
           map.addInteraction(drawInteractionRef.current);
         }
         break;
 
       case "box":
-        drawInteractionRef.current = createBoxDraw(vectorSource);
+        drawInteractionRef.current = createBoxDraw(
+          vectorSource,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              onFeatureSelect(event.feature);
+            }
+          }
+        );
         map.addInteraction(drawInteractionRef.current);
         break;
 
       case "circle":
-        drawInteractionRef.current = createCircleDraw(vectorSource);
+        drawInteractionRef.current = createCircleDraw(
+          vectorSource,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              onFeatureSelect(event.feature);
+            }
+          }
+        );
         map.addInteraction(drawInteractionRef.current);
         break;
 
       case "arc":
         drawInteractionRef.current = createArcDraw(
           vectorSource,
-          undefined,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              onFeatureSelect(event.feature);
+            }
+          },
           lineColor,
           lineWidth
         );
@@ -336,7 +400,11 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
       case "revcloud":
         drawInteractionRef.current = createRevisionCloudDraw(
           vectorSource,
-          undefined,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              onFeatureSelect(event.feature);
+            }
+          },
           lineColor
         );
         map.addInteraction(drawInteractionRef.current);
@@ -383,6 +451,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
     lineWidth,
     registerClickHandler,
     removeAllClickHandlers,
+    onFeatureSelect,
   ]);
 
   return null; // This component doesn't render anything

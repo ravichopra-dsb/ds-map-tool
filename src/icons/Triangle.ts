@@ -33,7 +33,7 @@ export const getTriangleStyle = (): Style => {
 export const handleTriangleClick = (
   vectorSource: VectorSource,
   coordinate: number[]
-): void => {
+): Feature | null => {
   try {
     // Create triangle polygon geometry
     const triangleCoords = createTrianglePolygon(coordinate);
@@ -55,8 +55,10 @@ export const handleTriangleClick = (
     // Add to vector source
     vectorSource.addFeature(triangleFeature);
 
+    return triangleFeature;
   } catch (error) {
     console.error("Error creating triangle:", error);
+    return null;
   }
 };
 

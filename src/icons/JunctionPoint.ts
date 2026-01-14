@@ -88,7 +88,7 @@ export const handleJunctionClick = (
   coordinate: number[],
   halfSize: number = 7,
   innerRadius: number = 2
-): void => {
+): Feature<Geometry> | null => {
   try {
     const junctionFeature = createJunctionGeometry(coordinate, halfSize, innerRadius);
 
@@ -102,8 +102,11 @@ export const handleJunctionClick = (
 
     // Add to vector source
     vectorSource.addFeature(junctionFeature);
+
+    return junctionFeature;
   } catch (error) {
     console.error("Error creating JunctionPoint:", error);
+    return null;
   }
 };
 
