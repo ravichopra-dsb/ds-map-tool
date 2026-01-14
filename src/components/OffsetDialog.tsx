@@ -61,10 +61,8 @@ export function OffsetDialog({
     return null;
   }
 
-  const featureName = feature.get("name") || "Selected Line";
-
   return (
-    <div className="absolute right-4 top-20 w-80 rounded-lg overflow-hidden bg-white dark:bg-slate-800 shadow-2xl border-l border-gray-200 dark:border-slate-700 z-50 transform transition-transform duration-300 ease-in-out">
+    <div className="absolute right-4 top-30 w-80 rounded-lg overflow-hidden bg-white dark:bg-slate-800 shadow-2xl border-l border-gray-200 dark:border-slate-700 z-50 transform transition-transform duration-300 ease-in-out">
       <div className="h-full flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-slate-700 bg-linear-to-r from-gray-50 to-white dark:from-slate-700 dark:to-slate-800">
@@ -87,13 +85,8 @@ export function OffsetDialog({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
-          <Card className="border-none shadow-none rounded-none">
+          <Card className="border-none shadow-none rounded-none py-0">
             <CardContent className="p-4 space-y-4">
-              {/* Feature Info */}
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Creating offset for: <span className="font-medium text-gray-900 dark:text-gray-100">{featureName}</span>
-              </div>
-
               {/* Direction Selection */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -206,11 +199,6 @@ export function OffsetDialog({
                     {error}
                   </p>
                 )}
-              </div>
-
-              {/* Help Text */}
-              <div className="text-xs text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-                The offset line(s) will be created parallel to the selected line at the specified distance.
               </div>
             </CardContent>
           </Card>
