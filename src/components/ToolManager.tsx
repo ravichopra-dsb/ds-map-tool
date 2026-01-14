@@ -26,6 +26,7 @@ import {
 } from "@/utils/interactionUtils";
 import { createLineStyle } from "@/utils/styleUtils";
 import { useClickHandlerManager } from "@/hooks/useClickHandlerManager";
+import { getCursorForTool } from "@/utils/cursorUtils";
 import { TOWER_CONFIG } from "@/config/toolConfig";
 import { getTextAlongLineStyle } from "./FeatureStyler";
 import { handleIconClick } from "@/icons/IconPicker";
@@ -93,6 +94,13 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
 
     // Remove all click handlers using the hook
     removeAllClickHandlers(map);
+
+    // Apply cursor for the active tool
+    const cursor = getCursorForTool(activeTool);
+    const mapElement = map.getTargetElement();
+    if (mapElement) {
+      mapElement.style.cursor = cursor;
+    }
 
     switch (activeTool) {
       case "point":
@@ -358,6 +366,11 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
       if (drawInteractionRef.current) {
         map.removeInteraction(drawInteractionRef.current);
         drawInteractionRef.current = null;
+      }
+      // Reset cursor to default
+      const mapElement = map.getTargetElement();
+      if (mapElement) {
+        mapElement.style.cursor = "auto";
       }
     };
   }, [

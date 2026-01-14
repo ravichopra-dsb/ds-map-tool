@@ -9,9 +9,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   FilePlus,
-  ArrowDownToLine,
   ChevronUp,
   ChevronDown,
+  ArrowUpFromLine,
 } from "lucide-react";
 import { TOOLS, type ToolCategory } from "../tools/toolConfig";
 import { LegendDropdown } from "./LegendDropdown";
@@ -122,7 +122,7 @@ const Toolbar = ({
                   size="sm"
                   className="cursor-pointer h-8 px-3"
                 >
-                  <ArrowDownToLine className="w-4 h-4" />
+                  <ArrowUpFromLine className="w-4 h-4" />
                   <span className="ml-1 text-xs">Export</span>
                 </Button>
               </DropdownMenuTrigger>
