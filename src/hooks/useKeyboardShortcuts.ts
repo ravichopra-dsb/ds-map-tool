@@ -50,10 +50,13 @@ export const useKeyboardShortcuts = ({
         return;
       }
 
-      // Handle Escape key - dispatch global event for all listeners
+      // Handle Escape key - only dispatch global event when NOT drawing
+      // During drawing, the draw interaction's own escape handler will finish/abort the drawing
       if (event.key === 'Escape') {
-        event.preventDefault();
-        window.dispatchEvent(new CustomEvent('globalEscape'));
+        if (!isDrawing()) {
+          event.preventDefault();
+          window.dispatchEvent(new CustomEvent('globalEscape'));
+        }
         return;
       }
 
