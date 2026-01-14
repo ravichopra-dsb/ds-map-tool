@@ -50,6 +50,13 @@ export const useKeyboardShortcuts = ({
         return;
       }
 
+      // Handle Escape key - dispatch global event for all listeners
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        window.dispatchEvent(new CustomEvent('globalEscape'));
+        return;
+      }
+
       // Handle Delete and Backspace keys (NOT with Ctrl modifier)
       if ((event.key === 'Delete' || event.key === 'Backspace') && !event.ctrlKey && !event.metaKey) {
         event.preventDefault();

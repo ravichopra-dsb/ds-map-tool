@@ -19,6 +19,7 @@ import { useMapState } from "@/hooks/useMapState";
 import { useToolState } from "@/hooks/useToolState";
 import { useFeatureState } from "@/hooks/useFeatureState";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useEscapeHandler } from "@/hooks/useEscapeHandler";
 import { Select, DragBox } from "ol/interaction";
 import {
   convertFeaturesToGeoJSON,
@@ -1031,6 +1032,44 @@ const MapEditor: React.FC = () => {
       undoRedoInteractionRef.current.redo();
     }
   };
+
+  // Global Escape handler - closes all dialogs/panels, deselects features, activates select tool
+  const handleEscapePress = useCallback(() => {
+    // Close all dialogs
+    setTextDialogOpen(false);
+    setIconPickerOpen(false);
+    setMergeDialogOpen(false);
+    setOffsetDialogOpen(false);
+    setPdfDialogOpen(false);
+
+    // Cancel DragBox selection if active
+    if (isDragBoxActive && dragBoxRef.current && mapRef.current) {
+      mapRef.current.removeInteraction(dragBoxRef.current);
+      dragBoxRef.current = null;
+      setIsDragBoxActive(false);
+      setSelectedExtent(null);
+    }
+
+    // Clear feature selection (closes PropertiesPanel)
+    setSelectedFeature(null);
+
+    // Clear select interaction selection
+    if (selectInteractionRef.current) {
+      selectInteractionRef.current.getFeatures().clear();
+    }
+
+    // Clear editing states
+    setEditingTextFeature(null);
+    setOffsetFeature(null);
+    setPendingMerge(null);
+    setPendingCoordinate(null);
+
+    // Activate select tool
+    setActiveTool('select');
+  }, [isDragBoxActive, setSelectedFeature, setActiveTool]);
+
+  // Subscribe to global escape events
+  useEscapeHandler(handleEscapePress);
 
   // Multi-select handler (memoized to prevent Select interaction recreation)
   const handleMultiSelectChange = useCallback(
