@@ -846,13 +846,15 @@ const MapEditor: React.FC = () => {
   const handleTextSubmit = (
     textContent: string,
     scale?: number,
-    rotation?: number
+    rotation?: number,
+    opacity?: number
   ) => {
     if (editingTextFeature) {
       // Update existing text feature with all properties
       editingTextFeature.set("text", textContent);
       editingTextFeature.set("textScale", scale || 1);
       editingTextFeature.set("textRotation", rotation || 0);
+      editingTextFeature.set("textOpacity", opacity ?? 1);
 
       // Remove temporary flag if it was a new text feature
       if (editingTextFeature.get("_isTemporaryTextPreview")) {
@@ -867,13 +869,14 @@ const MapEditor: React.FC = () => {
       // Clear selection after editing
       setSelectedFeature(null);
     } else if (pendingCoordinate && vectorSourceRef.current) {
-      // Create new text feature with scale/rotation
+      // Create new text feature with scale/rotation/opacity
       handleTextClick(
         vectorSourceRef.current,
         pendingCoordinate,
         textContent,
         scale,
-        rotation
+        rotation,
+        opacity
       );
     }
   };

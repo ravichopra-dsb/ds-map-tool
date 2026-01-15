@@ -250,7 +250,10 @@ export const getFeatureStyle = (
   // Handle text features
   if (feature.get("isText") && type === "Point") {
     const textContent = feature.get("text") || "Text";
-    return getTextStyle(textContent);
+    const textScale = feature.get("textScale") ?? 1;
+    const textRotation = feature.get("textRotation") ?? 0;
+    const textOpacity = feature.get("textOpacity") ?? 1;
+    return getTextStyle(textContent, textScale, textRotation, textOpacity);
   }
 
   // Handle icon features using utility
