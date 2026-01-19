@@ -403,7 +403,7 @@ declare module 'ol-ext/interaction/Offset' {
     /**
      * Event type
      */
-    type: 'offsetting' | 'offsetend';
+    type: 'offsetstart' | 'offsetting' | 'offsetend';
 
     /**
      * The feature being offset
@@ -416,7 +416,7 @@ declare module 'ol-ext/interaction/Offset' {
     offset: number;
 
     /**
-     * The new offset feature (available on offsetend)
+     * The cursor coordinate (available during offsetting)
      */
     coordinate?: number[];
   }
@@ -427,7 +427,7 @@ declare module 'ol-ext/interaction/Offset' {
     /**
      * Attach event listener for offset events
      */
-    on(type: 'offsetting' | 'offsetend', listener: (event: OffsetEvent) => void): EventsKey;
+    on(type: 'offsetstart' | 'offsetting' | 'offsetend', listener: (event: OffsetEvent) => void): EventsKey;
     on(type: string | string[], listener: (event: any) => void): EventsKey;
 
     /**

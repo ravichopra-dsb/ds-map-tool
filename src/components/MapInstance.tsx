@@ -10,7 +10,7 @@ import { defaults as defaultControls } from "ol/control";
 import { getFeatureStyle } from "./FeatureStyler";
 import { useHiddenFeatures } from "@/hooks/useToggleObjects";
 import { isFeatureHidden, isTextFeatureHidden } from "@/utils/features/visibilityUtils";
-import { STYLE_DEFAULTS, COLORS } from "@/constants/styleDefaults";
+import { STYLE_DEFAULTS } from "@/constants/styleDefaults";
 import type { Geometry } from "ol/geom";
 
 export interface MapInstanceProps {

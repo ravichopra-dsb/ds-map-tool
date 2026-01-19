@@ -168,7 +168,7 @@ export const TOOLS_CONFIG: Record<string, ToolConfig> = {
   offset: {
     id: "offset",
     name: "Offset",
-    description: "Create parallel copies of LineString features by clicking and specifying direction and distance",
+    description: "Create parallel copies of LineString features by dragging. Hold Ctrl to duplicate.",
     selectDisabled: true,
     modifyDisabled: true,
   },

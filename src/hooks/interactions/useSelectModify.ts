@@ -159,7 +159,7 @@ export const useSelectModify = ({
     map.on('singleclick', handleEndpointClick);
 
     // Select event handler
-    newSelectInteraction.on('select', (e) => {
+    newSelectInteraction.on('select', () => {
       const allSelectedFeatures = newSelectInteraction.getFeatures().getArray();
 
       currentSelectedFeatureRef.current =
