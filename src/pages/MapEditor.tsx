@@ -50,9 +50,8 @@ import {
 import { IconPickerDialog } from "../components/IconPickerDialog";
 import { MergePropertiesDialog } from "@/components/MergePropertiesDialog";
 import { type MergeRequestDetail } from "@/components/MapInteractions";
-import { performMerge, createOffsetLineString } from "@/utils/splitUtils";
+import { performMerge } from "@/utils/splitUtils";
 import type { PdfExportConfig } from "@/types/pdf";
-import { OffsetDialog, type OffsetDirection } from "@/components/OffsetDialog";
 import { HelpModal } from "@/components/HelpModal";
 import { useToolStore } from "@/stores/useToolStore";
 import { SeparateFeatures } from "@/components/SeparateFeatures";
@@ -147,12 +146,6 @@ const MapEditor: React.FC = () => {
   // Merge properties dialog state
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   const [pendingMerge, setPendingMerge] = useState<MergeRequestDetail | null>(
-    null
-  );
-
-  // Offset dialog state
-  const [offsetDialogOpen, setOffsetDialogOpen] = useState(false);
-  const [offsetFeature, setOffsetFeature] = useState<Feature<Geometry> | null>(
     null
   );
 
@@ -729,14 +722,6 @@ const MapEditor: React.FC = () => {
     }
   }, [activeTool, setSelectedFeature]);
 
-  // Auto-close Offset Dialog when switching tools
-  useEffect(() => {
-    if (activeTool !== "offset" && offsetDialogOpen) {
-      setOffsetDialogOpen(false);
-      setOffsetFeature(null);
-    }
-  }, [activeTool, offsetDialogOpen]);
-
   // Text tool event listener
   useEffect(() => {
     const handleTextToolClick = (event: CustomEvent) => {
@@ -810,31 +795,6 @@ const MapEditor: React.FC = () => {
       window.removeEventListener(
         "mergeRequest",
         handleMergeRequest as EventListener
-      );
-    };
-  }, []);
-
-  // Offset request event listener
-  useEffect(() => {
-    const handleOffsetRequest = (
-      event: CustomEvent<{
-        feature: Feature<Geometry>;
-        vectorSource: VectorSource<Feature<Geometry>>;
-      }>
-    ) => {
-      setOffsetFeature(event.detail.feature);
-      setOffsetDialogOpen(true);
-    };
-
-    window.addEventListener(
-      "offsetRequest",
-      handleOffsetRequest as EventListener
-    );
-
-    return () => {
-      window.removeEventListener(
-        "offsetRequest",
-        handleOffsetRequest as EventListener
       );
     };
   }, []);
@@ -995,72 +955,6 @@ const MapEditor: React.FC = () => {
     setPendingMerge(null);
   };
 
-  // Offset dialog handlers
-  const handleOffsetConfirm = (
-    direction: OffsetDirection,
-    distance: number
-  ) => {
-    if (!offsetFeature) return;
-
-    const vectorSource = vectorSourceRef.current;
-    let createdFeature: Feature<Geometry> | null = null;
-
-    // Create offset(s) based on direction
-    if (direction === "left") {
-      const offsetLeft = createOffsetLineString(offsetFeature, distance);
-      if (offsetLeft) {
-        vectorSource.addFeature(offsetLeft);
-        createdFeature = offsetLeft;
-      }
-    } else if (direction === "right") {
-      const offsetRight = createOffsetLineString(offsetFeature, -distance);
-      if (offsetRight) {
-        vectorSource.addFeature(offsetRight);
-        createdFeature = offsetRight;
-      }
-    } else if (direction === "both") {
-      const offsetLeft = createOffsetLineString(offsetFeature, distance);
-      const offsetRight = createOffsetLineString(offsetFeature, -distance);
-      if (offsetLeft) {
-        vectorSource.addFeature(offsetLeft);
-        createdFeature = offsetLeft; // Select the first created offset
-      }
-      if (offsetRight) {
-        // Update name to distinguish from left offset
-        const name = offsetRight.get("name");
-        if (name && name.includes("(offset)")) {
-          offsetRight.set("name", name.replace("(offset)", "(offset right)"));
-        }
-        vectorSource.addFeature(offsetRight);
-        if (!createdFeature) {
-          createdFeature = offsetRight;
-        }
-      }
-      // Update left offset name for clarity
-      if (offsetLeft) {
-        const name = offsetLeft.get("name");
-        if (name && name.includes("(offset)")) {
-          offsetLeft.set("name", name.replace("(offset)", "(offset left)"));
-        }
-      }
-    }
-
-    // Select the created offset feature to open Properties Panel
-    if (createdFeature) {
-      setSelectedFeature(createdFeature);
-    }
-
-    // Save state to database after creating offsets
-    if (isProjectReadyRef.current && currentDb) {
-      saveMapState();
-    }
-  };
-
-  const handleOffsetDialogClose = () => {
-    setOffsetDialogOpen(false);
-    setOffsetFeature(null);
-  };
-
   const handleRedoOperation = () => {
     if (undoRedoInteractionRef.current?.hasRedo()) {
       undoRedoInteractionRef.current.redo();
@@ -1073,7 +967,6 @@ const MapEditor: React.FC = () => {
     setTextDialogOpen(false);
     setIconPickerOpen(false);
     setMergeDialogOpen(false);
-    setOffsetDialogOpen(false);
     setPdfDialogOpen(false);
 
     // Cancel DragBox selection if active
@@ -1094,7 +987,6 @@ const MapEditor: React.FC = () => {
 
     // Clear editing states
     setEditingTextFeature(null);
-    setOffsetFeature(null);
     setPendingMerge(null);
     setPendingCoordinate(null);
 
@@ -1183,13 +1075,6 @@ const MapEditor: React.FC = () => {
         onConfirm={handleMergeConfirm}
         feature1={pendingMerge?.feature1 || null}
         feature2={pendingMerge?.feature2 || null}
-      />
-
-      <OffsetDialog
-        isOpen={offsetDialogOpen}
-        onClose={handleOffsetDialogClose}
-        onConfirm={handleOffsetConfirm}
-        feature={offsetFeature}
       />
 
       <PdfExportDialog
