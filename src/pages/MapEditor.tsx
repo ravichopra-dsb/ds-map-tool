@@ -56,6 +56,7 @@ import { HelpModal } from "@/components/HelpModal";
 import { useToolStore } from "@/stores/useToolStore";
 import { useFolderStore } from "@/stores/useFolderStore";
 import { SeparateFeatures } from "@/components/SeparateFeatures";
+import { ToolCommand } from "@/components/ToolCommand";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -1169,6 +1170,7 @@ const MapEditor: React.FC = () => {
 
       {/* Shortcuts */}
       <HelpModal />
+      <ToolCommand onToolSelect={handleToolActivation} activeTool={activeTool} />
 
       <MapViewToggle
         currentView={currentMapView}
