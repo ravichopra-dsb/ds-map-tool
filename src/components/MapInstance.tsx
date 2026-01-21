@@ -172,7 +172,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
         }
 
         // Only process text features with resolution-based visibility
-        if (feature.get("isText") && type === "Point") {
+        if (feature.get("isText") && type === "Point" && resolution) {
           const textContent = feature.get("text") || "Text";
           const textScale = feature.get("textScale") || 1;
           const textRotation = feature.get("textRotation") || 0;
@@ -185,16 +185,22 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
             });
           }
 
+          // Apply world-scaling for text based on resolution (same as icon labels)
+          const desiredPxSize = 16;
+          const referenceResolution = 1.0;
+          const baseScaleFactor = (desiredPxSize / STYLE_DEFAULTS.TEXT_FONT_SIZE) * (referenceResolution / resolution);
+          const finalTextScale = baseScaleFactor * textScale;
+
           // Apply opacity to colors
           const fillColor = `rgba(0, 0, 0, ${textOpacity})`;
           const strokeColor = `rgba(255, 255, 255, ${textOpacity})`;
 
-          // Create style with individual scale, rotation, and opacity
+          // Create style with resolution-based scale, rotation, and opacity
           return new Style({
             text: new Text({
               text: textContent,
-              font: `${STYLE_DEFAULTS.TEXT_FONT_SIZE * textScale}px Arial, sans-serif`,
-              scale: textScale,
+              font: `${STYLE_DEFAULTS.TEXT_FONT_SIZE}px Arial, sans-serif`,
+              scale: finalTextScale,
               rotation: (textRotation * Math.PI) / 180,
               fill: new Fill({ color: fillColor }),
               stroke: new Stroke({
