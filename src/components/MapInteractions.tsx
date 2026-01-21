@@ -1,17 +1,17 @@
-import React, { useEffect, useRef } from 'react';
-import { useMatchProperties } from '@/hooks/useMatchProperties';
-import { DragPan, Select } from 'ol/interaction';
-import type { Draw } from 'ol/interaction';
-import type Map from 'ol/Map';
-import type VectorLayer from 'ol/layer/Vector';
-import { Vector as VectorSource } from 'ol/source';
-import { Feature } from 'ol';
-import type { Geometry } from 'ol/geom';
-import { getLength, getDistance } from 'ol/sphere';
-import { transform } from 'ol/proj';
-import type UndoRedo from 'ol-ext/interaction/UndoRedo';
-import Offset from 'ol-ext/interaction/Offset';
-import OlOverlay from 'ol/Overlay';
+import React, { useEffect, useRef } from "react";
+import { useMatchProperties } from "@/hooks/useMatchProperties";
+import { DragPan, Select } from "ol/interaction";
+import type { Draw } from "ol/interaction";
+import type Map from "ol/Map";
+import type VectorLayer from "ol/layer/Vector";
+import { Vector as VectorSource } from "ol/source";
+import { Feature } from "ol";
+import type { Geometry } from "ol/geom";
+import { getLength, getDistance } from "ol/sphere";
+import { transform } from "ol/proj";
+import type UndoRedo from "ol-ext/interaction/UndoRedo";
+import Offset from "ol-ext/interaction/Offset";
+import OlOverlay from "ol/Overlay";
 
 import {
   useUndoRedo,
@@ -22,12 +22,12 @@ import {
   useSplitTool,
   useMergeTool,
   type MultiSelectMode,
-} from '@/hooks/interactions';
+} from "@/hooks/interactions";
 
-import { isOffsettableFeature } from '@/utils/splitUtils';
+import { isOffsettableFeature } from "@/utils/splitUtils";
 
 // Re-export MergeRequestDetail for backwards compatibility
-export type { MergeRequestDetail } from '@/hooks/interactions';
+export type { MergeRequestDetail } from "@/hooks/interactions";
 
 export interface MapInteractionsProps {
   map: Map | null;
@@ -36,12 +36,16 @@ export interface MapInteractionsProps {
   onFeatureSelect: (feature: Feature<Geometry> | null) => void;
   clipboardFeatures?: Feature<Geometry>[];
   onCopyFeatures?: (features: Feature<Geometry>[], isCut: boolean) => void;
-  onPasteFeatures?: (features: Feature<Geometry>[], coordinates: number[]) => void;
+  onPasteFeatures?: (
+    features: Feature<Geometry>[],
+    coordinates: number[],
+  ) => void;
   pasteCoordinates?: number[] | null;
   onSelectInteractionReady?: (selectInteraction: Select | null) => void;
   onUndoInteractionReady?: (undoInteraction: UndoRedo | null) => void;
   onMultiSelectChange?: (features: Feature<Geometry>[]) => void;
   multiSelectMode?: MultiSelectMode;
+  saveMapState?: () => void;
 }
 
 export const MapInteractions: React.FC<MapInteractionsProps> = ({
@@ -52,7 +56,8 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   onSelectInteractionReady,
   onUndoInteractionReady,
   onMultiSelectChange,
-  multiSelectMode = 'shift-click',
+  multiSelectMode = "shift-click",
+  saveMapState,
 }) => {
   const continuationDrawRef = useRef<Draw | null>(null);
   const isContinuingRef = useRef<boolean>(false);
@@ -69,14 +74,15 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   });
 
   // Initialize select and modify interactions with multi-select support
-  const { selectInteraction, modifyInteraction, translateInteraction } = useSelectModify({
-    map,
-    vectorLayer,
-    multiSelectMode,
-    onFeatureSelect,
-    onMultiSelectChange,
-    onReady: onSelectInteractionReady,
-  });
+  const { selectInteraction, modifyInteraction, translateInteraction } =
+    useSelectModify({
+      map,
+      vectorLayer,
+      multiSelectMode,
+      onFeatureSelect,
+      onMultiSelectChange,
+      onReady: onSelectInteractionReady,
+    });
 
   // Initialize hover interaction for feature highlighting
   // Must be after useSelectModify to access selectInteraction for disabling hover on selected features
@@ -100,7 +106,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   useTransformTool({
     map,
     vectorLayer,
-    isActive: activeTool === 'transform',
+    isActive: activeTool === "transform",
     modifyInteraction,
   });
 
@@ -108,7 +114,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   useSplitTool({
     map,
     vectorLayer,
-    isActive: activeTool === 'split',
+    isActive: activeTool === "split",
     selectInteraction,
     modifyInteraction,
   });
@@ -117,7 +123,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   useMergeTool({
     map,
     vectorLayer,
-    isActive: activeTool === 'merge',
+    isActive: activeTool === "merge",
     selectInteraction,
     modifyInteraction,
     onFeatureSelect,
@@ -193,19 +199,26 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
 
       // Update tooltip during offset drag
       offsetInteraction.on("offsetting", (e: any) => {
-        if (offsetOriginalGeometryRef.current && e.coordinate && offsetTooltipElementRef.current && offsetTooltipRef.current) {
+        if (
+          offsetOriginalGeometryRef.current &&
+          e.coordinate &&
+          offsetTooltipElementRef.current &&
+          offsetTooltipRef.current
+        ) {
           // Get closest point on original geometry
-          const closestPoint = offsetOriginalGeometryRef.current.getClosestPoint(e.coordinate);
+          const closestPoint =
+            offsetOriginalGeometryRef.current.getClosestPoint(e.coordinate);
 
           // Transform coordinates to WGS84 for geodesic distance calculation
-          const coord1 = transform(closestPoint, 'EPSG:3857', 'EPSG:4326');
-          const coord2 = transform(e.coordinate, 'EPSG:3857', 'EPSG:4326');
+          const coord1 = transform(closestPoint, "EPSG:3857", "EPSG:4326");
+          const coord2 = transform(e.coordinate, "EPSG:3857", "EPSG:4326");
 
           // Calculate geodesic distance
           const geodesicDistance = getDistance(coord1, coord2);
 
           // Update tooltip
-          offsetTooltipElementRef.current.textContent = formatOffsetDistance(geodesicDistance);
+          offsetTooltipElementRef.current.textContent =
+            formatOffsetDistance(geodesicDistance);
           offsetTooltipRef.current.setPosition(e.coordinate);
         }
       });
@@ -252,6 +265,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
             }
           }
         }
+        saveMapState?.();
       });
 
       map.addInteraction(offsetInteraction as any);
@@ -291,7 +305,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   useEffect(() => {
     if (!map || !selectInteraction) return;
 
-    const selectEnabledTools = ['select', 'transform', 'copy'];
+    const selectEnabledTools = ["select", "transform", "copy"];
 
     // Always clean up continuation mode when tool changes
     if (continuationDrawRef.current) {
@@ -302,9 +316,12 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     isContinuingRef.current = false;
 
     // Get DragPan reference
-    const dragPan = map.getInteractions().getArray().find(
-      (interaction): interaction is DragPan => interaction instanceof DragPan
-    );
+    const dragPan = map
+      .getInteractions()
+      .getArray()
+      .find(
+        (interaction): interaction is DragPan => interaction instanceof DragPan,
+      );
 
     if (selectEnabledTools.includes(activeTool)) {
       selectInteraction.setActive(true);
@@ -318,7 +335,14 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
       onFeatureSelect(null);
       onMultiSelectChange?.([]);
     }
-  }, [activeTool, map, selectInteraction, translateInteraction, onFeatureSelect, onMultiSelectChange]);
+  }, [
+    activeTool,
+    map,
+    selectInteraction,
+    translateInteraction,
+    onFeatureSelect,
+    onMultiSelectChange,
+  ]);
 
   return null;
 };
