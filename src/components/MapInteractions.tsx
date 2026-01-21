@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useMatchProperties } from '@/hooks/useMatchProperties';
 import { DragPan, Select } from 'ol/interaction';
 import type { Draw } from 'ol/interaction';
 import type Map from 'ol/Map';
@@ -120,6 +121,13 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     selectInteraction,
     modifyInteraction,
     onFeatureSelect,
+  });
+
+  // Handle match properties tool activation/deactivation
+  useMatchProperties({
+    map,
+    vectorLayer,
+    activeTool,
   });
 
   // Handle offset tool activation/deactivation

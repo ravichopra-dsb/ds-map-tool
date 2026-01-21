@@ -18,6 +18,7 @@ import {
   CircleDot,
   Merge,
   Cloud,
+  Pipette,
 } from "lucide-react";
 
 export type ToolCategory = "edit" | "draw" | "symbols";
@@ -65,6 +66,12 @@ export const TOOLS: ToolItem[] = [
     id: 'offset',
     name: 'Offset',
     icon: CopySlash,
+    category: "edit",
+  },
+  {
+    id: 'matchproperties',
+    name: 'Match Properties',
+    icon: Pipette,
     category: "edit",
   },
   // DRAW TOOLS
