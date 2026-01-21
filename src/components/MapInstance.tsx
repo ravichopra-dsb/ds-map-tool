@@ -230,6 +230,45 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           return new Style({ stroke: undefined });
         }
 
+        // Apply world-scaling for all LineString/MultiLineString features based on resolution
+        if (resolution && (type === "LineString" || type === "MultiLineString")) {
+          const desiredPxSize = 16;
+          const referenceResolution = 1.0;
+          const baseScaleFactor = (desiredPxSize / 16) * (referenceResolution / resolution);
+
+          // Get base style from FeatureStyler first
+          const baseStyle = getFeatureStyle(feature);
+          if (!baseStyle) return baseStyle;
+
+          // Apply resolution scaling to stroke widths
+          const applyScalingToStyle = (style: Style): Style => {
+            const stroke = style.getStroke();
+            if (stroke) {
+              const originalWidth = stroke.getWidth() || 2;
+              const scaledWidth = originalWidth * baseScaleFactor;
+              return new Style({
+                stroke: new Stroke({
+                  color: stroke.getColor(),
+                  width: scaledWidth,
+                  lineDash: stroke.getLineDash() || undefined,
+                  lineCap: stroke.getLineCap() as CanvasLineCap || "butt",
+                }),
+                text: style.getText() ?? undefined,
+                image: style.getImage() ?? undefined,
+                fill: style.getFill() ?? undefined,
+                geometry: style.getGeometry() as any,
+                zIndex: style.getZIndex(),
+              });
+            }
+            return style;
+          };
+
+          if (Array.isArray(baseStyle)) {
+            return baseStyle.map(applyScalingToStyle);
+          }
+          return applyScalingToStyle(baseStyle);
+        }
+
         // Handle all other feature types normally
         return getFeatureStyle(feature);
       });
