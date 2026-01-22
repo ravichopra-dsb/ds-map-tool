@@ -1,4 +1,3 @@
-import { GP, JunctionPoint, Pit, Tower, Triangle } from "@/icons/ToolBoxIcon";
 import {
   HandGrab,
   MousePointer2,
@@ -18,6 +17,7 @@ import {
   CircleDot,
   Merge,
   Cloud,
+  Pipette,
 } from "lucide-react";
 
 export type ToolCategory = "edit" | "draw" | "symbols";
@@ -65,6 +65,12 @@ export const TOOLS: ToolItem[] = [
     id: 'offset',
     name: 'Offset',
     icon: CopySlash,
+    category: "edit",
+  },
+  {
+    id: 'matchproperties',
+    name: 'Match Properties',
+    icon: Pipette,
     category: "edit",
   },
   // DRAW TOOLS
@@ -135,36 +141,6 @@ export const TOOLS: ToolItem[] = [
     category: "draw",
   },
   // SYMBOL TOOLS
-  {
-    id: "triangle",
-    name: "Triangle",
-    icon: Triangle,
-    category: "symbols",
-  },
-  {
-    id: "pit",
-    name: "Pit",
-    icon: Pit,
-    category: "symbols",
-  },
-  {
-    id: "gp",
-    name: "GP",
-    icon: GP,
-    category: "symbols",
-  },
-  {
-    id: 'junction',
-    name: 'Junction',
-    icon: JunctionPoint,
-    category: "symbols",
-  },
-  {
-    id: 'tower',
-    name: 'Tower',
-    icon: Tower,
-    category: "symbols",
-  },
   {
     id: 'icons',
     name: 'Icons',

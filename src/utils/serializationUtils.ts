@@ -106,11 +106,6 @@ export const extractStyleMetadata = (feature: Feature<Geometry>): any => {
   properties.featureType = featureType;
 
   // Store icon type identifiers
-  if (feature.get("isPit")) properties.isPit = true;
-  if (feature.get("isGP")) properties.isGP = true;
-  if (feature.get("isJunction")) properties.isJunction = true;
-  if (feature.get("isTower")) properties.isTower = true;
-  if (feature.get("isTriangle")) properties.isTriangle = true;
   if (feature.get("isArrow")) properties.isArrow = true;
   if (feature.get("isMeasure")) properties.isMeasure = true;
   if (feature.get("islegends")) properties.islegends = true;
@@ -143,6 +138,9 @@ export const extractStyleMetadata = (feature: Feature<Geometry>): any => {
   if (feature.get("strokeColor")) properties.strokeColor = feature.get("strokeColor");
   if (feature.get("fillColor")) properties.fillColor = feature.get("fillColor");
   if (feature.get("fillOpacity") !== undefined) properties.fillOpacity = feature.get("fillOpacity");
+
+  // Store folder assignment for feature grouping
+  if (feature.get("folderId")) properties.folderId = feature.get("folderId");
 
   return properties;
 };
@@ -244,10 +242,10 @@ export const reconstructGeometryCollection = (geoJSONData: any): any => {
     features: geoJSONData.features.map((feature: any) => {
       const props = feature.properties || {};
 
-      // ✅ Handle isGP, isJunction, isTower (MultiPolygon → GeometryCollection)
+      // ✅ Handle MultiPolygon → GeometryCollection conversion
       if (
         feature.geometry.type === 'MultiPolygon' &&
-        (props.isGP || props.isTower || props.isJunction || props.featureType === 'GeometryCollection')
+        props.featureType === 'GeometryCollection'
       ) {
         const polygons = feature.geometry.coordinates.map((polygonCoords: any) => ({
           type: 'Polygon',

@@ -2,11 +2,6 @@ import { Feature } from "ol";
 import type { FeatureLike } from "ol/Feature";
 import { Geometry } from "ol/geom";
 import { Style, Icon } from "ol/style";
-import { isTriangleFeature, triangleUtils } from "@/icons/Triangle";
-import { isPitFeature, pitUtils } from "@/icons/Pit";
-import { isGPFeature, gpUtils } from "@/icons/Gp";
-import { isJunctionFeature, junctionUtils } from "@/icons/JunctionPoint";
-import { isTowerFeature, towerUtils } from "@/icons/Tower";
 
 /**
  * Feature type checker configuration
@@ -19,28 +14,7 @@ interface FeatureTypeChecker {
 /**
  * Feature type checker map for different icon types
  */
-const FEATURE_TYPE_CHECKERS: Record<string, FeatureTypeChecker> = {
-  triangle: {
-    isFeature: isTriangleFeature,
-    geometryType: "Polygon",
-  },
-  pit: {
-    isFeature: isPitFeature,
-    geometryType: "MultiLineString",
-  },
-  gp: {
-    isFeature: isGPFeature,
-    geometryType: "GeometryCollection",
-  },
-  junction: {
-    isFeature: isJunctionFeature,
-    geometryType: "GeometryCollection",
-  },
-  tower: {
-    isFeature: isTowerFeature,
-    geometryType: "GeometryCollection",
-  },
-};
+const FEATURE_TYPE_CHECKERS: Record<string, FeatureTypeChecker> = {};
 
 /**
  * Generic function to check if a feature matches a specific type
@@ -93,26 +67,8 @@ export const getFeatureTypeStyle = (feature: FeatureLike) => {
   const geometry = feature.getGeometry();
   if (!geometry) return null;
 
-  // Check each feature type and return its style
-  if (isFeatureType(feature, "triangle")) {
-    return triangleUtils.getStyle();
-  }
-
-  if (isFeatureType(feature, "pit")) {
-    return pitUtils.getStyle();
-  }
-
-  if (isFeatureType(feature, "gp")) {
-    return gpUtils.getStyles();
-  }
-
-  if (isFeatureType(feature, "junction")) {
-    return junctionUtils.getStyles();
-  }
-
-  if (isFeatureType(feature, "tower")) {
-    return towerUtils.getStyle();
-  }
+  // Get opacity from feature (default to 1)
+  const opacity = feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
 
   // Handle custom icon features from icon picker
   if (feature.get("isIcon")) {
@@ -125,6 +81,7 @@ export const getFeatureTypeStyle = (feature: FeatureLike) => {
           anchor: [0.5, 0.5],
           anchorXUnits: "fraction",
           anchorYUnits: "fraction",
+          opacity: opacity, // Apply opacity to icon
         }),
       });
     }

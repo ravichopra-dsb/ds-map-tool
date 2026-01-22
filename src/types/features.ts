@@ -3,11 +3,6 @@ export const FEATURE_FLAGS = {
   TEXT: 'isText',
   LEGENDS: 'islegends',  // Keep existing casing
   MEASURE: 'isMeasure',
-  TRIANGLE: 'isTriangle',
-  PIT: 'isPit',
-  GP: 'isGP',
-  JUNCTION: 'isJunction',
-  TOWER: 'isTower',
   POINT: 'isPoint',
   POLYLINE: 'isPolyline',
   FREEHAND: 'isFreehand',
@@ -22,11 +17,6 @@ export interface FeatureProperties {
   isText?: boolean;
   islegends?: boolean;
   isMeasure?: boolean;
-  isTriangle?: boolean;
-  isPit?: boolean;
-  isGP?: boolean;
-  isJunction?: boolean;
-  isTower?: boolean;
   isPoint?: boolean;
   isPolyline?: boolean;
   isFreehand?: boolean;

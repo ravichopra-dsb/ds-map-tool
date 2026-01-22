@@ -10,6 +10,7 @@ import type { Feature } from 'ol';
 import type { Geometry } from 'ol/geom';
 import { isSelectableFeature, isEditableFeature } from '@/utils/featureTypeUtils';
 import { recalculateMeasureDistances, createContinuationDraw } from '@/utils/interactionUtils';
+import { createSelectStyle } from '@/utils/styleUtils';
 import {
   isContinuableFeature,
   detectEndpointClick,
@@ -61,6 +62,7 @@ export const useSelectModify = ({
       layers: [vectorLayer],
       filter: isSelectableFeature,
       hitTolerance: STYLE_DEFAULTS.HIT_TOLERANCE,
+      style: createSelectStyle,
     };
 
     if (multiSelectMode === 'always') {
@@ -157,7 +159,7 @@ export const useSelectModify = ({
     map.on('singleclick', handleEndpointClick);
 
     // Select event handler
-    newSelectInteraction.on('select', (e) => {
+    newSelectInteraction.on('select', () => {
       const allSelectedFeatures = newSelectInteraction.getFeatures().getArray();
 
       currentSelectedFeatureRef.current =
@@ -175,9 +177,9 @@ export const useSelectModify = ({
       onFeatureSelect(allSelectedFeatures[0] || null);
 
       editableFeatures.clear();
-      e.selected.forEach((feature) => {
-        if (isEditableFeature(feature as Feature<Geometry>)) {
-          editableFeatures.push(feature as Feature<Geometry>);
+      allSelectedFeatures.forEach((feature) => {
+        if (isEditableFeature(feature)) {
+          editableFeatures.push(feature);
         }
       });
     });

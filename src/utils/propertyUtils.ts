@@ -33,21 +33,40 @@ export const isCalculatedProperty = (key: string): boolean => {
   );
 };
 
+/** Length unit options */
+export type LengthUnit = "km" | "m";
+
 /**
- * Format length in meters to human-readable string
+ * Format length based on selected unit
  */
-const formatLength = (meters: number): string => {
-  if (meters < 1000) {
-    return `${Math.round(meters)}m`;
+export const formatLengthWithUnit = (meters: number, unit: LengthUnit): string => {
+  if (unit === "m") {
+    return `${meters.toFixed(3)}m`;
   }
-  return `${(meters / 1000).toFixed(2)}km`;
+  return `${(meters / 1000).toFixed(3)}km`;
+};
+
+/**
+ * Get raw length in meters from formatted string
+ */
+export const parseLengthValue = (value: string): number => {
+  const numMatch = value.match(/^([\d.]+)/);
+  if (!numMatch) return 0;
+  const num = parseFloat(numMatch[1]);
+  if (value.endsWith("km")) {
+    return num * 1000;
+  }
+  return num;
 };
 
 /** Style properties that have their own UI section */
 const STYLE_PROPERTY_KEYS = [
   "lineColor",
   "lineWidth",
+  "opacity",
   "strokeColor",
+  "strokeWidth",
+  "strokeOpacity",
   "fillColor",
   "fillOpacity",
 ] as const;
@@ -68,6 +87,8 @@ const shouldExcludeProperty = (key: string): boolean => {
   if (key.startsWith("_")) return true;
   if (key === "name") return true;
   if (key === "label") return true;
+  if (key === "lengthUnit") return true;
+  if (key === "scallopRadius") return true;
   // Style properties have their own UI section in the panel
   if (isStyleProperty(key)) return true;
   return false;
@@ -105,10 +126,11 @@ export const extractAllProperties = (feature: Feature): CustomProperty[] => {
   if (geometryType === "LineString" && geometry) {
     const lineString = geometry as LineString;
     const coords = lineString.getCoordinates();
-    const length = getLength(geometry);
+    const lengthMeters = getLength(geometry);
+    const lengthUnit = (feature.get("lengthUnit") as LengthUnit) || "km";
 
     allProperties.push(
-      { id: "prop-length", key: "length", value: formatLength(length) },
+      { id: "prop-length", key: "length", value: formatLengthWithUnit(lengthMeters, lengthUnit) },
       { id: "prop-vertex", key: "vertex", value: String(coords.length) }
     );
   }
@@ -167,7 +189,9 @@ export const applyPropertiesToFeature = (
     // Style properties
     "lineColor",
     "lineWidth",
+    "opacity",
     "strokeColor",
+    "strokeOpacity",
     "fillColor",
     "fillOpacity",
   ];

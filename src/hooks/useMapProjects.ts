@@ -18,6 +18,9 @@ export interface SerializedMapData {
     zoom: number;
     viewMode: "osm" | "satellite";
   };
+  folderStructure?: {
+    folders: Record<string, any>;
+  };
 }
 
 interface MapStateRow {
@@ -135,24 +138,19 @@ export const useMapProjects = () => {
     }
 
     console.log(`Saving map state to project: ${currentProjectId}`);
-    console.log(`CurrentDb: ${currentDb}`);
 
     try {
       const serialized = JSON.stringify(SuperJSON.serialize(mapData));
 
-      const existing = await currentDb.query('SELECT id FROM map_state WHERE id = 1');
-      console.log("existing: ", existing);
-      if (existing.rows.length === 0) {
-        await currentDb.query(
-          'INSERT INTO map_state (id, serialized_data) VALUES (1, $1)',
-          [serialized]
-        );
-      } else {
-        await currentDb.query(
-          'UPDATE map_state SET serialized_data = $1, updated_at = CURRENT_TIMESTAMP WHERE id = 1',
-          [serialized]
-        );
-      }
+      // ✅ Use UPSERT to avoid race conditions and data recreation
+      // This atomically inserts if row doesn't exist, or updates if it does
+      await currentDb.query(
+        `INSERT INTO map_state (id, serialized_data, created_at, updated_at)
+         VALUES (1, $1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         ON CONFLICT (id) DO UPDATE
+         SET serialized_data = $1, updated_at = CURRENT_TIMESTAMP`,
+        [serialized]
+      );
 
       const updated = projects.map(p =>
         p.id === currentProjectId

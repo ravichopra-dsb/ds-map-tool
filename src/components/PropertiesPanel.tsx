@@ -2,16 +2,19 @@ import React from "react";
 import type Map from "ol/Map";
 import type Feature from "ol/Feature";
 import type { Select } from "ol/interaction";
-import { X, Edit2, Save, Plus, Trash2 } from "lucide-react";
+import { X, Edit2, Save, Plus, Trash2, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { DEFAULT_LINE_STYLE } from "@/utils/featureTypeUtils";
-import { isProtectedProperty, isCalculatedProperty } from "@/utils/propertyUtils";
+import { isProtectedProperty, isCalculatedProperty, formatLengthWithUnit, type LengthUnit } from "@/utils/propertyUtils";
+import { getLength } from "ol/sphere";
 import { usePropertiesPanel } from "@/hooks/usePropertiesPanel";
 import { useLineStyleEditor } from "@/hooks/useLineStyleEditor";
 import { useShapeStyleEditor } from "@/hooks/useShapeStyleEditor";
+import { useIconPropertiesEditor } from "@/hooks/useIconPropertiesEditor";
+import { usePointOpacityEditor } from "@/hooks/usePointOpacityEditor";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +63,59 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     selectInteraction ?? null,
     properties.isEditing
   );
+  const pointOpacity = usePointOpacityEditor(
+    selectedFeature,
+    map,
+    selectInteraction ?? null,
+    properties.isEditing
+  );
+  const iconProperties = useIconPropertiesEditor(
+    selectedFeature,
+    map,
+    selectInteraction ?? null,
+    properties.isEditing
+  );
+
+  // Local state for length unit (syncs with feature)
+  const [lengthUnit, setLengthUnit] = React.useState<LengthUnit>(
+    (selectedFeature?.get("lengthUnit") as LengthUnit) || "km"
+  );
+
+  // Sync length unit when feature changes
+  React.useEffect(() => {
+    if (selectedFeature) {
+      setLengthUnit((selectedFeature.get("lengthUnit") as LengthUnit) || "km");
+    }
+  }, [selectedFeature]);
+
+  // Handle length unit change
+  const handleLengthUnitChange = (unit: LengthUnit) => {
+    if (!selectedFeature) return;
+
+    const lengthProp = properties.customProperties.find((p) => p.key === "length");
+    const geometry = selectedFeature.getGeometry();
+
+    if (lengthProp && geometry) {
+      // Get actual length from geometry (always in meters)
+      const meters = getLength(geometry);
+      const newValue = formatLengthWithUnit(meters, unit);
+
+      // Update local state immediately for UI
+      setLengthUnit(unit);
+
+      // Update the feature's lengthUnit property
+      selectedFeature.set("lengthUnit", unit);
+
+      // Trigger style recalculation for measure label update
+      selectedFeature.changed();
+
+      // Update the displayed value
+      properties.updateProperty(lengthProp.id, "value", newValue);
+
+      // Trigger save to persist
+      onSave?.();
+    }
+  };
 
   // Get current label property value
   const currentLabel = properties.customProperties.find(
@@ -78,12 +134,16 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     properties.save();
     lineStyle.commitLineStyle();
     shapeStyle.commitShapeStyle();
+    pointOpacity.commitOpacity();
+    iconProperties.commitIconProperties();
   };
 
   const handleCancel = () => {
     properties.cancel();
     lineStyle.resetToOriginal();
     shapeStyle.resetToOriginal();
+    pointOpacity.resetToOriginal();
+    iconProperties.resetToOriginal();
   };
 
   if (!selectedFeature) {
@@ -121,6 +181,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               <PropertyDisplayList
                 properties={properties.customProperties}
                 currentLabel={currentLabel}
+                lengthUnit={lengthUnit}
+                onLengthUnitChange={handleLengthUnitChange}
               />
             ) : (
               <PropertyEditList
@@ -129,6 +191,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                 onDelete={properties.deleteProperty}
                 currentLabel={currentLabel}
                 onLabelSelect={handleLabelSelect}
+                lengthUnit={lengthUnit}
+                onLengthUnitChange={handleLengthUnitChange}
               />
             )}
           </div>
@@ -145,6 +209,22 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
           {shapeStyle.supportsShapeStyle && (
             <ShapeStyleSection
               shapeStyle={shapeStyle}
+              isEditing={properties.isEditing}
+            />
+          )}
+
+          {/* Icon Style Controls (Google Earth icons) */}
+          {iconProperties.supportsIconProperties && (
+            <IconStyleSection
+              iconProperties={iconProperties}
+              isEditing={properties.isEditing}
+            />
+          )}
+
+          {/* Point/Icon Opacity Controls (non-icon point features) */}
+          {pointOpacity.supportsPointOpacity && !iconProperties.supportsIconProperties && (
+            <PointOpacitySection
+              pointOpacity={pointOpacity}
               isEditing={properties.isEditing}
             />
           )}
@@ -260,13 +340,63 @@ const LabelSelector: React.FC<LabelSelectorProps> = ({
   );
 };
 
+// Length value with unit selector
+interface LengthValueWithUnitProps {
+  value: string;
+  unit: LengthUnit;
+  onUnitChange: (unit: LengthUnit) => void;
+}
+
+const LengthValueWithUnit: React.FC<LengthValueWithUnitProps> = ({
+  value,
+  unit,
+  onUnitChange,
+}) => {
+  // Extract numeric part from value (e.g., "2951.69km" -> "2951.69")
+  const numericValue = value.replace(/[^\d.]/g, "");
+
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-gray-600 dark:text-gray-400">{numericValue}</span>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="flex items-center gap-0.5 px-1.5 py-0.5 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors">
+            {unit}
+            <ChevronDown className="w-3 h-3" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-20 p-1 bg-white dark:bg-slate-800 rounded-sm shadow-lg z-50">
+          <DropdownMenuRadioGroup value={unit} onValueChange={(v) => onUnitChange(v as LengthUnit)}>
+            <DropdownMenuRadioItem
+              value="km"
+              className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20 rounded"
+            >
+              km
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem
+              value="m"
+              className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20 rounded"
+            >
+              m
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+};
+
 interface PropertyDisplayListProps {
   properties: { id: string; key: string; value: string }[];
   currentLabel: string;
+  lengthUnit: LengthUnit;
+  onLengthUnitChange: (unit: LengthUnit) => void;
 }
 
 const PropertyDisplayList: React.FC<PropertyDisplayListProps> = ({
   properties,
+  lengthUnit,
+  onLengthUnitChange,
 }) => {
   if (properties.length === 0) {
     return (
@@ -288,9 +418,17 @@ const PropertyDisplayList: React.FC<PropertyDisplayListProps> = ({
           <span className="font-medium text-gray-700 dark:text-gray-300 capitalize flex-1">
             {prop.key}:
           </span>
-          <span className="text-gray-600 dark:text-gray-400 truncate ml-2">
-            {prop.value || <span className="text-gray-400 italic">Empty</span>}
-          </span>
+          {prop.key === "length" ? (
+            <LengthValueWithUnit
+              value={prop.value}
+              unit={lengthUnit}
+              onUnitChange={onLengthUnitChange}
+            />
+          ) : (
+            <span className="text-gray-600 dark:text-gray-400 truncate ml-2">
+              {prop.value || <span className="text-gray-400 italic">Empty</span>}
+            </span>
+          )}
         </div>
       ))}
     </div>
@@ -303,6 +441,8 @@ interface PropertyEditListProps {
   onDelete: (id: string) => void;
   currentLabel: string;
   onLabelSelect: (key: string) => void;
+  lengthUnit: LengthUnit;
+  onLengthUnitChange: (unit: LengthUnit) => void;
 }
 
 const PropertyEditList: React.FC<PropertyEditListProps> = ({
@@ -311,6 +451,8 @@ const PropertyEditList: React.FC<PropertyEditListProps> = ({
   onDelete,
   currentLabel,
   onLabelSelect,
+  lengthUnit,
+  onLengthUnitChange,
 }) => {
   if (properties.length === 0) {
     return (
@@ -345,17 +487,27 @@ const PropertyEditList: React.FC<PropertyEditListProps> = ({
               }`}
               disabled={isReadOnly || isCalculated}
             />
-            <Input
-              placeholder="Value"
-              value={prop.value}
-              onChange={(e) => onUpdate(prop.id, "value", e.target.value)}
-              className={`flex-1 text-sm ${
-                isCalculated ? "bg-gray-50 dark:bg-slate-700" : ""
-              }`}
-              disabled={isCalculated}
-              type={prop.key === "long" || prop.key === "lat" ? "number" : "text"}
-              step={prop.key === "long" || prop.key === "lat" ? "any" : undefined}
-            />
+            {prop.key === "length" ? (
+              <div className="flex-1 flex items-center">
+                <LengthValueWithUnit
+                  value={prop.value}
+                  unit={lengthUnit}
+                  onUnitChange={onLengthUnitChange}
+                />
+              </div>
+            ) : (
+              <Input
+                placeholder="Value"
+                value={prop.value}
+                onChange={(e) => onUpdate(prop.id, "value", e.target.value)}
+                className={`flex-1 text-sm ${
+                  isCalculated ? "bg-gray-50 dark:bg-slate-700" : ""
+                }`}
+                disabled={isCalculated}
+                type={prop.key === "long" || prop.key === "lat" ? "number" : "text"}
+                step={prop.key === "long" || prop.key === "lat" ? "any" : undefined}
+              />
+            )}
             {!isReadOnly && !isCalculated && (
               <Button
                 variant="ghost"
@@ -378,8 +530,10 @@ interface LineStyleSectionProps {
   lineStyle: {
     lineColor: string;
     lineWidth: number;
+    opacity: number;
     handleColorChange: (color: string) => void;
     handleWidthChange: (width: number) => void;
+    handleOpacityChange: (opacity: number) => void;
     setLineColor: (color: string) => void;
   };
   isEditing: boolean;
@@ -399,6 +553,7 @@ const LineStyleSection: React.FC<LineStyleSectionProps> = ({
         <LineStyleDisplay
           lineColor={lineStyle.lineColor}
           lineWidth={lineStyle.lineWidth}
+          opacity={lineStyle.opacity}
         />
       ) : (
         <LineStyleEditor lineStyle={lineStyle} />
@@ -410,11 +565,13 @@ const LineStyleSection: React.FC<LineStyleSectionProps> = ({
 interface LineStyleDisplayProps {
   lineColor: string;
   lineWidth: number;
+  opacity: number;
 }
 
 const LineStyleDisplay: React.FC<LineStyleDisplayProps> = ({
   lineColor,
   lineWidth,
+  opacity,
 }) => (
   <div className="space-y-2">
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
@@ -433,6 +590,10 @@ const LineStyleDisplay: React.FC<LineStyleDisplayProps> = ({
       <span className="font-medium text-gray-700 dark:text-gray-300">Width:</span>
       <span className="text-gray-600 dark:text-gray-400">{lineWidth}px</span>
     </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Opacity:</span>
+      <span className="text-gray-600 dark:text-gray-400">{Math.round(opacity * 100)}%</span>
+    </div>
   </div>
 );
 
@@ -440,8 +601,10 @@ interface LineStyleEditorProps {
   lineStyle: {
     lineColor: string;
     lineWidth: number;
+    opacity: number;
     handleColorChange: (color: string) => void;
     handleWidthChange: (width: number) => void;
+    handleOpacityChange: (opacity: number) => void;
     setLineColor: (color: string) => void;
   };
 }
@@ -519,15 +682,49 @@ const LineStyleEditor: React.FC<LineStyleEditorProps> = ({ lineStyle }) => (
         <span>20px</span>
       </div>
     </div>
+
+    {/* Opacity Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Opacity: {Math.round(lineStyle.opacity * 100)}%
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[lineStyle.opacity]}
+          onValueChange={(value) => lineStyle.handleOpacityChange(value[0])}
+          min={0}
+          max={1}
+          step={0.01}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => lineStyle.handleOpacityChange(1)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0%</span>
+        <span>100%</span>
+      </div>
+    </div>
   </div>
 );
 
 interface ShapeStyleSectionProps {
   shapeStyle: {
     strokeColor: string;
+    strokeWidth: number;
+    strokeOpacity: number;
     fillColor: string;
     fillOpacity: number;
+    isRevisionCloud: boolean;
     handleStrokeColorChange: (color: string) => void;
+    handleStrokeWidthChange: (width: number) => void;
+    handleStrokeOpacityChange: (opacity: number) => void;
     handleFillColorChange: (color: string) => void;
     handleFillOpacityChange: (opacity: number) => void;
     setStrokeColor: (color: string) => void;
@@ -540,17 +737,22 @@ const ShapeStyleSection: React.FC<ShapeStyleSectionProps> = ({
   shapeStyle,
   isEditing,
 }) => {
+  const title = shapeStyle.isRevisionCloud ? "Revision Cloud Style" : "Shape Style";
+
   return (
     <div className="border-t border-gray-100 dark:border-slate-700 pt-4 mt-4">
       <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
-        Shape Style
+        {title}
       </h4>
 
       {!isEditing ? (
         <ShapeStyleDisplay
           strokeColor={shapeStyle.strokeColor}
+          strokeWidth={shapeStyle.strokeWidth}
+          strokeOpacity={shapeStyle.strokeOpacity}
           fillColor={shapeStyle.fillColor}
           fillOpacity={shapeStyle.fillOpacity}
+          isRevisionCloud={shapeStyle.isRevisionCloud}
         />
       ) : (
         <ShapeStyleEditor shapeStyle={shapeStyle} />
@@ -561,18 +763,26 @@ const ShapeStyleSection: React.FC<ShapeStyleSectionProps> = ({
 
 interface ShapeStyleDisplayProps {
   strokeColor: string;
+  strokeWidth: number;
+  strokeOpacity: number;
   fillColor: string;
   fillOpacity: number;
+  isRevisionCloud: boolean;
 }
 
 const ShapeStyleDisplay: React.FC<ShapeStyleDisplayProps> = ({
   strokeColor,
+  strokeWidth,
+  strokeOpacity,
   fillColor,
   fillOpacity,
+  isRevisionCloud,
 }) => (
   <div className="space-y-2">
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">Stroke:</span>
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        {isRevisionCloud ? "Color:" : "Stroke:"}
+      </span>
       <div className="flex items-center gap-2">
         <div
           className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
@@ -584,30 +794,52 @@ const ShapeStyleDisplay: React.FC<ShapeStyleDisplayProps> = ({
       </div>
     </div>
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">Fill:</span>
-      <div className="flex items-center gap-2">
-        <div
-          className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
-          style={{ backgroundColor: fillColor }}
-        />
-        <span className="text-gray-600 dark:text-gray-400 font-mono text-xs">
-          {fillColor.toUpperCase()}
-        </span>
-      </div>
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        {isRevisionCloud ? "Width:" : "Stroke Width:"}
+      </span>
+      <span className="text-gray-600 dark:text-gray-400">{strokeWidth}px</span>
     </div>
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">Opacity:</span>
-      <span className="text-gray-600 dark:text-gray-400">{Math.round(fillOpacity * 100)}%</span>
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        {isRevisionCloud ? "Opacity:" : "Stroke Opacity:"}
+      </span>
+      <span className="text-gray-600 dark:text-gray-400">{Math.round(strokeOpacity * 100)}%</span>
     </div>
+    {/* Hide fill options for RevisionCloud since it's typically stroke-only */}
+    {!isRevisionCloud && (
+      <>
+        <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+          <span className="font-medium text-gray-700 dark:text-gray-300">Fill:</span>
+          <div className="flex items-center gap-2">
+            <div
+              className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
+              style={{ backgroundColor: fillColor }}
+            />
+            <span className="text-gray-600 dark:text-gray-400 font-mono text-xs">
+              {fillColor.toUpperCase()}
+            </span>
+          </div>
+        </div>
+        <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+          <span className="font-medium text-gray-700 dark:text-gray-300">Fill Opacity:</span>
+          <span className="text-gray-600 dark:text-gray-400">{Math.round(fillOpacity * 100)}%</span>
+        </div>
+      </>
+    )}
   </div>
 );
 
 interface ShapeStyleEditorProps {
   shapeStyle: {
     strokeColor: string;
+    strokeWidth: number;
+    strokeOpacity: number;
     fillColor: string;
     fillOpacity: number;
+    isRevisionCloud: boolean;
     handleStrokeColorChange: (color: string) => void;
+    handleStrokeWidthChange: (width: number) => void;
+    handleStrokeOpacityChange: (opacity: number) => void;
     handleFillColorChange: (color: string) => void;
     handleFillOpacityChange: (opacity: number) => void;
     setStrokeColor: (color: string) => void;
@@ -617,10 +849,10 @@ interface ShapeStyleEditorProps {
 
 const ShapeStyleEditor: React.FC<ShapeStyleEditorProps> = ({ shapeStyle }) => (
   <div className="space-y-4">
-    {/* Stroke Color Picker */}
+    {/* Stroke/Line Color Picker */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Stroke Color
+        {shapeStyle.isRevisionCloud ? "Color" : "Stroke Color"}
       </Label>
       <div className="flex items-center gap-3">
         <input
@@ -660,65 +892,414 @@ const ShapeStyleEditor: React.FC<ShapeStyleEditorProps> = ({ shapeStyle }) => (
       </div>
     </div>
 
-    {/* Fill Color Picker */}
+    {/* Stroke/Line Width Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Fill Color
+        {shapeStyle.isRevisionCloud ? "Width" : "Stroke Width"}: {shapeStyle.strokeWidth}px
       </Label>
       <div className="flex items-center gap-3">
-        <input
-          type="color"
-          value={shapeStyle.fillColor}
-          onChange={(e) => shapeStyle.handleFillColorChange(e.target.value)}
-          className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+        <Slider
+          value={[shapeStyle.strokeWidth]}
+          onValueChange={(value) => shapeStyle.handleStrokeWidthChange(value[0])}
+          min={1}
+          max={20}
+          step={1}
+          className="flex-1"
         />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-10 px-3">
-              Choose Color
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-48 p-1 bg-white rounded-sm shadow-lg z-10">
-            <DropdownMenuSeparator />
-            <DropdownMenuRadioGroup
-              value={shapeStyle.fillColor}
-              onValueChange={(value) => shapeStyle.setFillColor(value)}
-            >
-              {COLOR_OPTIONS.map((colorOption) => (
-                <DropdownMenuRadioItem
-                  key={colorOption.color}
-                  value={colorOption.color}
-                  className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
-                >
-                  <div
-                    className="w-4 h-4 rounded"
-                    style={{ backgroundColor: colorOption.color }}
-                  />
-                  <span>{colorOption.name}</span>
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => shapeStyle.handleStrokeWidthChange(2)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>1px</span>
+        <span>20px</span>
       </div>
     </div>
 
-    {/* Opacity Slider */}
+    {/* Stroke/Line Opacity Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Fill Opacity: {Math.round(shapeStyle.fillOpacity * 100)}%
+        {shapeStyle.isRevisionCloud ? "Opacity" : "Stroke Opacity"}: {Math.round(shapeStyle.strokeOpacity * 100)}%
       </Label>
-      <Slider
-        value={[shapeStyle.fillOpacity]}
-        onValueChange={(value) => shapeStyle.handleFillOpacityChange(value[0])}
-        min={0}
-        max={1}
-        step={0.01}
-        className="flex-1"
-      />
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[shapeStyle.strokeOpacity]}
+          onValueChange={(value) => shapeStyle.handleStrokeOpacityChange(value[0])}
+          min={0}
+          max={1}
+          step={0.01}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => shapeStyle.handleStrokeOpacityChange(1)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
       <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
         <span>0%</span>
         <span>100%</span>
+      </div>
+    </div>
+
+    {/* Fill Color Picker - only for non-RevisionCloud shapes */}
+    {!shapeStyle.isRevisionCloud && (
+      <div>
+        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Fill Color
+        </Label>
+        <div className="flex items-center gap-3">
+          <input
+            type="color"
+            value={shapeStyle.fillColor}
+            onChange={(e) => shapeStyle.handleFillColorChange(e.target.value)}
+            className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-10 px-3">
+                Choose Color
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48 p-1 bg-white rounded-sm shadow-lg z-10">
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup
+                value={shapeStyle.fillColor}
+                onValueChange={(value) => shapeStyle.setFillColor(value)}
+              >
+                {COLOR_OPTIONS.map((colorOption) => (
+                  <DropdownMenuRadioItem
+                    key={colorOption.color}
+                    value={colorOption.color}
+                    className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
+                  >
+                    <div
+                      className="w-4 h-4 rounded"
+                      style={{ backgroundColor: colorOption.color }}
+                    />
+                    <span>{colorOption.name}</span>
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    )}
+
+    {/* Fill Opacity Slider - only for non-RevisionCloud shapes */}
+    {!shapeStyle.isRevisionCloud && (
+      <div>
+        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Fill Opacity: {Math.round(shapeStyle.fillOpacity * 100)}%
+        </Label>
+        <Slider
+          value={[shapeStyle.fillOpacity]}
+          onValueChange={(value) => shapeStyle.handleFillOpacityChange(value[0])}
+          min={0}
+          max={1}
+          step={0.01}
+          className="flex-1"
+        />
+        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <span>0%</span>
+          <span>100%</span>
+        </div>
+      </div>
+    )}
+  </div>
+);
+
+// Point/Icon Opacity Section
+interface PointOpacitySectionProps {
+  pointOpacity: {
+    opacity: number;
+    handleOpacityChange: (opacity: number) => void;
+    resetToOriginal: () => void;
+  };
+  isEditing: boolean;
+}
+
+const PointOpacitySection: React.FC<PointOpacitySectionProps> = ({
+  pointOpacity,
+  isEditing,
+}) => {
+  return (
+    <div className="border-t border-gray-100 dark:border-slate-700 pt-4 mt-4">
+      <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
+        Opacity
+      </h4>
+
+      {!isEditing ? (
+        <PointOpacityDisplay opacity={pointOpacity.opacity} />
+      ) : (
+        <PointOpacityEditor pointOpacity={pointOpacity} />
+      )}
+    </div>
+  );
+};
+
+interface PointOpacityDisplayProps {
+  opacity: number;
+}
+
+const PointOpacityDisplay: React.FC<PointOpacityDisplayProps> = ({ opacity }) => (
+  <div className="space-y-2">
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Opacity:</span>
+      <span className="text-gray-600 dark:text-gray-400">{Math.round(opacity * 100)}%</span>
+    </div>
+  </div>
+);
+
+interface PointOpacityEditorProps {
+  pointOpacity: {
+    opacity: number;
+    handleOpacityChange: (opacity: number) => void;
+    resetToOriginal: () => void;
+  };
+}
+
+const PointOpacityEditor: React.FC<PointOpacityEditorProps> = ({ pointOpacity }) => (
+  <div className="space-y-4">
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Opacity: {Math.round(pointOpacity.opacity * 100)}%
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[pointOpacity.opacity]}
+          onValueChange={(value) => pointOpacity.handleOpacityChange(value[0])}
+          min={0}
+          max={1}
+          step={0.01}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => pointOpacity.handleOpacityChange(1)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0%</span>
+        <span>100%</span>
+      </div>
+    </div>
+  </div>
+);
+
+// Icon Style Section (Google Earth icons)
+interface IconStyleSectionProps {
+  iconProperties: {
+    opacity: number;
+    iconScale: number;
+    labelScale: number;
+    rotation: number;
+    handleOpacityChange: (opacity: number) => void;
+    handleIconScaleChange: (scale: number) => void;
+    handleLabelScaleChange: (scale: number) => void;
+    handleRotationChange: (rotation: number) => void;
+  };
+  isEditing: boolean;
+}
+
+const IconStyleSection: React.FC<IconStyleSectionProps> = ({
+  iconProperties,
+  isEditing,
+}) => {
+  return (
+    <div className="border-t border-gray-100 dark:border-slate-700 pt-4 mt-4">
+      <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
+        Icon Style
+      </h4>
+
+      {!isEditing ? (
+        <IconStyleDisplay
+          opacity={iconProperties.opacity}
+          iconScale={iconProperties.iconScale}
+          labelScale={iconProperties.labelScale}
+          rotation={iconProperties.rotation}
+        />
+      ) : (
+        <IconStyleEditor iconProperties={iconProperties} />
+      )}
+    </div>
+  );
+};
+
+interface IconStyleDisplayProps {
+  opacity: number;
+  iconScale: number;
+  labelScale: number;
+  rotation: number;
+}
+
+const IconStyleDisplay: React.FC<IconStyleDisplayProps> = ({
+  opacity,
+  iconScale,
+  labelScale,
+  rotation,
+}) => (
+  <div className="space-y-2">
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Opacity:</span>
+      <span className="text-gray-600 dark:text-gray-400">{Math.round(opacity * 100)}%</span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Icon Scale:</span>
+      <span className="text-gray-600 dark:text-gray-400">{iconScale.toFixed(1)}x</span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Label Scale:</span>
+      <span className="text-gray-600 dark:text-gray-400">{labelScale.toFixed(1)}x</span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Rotation:</span>
+      <span className="text-gray-600 dark:text-gray-400">{Math.round(rotation)}°</span>
+    </div>
+  </div>
+);
+
+interface IconStyleEditorProps {
+  iconProperties: {
+    opacity: number;
+    iconScale: number;
+    labelScale: number;
+    rotation: number;
+    handleOpacityChange: (opacity: number) => void;
+    handleIconScaleChange: (scale: number) => void;
+    handleLabelScaleChange: (scale: number) => void;
+    handleRotationChange: (rotation: number) => void;
+  };
+}
+
+const IconStyleEditor: React.FC<IconStyleEditorProps> = ({ iconProperties }) => (
+  <div className="space-y-4">
+    {/* Opacity Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Opacity: {Math.round(iconProperties.opacity * 100)}%
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[iconProperties.opacity]}
+          onValueChange={(value) => iconProperties.handleOpacityChange(value[0])}
+          min={0}
+          max={1}
+          step={0.01}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => iconProperties.handleOpacityChange(1)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0%</span>
+        <span>100%</span>
+      </div>
+    </div>
+
+    {/* Icon Scale Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Icon Scale: {iconProperties.iconScale.toFixed(1)}x
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[iconProperties.iconScale]}
+          onValueChange={(value) => iconProperties.handleIconScaleChange(value[0])}
+          min={0.1}
+          max={5}
+          step={0.1}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => iconProperties.handleIconScaleChange(1)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0.1x</span>
+        <span>5x</span>
+      </div>
+    </div>
+
+    {/* Label Scale Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Label Scale: {iconProperties.labelScale.toFixed(1)}x
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[iconProperties.labelScale]}
+          onValueChange={(value) => iconProperties.handleLabelScaleChange(value[0])}
+          min={0.1}
+          max={5}
+          step={0.1}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => iconProperties.handleLabelScaleChange(1)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0.1x</span>
+        <span>5x</span>
+      </div>
+    </div>
+
+    {/* Rotation Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Rotation: {Math.round(iconProperties.rotation)}°
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[iconProperties.rotation]}
+          onValueChange={(value) => iconProperties.handleRotationChange(value[0])}
+          min={0}
+          max={360}
+          step={1}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => iconProperties.handleRotationChange(0)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0°</span>
+        <span>360°</span>
       </div>
     </div>
   </div>

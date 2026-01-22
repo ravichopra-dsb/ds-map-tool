@@ -4,7 +4,7 @@ import { Style } from "ol/style";
 import { createPointStyle, createLineStyle, createPolygonStyle } from "./styleUtils";
 import { getLength } from "ol/sphere";
 import { Feature } from "ol";
-import { Geometry, LineString, Circle as CircleGeom, Polygon } from "ol/geom";
+import { Geometry, LineString, Circle as CircleGeom, Polygon, SimpleGeometry } from "ol/geom";
 import { Vector as VectorSource } from "ol/source";
 import type { Coordinate } from "ol/coordinate";
 import { circleToPolygon } from "./geometryUtils";
@@ -14,6 +14,8 @@ import {
   generateRevisionCloudPreview,
   REVISION_CLOUD_CONFIG,
 } from "./revisionCloudUtils";
+import { applyOrthoToMarkedCoordinates, constrainToOrtho } from "./orthoUtils";
+import { useToolStore } from "@/stores/useToolStore";
 
 /**
  * Draw interaction configuration interface
@@ -25,6 +27,7 @@ export interface DrawInteractionConfig {
   style?: Style | Style[] | ((feature: any) => Style | Style[]);
   onDrawEnd?: (event: any) => void;
   featureProperties?: Record<string, any>;
+  geometryFunction?: (coordinates: any, geometry?: SimpleGeometry) => SimpleGeometry;
 }
 
 /**
@@ -149,6 +152,7 @@ export const createDrawInteraction = (config: DrawInteractionConfig): Draw => {
     type: config.type,
     freehand: config.freehand || false,
     style: config.style,
+    geometryFunction: config.geometryFunction,
   });
 
   // Setup keyboard handlers ONLY when drawing starts (not when tool is just selected)
@@ -200,7 +204,9 @@ export const createPointDraw = (
 };
 
 /**
- * Create a polyline draw interaction
+ * Create a polyline draw interaction with optional ortho mode support
+ * Supports toggling ortho mode during drawing - segments are constrained based on
+ * the ortho state at the time each point was added (AutoCAD-like behavior).
  * @param source - Vector source to draw on
  * @param onDrawEnd - Optional callback for when drawing ends
  * @param color - Optional custom line color
@@ -216,7 +222,96 @@ export const createPolylineDraw = (
   const customColor = color || "#00ff00";
   const customWidth = width || 4;
 
-  return createDrawInteraction({
+  // Track ortho state for each segment during drawing
+  // orthoStates[i] = true means segment from coord[i] to coord[i+1] should be ortho
+  let orthoStates: boolean[] = [];
+
+  // Geometry function that dynamically checks ortho mode and tracks per-segment state
+  const orthoGeometryFunction = (
+    coordinates: Coordinate[] | Coordinate[][],
+    geometry?: SimpleGeometry
+  ): SimpleGeometry => {
+    const coordArray = coordinates as Coordinate[];
+    if (!geometry) {
+      geometry = new LineString([]);
+    }
+
+    const currentOrthoEnabled = useToolStore.getState().orthoMode;
+
+    // Calculate confirmed segments: last coord is cursor preview, segments = points - 1
+    // coordArray = [p0, cursor] → 0 confirmed segments
+    // coordArray = [p0, p1, cursor] → 1 confirmed segment (p0→p1)
+    // coordArray = [p0, p1, p2, cursor] → 2 confirmed segments
+    const confirmedSegments = Math.max(0, coordArray.length - 2);
+
+    // When a new segment is confirmed (user clicked 2nd+ point), record the ortho state
+    if (confirmedSegments > orthoStates.length) {
+      const newSegments = confirmedSegments - orthoStates.length;
+      for (let i = 0; i < newSegments; i++) {
+        orthoStates.push(currentOrthoEnabled);
+      }
+    }
+
+    // Build the preview coordinates with selective ortho constraint
+    // For confirmed segments, use stored ortho states
+    // For the preview segment (last), use current ortho state
+    const result: Coordinate[] = [coordArray[0]];
+
+    for (let i = 1; i < coordArray.length; i++) {
+      const prevConstrained = result[i - 1];
+      const currentRaw = coordArray[i];
+
+      // Determine if this segment should be ortho
+      // Segment index = i - 1 (segment 0 connects coord[0] to coord[1])
+      let shouldApplyOrtho: boolean;
+      if (i <= orthoStates.length) {
+        // This is a confirmed segment - use stored state
+        shouldApplyOrtho = orthoStates[i - 1];
+      } else {
+        // This is the preview segment - use current ortho mode
+        shouldApplyOrtho = currentOrthoEnabled;
+      }
+
+      if (shouldApplyOrtho) {
+        result.push(constrainToOrtho(prevConstrained, currentRaw));
+      } else {
+        result.push(currentRaw);
+      }
+    }
+
+    (geometry as LineString).setCoordinates(result);
+    return geometry;
+  };
+
+  // Wrap the onDrawEnd to apply final ortho constraint based on tracked states
+  const handleDrawEnd = (event: any) => {
+    const geometry = event.feature.getGeometry() as LineString;
+    const coords = geometry.getCoordinates();
+
+    // Record ortho state for the final segment if needed
+    const currentOrthoEnabled = useToolStore.getState().orthoMode;
+    if (orthoStates.length < coords.length - 1) {
+      orthoStates.push(currentOrthoEnabled);
+    }
+
+    // Apply ortho constraint based on per-segment ortho states
+    const constrainedCoords = applyOrthoToMarkedCoordinates(coords, orthoStates);
+    geometry.setCoordinates(constrainedCoords);
+
+    // Store ortho states in feature for potential later use
+    event.feature.set('orthoStates', [...orthoStates]);
+
+    // Reset tracking for next drawing
+    orthoStates = [];
+    // lastCoordCount = 0;
+
+    // Call the original onDrawEnd if provided
+    if (onDrawEnd) {
+      onDrawEnd(event);
+    }
+  };
+
+  const drawInteraction = createDrawInteraction({
     ...DRAW_CONFIGS.polyline,
     source,
     style: createLineStyle(customColor, customWidth),
@@ -225,8 +320,17 @@ export const createPolylineDraw = (
       lineColor: customColor,
       lineWidth: customWidth,
     },
-    onDrawEnd,
+    geometryFunction: orthoGeometryFunction,
+    onDrawEnd: handleDrawEnd,
   });
+
+  // Reset ortho tracking when drawing is aborted
+  drawInteraction.on('drawabort', () => {
+    orthoStates = [];
+    // lastCoordCount = 0;
+  });
+
+  return drawInteraction;
 };
 
 /**

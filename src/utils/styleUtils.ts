@@ -3,6 +3,7 @@ import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
 import { Feature } from "ol";
 import type { Geometry } from "ol/geom";
+import { Point, LineString, MultiLineString } from "ol/geom";
 import { applyOpacityToColor } from "./colorUtils";
 
 /**
@@ -25,6 +26,7 @@ export interface PointStyleConfig {
   fillColor?: string;
   strokeColor?: string;
   strokeWidth?: number;
+  opacity?: number;
 }
 
 /**
@@ -50,17 +52,17 @@ export interface TextStyleConfig {
 export const createBasicStyle = (config: BasicStyleConfig): Style => {
   const stroke = config.strokeColor
     ? new Stroke({
-        color: config.strokeColor,
-        width: config.strokeWidth || 2,
-        lineDash: config.strokeDash,
-        lineCap: config.lineCap || "butt",
-      })
+      color: config.strokeColor,
+      width: config.strokeWidth || 2,
+      lineDash: config.strokeDash,
+      lineCap: config.lineCap || "butt",
+    })
     : undefined;
 
   const fill = config.fillColor
     ? new Fill({
-        color: applyOpacityToColor(config.fillColor, config.fillOpacity || 1),
-      })
+      color: applyOpacityToColor(config.fillColor, config.fillOpacity || 1),
+    })
     : undefined;
 
   return new Style({
@@ -75,14 +77,18 @@ export const createBasicStyle = (config: BasicStyleConfig): Style => {
  * @returns OpenLayers Style object
  */
 export const createPointStyle = (config: PointStyleConfig): Style => {
+  const opacity = config.opacity !== undefined ? config.opacity : 1;
+  const fillColor = config.fillColor || "#ff0000";
+  const strokeColor = config.strokeColor || "#ffffff";
+
   return new Style({
     image: new CircleStyle({
       radius: config.radius || 6,
       fill: new Fill({
-        color: config.fillColor || "#ff0000",
+        color: applyOpacityToColor(fillColor, opacity),
       }),
       stroke: new Stroke({
-        color: config.strokeColor || "#ffffff",
+        color: applyOpacityToColor(strokeColor, opacity),
         width: config.strokeWidth || 2,
       }),
     }),
@@ -103,9 +109,9 @@ export const createTextStyle = (config: TextStyleConfig): Text => {
     }),
     stroke: config.strokeColor
       ? new Stroke({
-          color: config.strokeColor,
-          width: config.strokeWidth || 2,
-        })
+        color: config.strokeColor,
+        width: config.strokeWidth || 2,
+      })
       : undefined,
     offsetX: config.offsetX || 0,
     offsetY: config.offsetY || 0,
@@ -165,8 +171,8 @@ export const createPolygonStyle = (
 
   const fill = fillColor
     ? new Fill({
-        color: applyOpacityToColor(fillColor, fillOpacity),
-      })
+      color: applyOpacityToColor(fillColor, fillOpacity),
+    })
     : undefined;
 
   return new Style({
@@ -179,6 +185,67 @@ export const createPolygonStyle = (
  * Hover highlight color
  */
 export const HOVER_HIGHLIGHT_COLOR = "#f55927"; // Bright cyan/blue
+
+/**
+ * Vertex colors for start and end points
+ */
+export const VERTEX_START_COLOR = "#7ccf00"; // Green for starting vertex
+export const VERTEX_END_COLOR = "#fb2c36"; // Red for ending vertex
+export const VERTEX_MIDDLE_COLOR = "rgba(0, 102, 204, 0.8)"; // Blue for middle vertices
+
+/**
+ * Helper function to extract and create vertex styles for LineString/MultiLineString
+ * Uses different colors for start (green), end (red), and middle (blue) vertices
+ * @param geometry - The geometry to extract vertices from
+ * @param vertexRadius - Radius of vertex markers
+ * @returns Array of Style objects for each vertex
+ */
+const createVertexStylesForGeometry = (
+  geometry: Geometry,
+  vertexRadius: number = 4
+): Style[] => {
+  let coordinates: number[][] = [];
+
+  if (geometry.getType() === "LineString") {
+    coordinates = (geometry as LineString).getCoordinates();
+  } else if (geometry.getType() === "MultiLineString") {
+    const lineStrings = (geometry as MultiLineString).getLineStrings();
+    lineStrings.forEach((lineString) => {
+      coordinates = coordinates.concat(lineString.getCoordinates());
+    });
+  }
+
+  if (coordinates.length === 0) return [];
+
+  const styles: Style[] = [];
+  const lastIndex = coordinates.length - 1;
+
+  coordinates.forEach((coord, index) => {
+    // Determine color based on position
+    let fillColor: string;
+    if (index === 0) {
+      fillColor = VERTEX_START_COLOR; // Green for start
+    } else if (index === lastIndex) {
+      fillColor = VERTEX_END_COLOR; // Red for end
+    } else {
+      fillColor = VERTEX_MIDDLE_COLOR; // Blue for middle
+    }
+
+    styles.push(
+      new Style({
+        geometry: new Point(coord),
+        image: new CircleStyle({
+          radius: vertexRadius,
+          fill: new Fill({ color: fillColor }),
+          stroke: new Stroke({ color: "#ffffff", width: 1.5 }),
+        }),
+        zIndex: 50,
+      })
+    );
+  });
+
+  return styles;
+};
 
 /**
  * Creates a hover/highlight style for a feature
@@ -273,7 +340,100 @@ export const createHoverStyle = (feature: Feature<Geometry>): Style | Style[] =>
   }
 
   // For LineString, MultiLineString, GeometryCollection (most common)
-  return new Style({
-    stroke: hoverStroke,
+  const styles: Style[] = [
+    new Style({
+      stroke: hoverStroke,
+    }),
+  ];
+
+  // Add vertex highlighting for LineStrings and MultiLineStrings
+  if (geometryType === "LineString" || geometryType === "MultiLineString") {
+    const vertexStyles = createVertexStylesForGeometry(geometry);
+    styles.push(...vertexStyles);
+  }
+
+  return styles;
+};
+
+/**
+ * Creates a selection/highlight style for a feature
+ * Used by the Select interaction to highlight selected features
+ * Includes vertex highlighting for LineStrings
+ * @param feature - The feature to create selection style for
+ * @returns OpenLayers Style object or array of styles
+ */
+export const createSelectStyle = (feature: Feature<Geometry>): Style | Style[] => {
+  const geometry = feature.getGeometry();
+  if (!geometry) return new Style();
+
+  const geometryType = geometry.getType();
+
+  // Selection highlight stroke - bright blue
+  const selectStroke = new Stroke({
+    color: "#0099ff",
+    width: 5,
   });
+
+  // For Point features
+  if (geometryType === "Point") {
+    const iconSrc = feature.get("iconSrc");
+
+    if (iconSrc) {
+      return [
+        new Style({
+          image: new CircleStyle({
+            radius: 20,
+            fill: new Fill({ color: "rgba(0, 153, 255, 0.3)" }),
+            stroke: new Stroke({
+              color: "#0099ff",
+              width: 2,
+            }),
+          }),
+        }),
+        new Style({
+          image: new Icon({
+            src: iconSrc,
+            scale: feature.get("iconScale") || 1,
+          }),
+        }),
+      ];
+    }
+
+    // Regular point
+    return new Style({
+      image: new CircleStyle({
+        radius: 9,
+        fill: new Fill({ color: "#0099ff" }),
+        stroke: new Stroke({
+          color: "#ffffff",
+          width: 3,
+        }),
+      }),
+    });
+  }
+
+  // For Polygon features
+  if (geometryType === "Polygon" || geometryType === "MultiPolygon") {
+    return new Style({
+      stroke: selectStroke,
+      fill: new Fill({
+        color: "rgba(0, 153, 255, 0.1)",
+      }),
+    });
+  }
+
+  // For LineString, MultiLineString, GeometryCollection
+  const styles: Style[] = [
+    new Style({
+      stroke: selectStroke,
+    }),
+  ];
+
+  // Add vertex highlighting for LineStrings and MultiLineStrings
+  if (geometryType === "LineString" || geometryType === "MultiLineString") {
+    const vertexStyles = createVertexStylesForGeometry(geometry);
+    styles.push(...vertexStyles);
+  }
+
+  return styles;
 };

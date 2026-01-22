@@ -6,13 +6,18 @@ import type { Select } from "ol/interaction";
 export interface UseShapeStyleEditorReturn {
   // State
   strokeColor: string;
+  strokeWidth: number;
+  strokeOpacity: number;
   fillColor: string;
   fillOpacity: number;
   supportsShapeStyle: boolean;
+  isRevisionCloud: boolean;
   isEditingShapeStyle: boolean;
 
   // Actions
   handleStrokeColorChange: (color: string) => void;
+  handleStrokeWidthChange: (width: number) => void;
+  handleStrokeOpacityChange: (opacity: number) => void;
   handleFillColorChange: (color: string) => void;
   handleFillOpacityChange: (opacity: number) => void;
   setStrokeColor: (color: string) => void;
@@ -22,8 +27,11 @@ export interface UseShapeStyleEditorReturn {
 }
 
 const DEFAULT_STROKE_COLOR = "#000000";
+const DEFAULT_STROKE_WIDTH = 2;
+const DEFAULT_STROKE_OPACITY = 1;
 const DEFAULT_FILL_COLOR = "#ffffff";
 const DEFAULT_FILL_OPACITY = 0;
+const DEFAULT_REVISION_CLOUD_COLOR = "#000000";
 
 export const useShapeStyleEditor = (
   selectedFeature: Feature | null,
@@ -32,11 +40,19 @@ export const useShapeStyleEditor = (
   isEditing: boolean
 ): UseShapeStyleEditorReturn => {
   const [strokeColor, setStrokeColor] = useState<string>(DEFAULT_STROKE_COLOR);
+  const [strokeWidth, setStrokeWidth] = useState<number>(DEFAULT_STROKE_WIDTH);
+  const [strokeOpacity, setStrokeOpacity] = useState<number>(DEFAULT_STROKE_OPACITY);
   const [fillColor, setFillColor] = useState<string>(DEFAULT_FILL_COLOR);
   const [fillOpacity, setFillOpacity] = useState<number>(DEFAULT_FILL_OPACITY);
 
   const [originalStrokeColor, setOriginalStrokeColor] = useState<string>(
     DEFAULT_STROKE_COLOR
+  );
+  const [originalStrokeWidth, setOriginalStrokeWidth] = useState<number>(
+    DEFAULT_STROKE_WIDTH
+  );
+  const [originalStrokeOpacity, setOriginalStrokeOpacity] = useState<number>(
+    DEFAULT_STROKE_OPACITY
   );
   const [originalFillColor, setOriginalFillColor] = useState<string>(
     DEFAULT_FILL_COLOR
@@ -46,37 +62,65 @@ export const useShapeStyleEditor = (
   );
   const [isEditingShapeStyle, setIsEditingShapeStyle] = useState(false);
 
-  // Check if selected feature is a Box or Circle
+  // Check if selected feature is a Box, Circle, or RevisionCloud
   const supportsShapeStyle = useMemo(() => {
     if (!selectedFeature) return false;
     return (
-      selectedFeature.get("isBox") || selectedFeature.get("isCircle")
+      selectedFeature.get("isBox") ||
+      selectedFeature.get("isCircle") ||
+      selectedFeature.get("isRevisionCloud")
     );
+  }, [selectedFeature]);
+
+  // Check if selected feature is a RevisionCloud (for conditional UI)
+  const isRevisionCloud = useMemo(() => {
+    if (!selectedFeature) return false;
+    return !!selectedFeature.get("isRevisionCloud");
   }, [selectedFeature]);
 
   // Initialize shape style when feature changes
   useEffect(() => {
     if (selectedFeature && supportsShapeStyle) {
-      const strokeColor =
-        selectedFeature.get("strokeColor") || DEFAULT_STROKE_COLOR;
-      const fillColor =
+      // Use green as default for RevisionCloud, black for others
+      const defaultColor = selectedFeature.get("isRevisionCloud")
+        ? DEFAULT_REVISION_CLOUD_COLOR
+        : DEFAULT_STROKE_COLOR;
+      const featureStrokeColor =
+        selectedFeature.get("strokeColor") || defaultColor;
+      const featureStrokeWidth =
+        selectedFeature.get("strokeWidth") !== undefined
+          ? selectedFeature.get("strokeWidth")
+          : DEFAULT_STROKE_WIDTH;
+      const featureStrokeOpacity =
+        selectedFeature.get("strokeOpacity") !== undefined
+          ? selectedFeature.get("strokeOpacity")
+          : DEFAULT_STROKE_OPACITY;
+      const featureFillColor =
         selectedFeature.get("fillColor") || DEFAULT_FILL_COLOR;
-      const fillOpacity =
+      const featureFillOpacity =
         selectedFeature.get("fillOpacity") !== undefined
           ? selectedFeature.get("fillOpacity")
           : DEFAULT_FILL_OPACITY;
 
-      setStrokeColor(strokeColor);
-      setFillColor(fillColor);
-      setFillOpacity(fillOpacity);
-      setOriginalStrokeColor(strokeColor);
-      setOriginalFillColor(fillColor);
-      setOriginalFillOpacity(fillOpacity);
+      setStrokeColor(featureStrokeColor);
+      setStrokeWidth(featureStrokeWidth);
+      setStrokeOpacity(featureStrokeOpacity);
+      setFillColor(featureFillColor);
+      setFillOpacity(featureFillOpacity);
+      setOriginalStrokeColor(featureStrokeColor);
+      setOriginalStrokeWidth(featureStrokeWidth);
+      setOriginalStrokeOpacity(featureStrokeOpacity);
+      setOriginalFillColor(featureFillColor);
+      setOriginalFillOpacity(featureFillOpacity);
     } else {
       setStrokeColor(DEFAULT_STROKE_COLOR);
+      setStrokeWidth(DEFAULT_STROKE_WIDTH);
+      setStrokeOpacity(DEFAULT_STROKE_OPACITY);
       setFillColor(DEFAULT_FILL_COLOR);
       setFillOpacity(DEFAULT_FILL_OPACITY);
       setOriginalStrokeColor(DEFAULT_STROKE_COLOR);
+      setOriginalStrokeWidth(DEFAULT_STROKE_WIDTH);
+      setOriginalStrokeOpacity(DEFAULT_STROKE_OPACITY);
       setOriginalFillColor(DEFAULT_FILL_COLOR);
       setOriginalFillOpacity(DEFAULT_FILL_OPACITY);
     }
@@ -106,16 +150,8 @@ export const useShapeStyleEditor = (
         features.push(selectedFeature);
       }
     }
-
-    return () => {
-      // Cleanup: restore selection on unmount
-      if (!isEditingShapeStyle && selectInteraction && selectedFeature) {
-        const features = selectInteraction.getFeatures();
-        if (!features.getArray().includes(selectedFeature)) {
-          features.push(selectedFeature);
-        }
-      }
-    };
+    // Note: No cleanup function - cleanup was causing stale closure issues
+    // where the old selectedFeature would be re-added after Escape press
   }, [isEditingShapeStyle, selectedFeature, selectInteraction, supportsShapeStyle]);
 
   // Handle immediate stroke color change with live preview
@@ -124,6 +160,32 @@ export const useShapeStyleEditor = (
       setStrokeColor(color);
       if (selectedFeature) {
         selectedFeature.set("strokeColor", color);
+        selectedFeature.changed();
+        map?.render();
+      }
+    },
+    [selectedFeature, map]
+  );
+
+  // Handle immediate stroke width change with live preview
+  const handleStrokeWidthChange = useCallback(
+    (width: number) => {
+      setStrokeWidth(width);
+      if (selectedFeature) {
+        selectedFeature.set("strokeWidth", width);
+        selectedFeature.changed();
+        map?.render();
+      }
+    },
+    [selectedFeature, map]
+  );
+
+  // Handle immediate stroke opacity change with live preview
+  const handleStrokeOpacityChange = useCallback(
+    (opacity: number) => {
+      setStrokeOpacity(opacity);
+      if (selectedFeature) {
+        selectedFeature.set("strokeOpacity", opacity);
         selectedFeature.changed();
         map?.render();
       }
@@ -185,31 +247,42 @@ export const useShapeStyleEditor = (
 
   const resetToOriginal = useCallback(() => {
     setStrokeColor(originalStrokeColor);
+    setStrokeWidth(originalStrokeWidth);
+    setStrokeOpacity(originalStrokeOpacity);
     setFillColor(originalFillColor);
     setFillOpacity(originalFillOpacity);
     if (selectedFeature) {
       selectedFeature.set("strokeColor", originalStrokeColor);
+      selectedFeature.set("strokeWidth", originalStrokeWidth);
+      selectedFeature.set("strokeOpacity", originalStrokeOpacity);
       selectedFeature.set("fillColor", originalFillColor);
       selectedFeature.set("fillOpacity", originalFillOpacity);
       selectedFeature.changed();
       map?.render();
     }
-  }, [selectedFeature, map, originalStrokeColor, originalFillColor, originalFillOpacity]);
+  }, [selectedFeature, map, originalStrokeColor, originalStrokeWidth, originalStrokeOpacity, originalFillColor, originalFillOpacity]);
 
   // Commit current values as new originals (call on save)
   const commitShapeStyle = useCallback(() => {
     setOriginalStrokeColor(strokeColor);
+    setOriginalStrokeWidth(strokeWidth);
+    setOriginalStrokeOpacity(strokeOpacity);
     setOriginalFillColor(fillColor);
     setOriginalFillOpacity(fillOpacity);
-  }, [strokeColor, fillColor, fillOpacity]);
+  }, [strokeColor, strokeWidth, strokeOpacity, fillColor, fillOpacity]);
 
   return {
     strokeColor,
+    strokeWidth,
+    strokeOpacity,
     fillColor,
     fillOpacity,
     supportsShapeStyle,
+    isRevisionCloud,
     isEditingShapeStyle,
     handleStrokeColorChange,
+    handleStrokeWidthChange,
+    handleStrokeOpacityChange,
     handleFillColorChange,
     handleFillOpacityChange,
     setStrokeColor: setStrokeColorHandler,

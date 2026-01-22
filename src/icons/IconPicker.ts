@@ -1,6 +1,5 @@
 import { Feature } from "ol";
 import { Point } from "ol/geom";
-import { Icon, Style } from "ol/style";
 import { Vector as VectorSource } from "ol/source";
 import type { Geometry } from "ol/geom";
 import { getIconNameFromPath } from "@/utils/iconUtils";
@@ -15,7 +14,7 @@ export function handleIconClick(
   vectorSource: VectorSource<Feature<Geometry>>,
   coordinate: number[],
   iconPath: string
-): void {
+): Feature<Geometry> {
   // Create a new point feature at the clicked coordinate
   const iconFeature = new Feature({
     geometry: new Point(coordinate),
@@ -26,19 +25,10 @@ export function handleIconClick(
   iconFeature.set("iconPath", iconPath);
   iconFeature.set("name", getIconNameFromPath(iconPath));
 
-  // Create and set the icon style
-  const iconStyle = new Style({
-    image: new Icon({
-      src: iconPath,
-      scale: 0.3, // Adjust scale as needed
-      anchor: [0.5, 0.5],
-      anchorXUnits: "fraction",
-      anchorYUnits: "fraction",
-    }),
-  });
-
-  iconFeature.setStyle(iconStyle);
-
   // Add the feature to the vector source
+  // Note: Style is handled by layer's style function (getFeatureStyle) which
+  // uses getFeatureTypeStyle() to render the icon and includes label support
   vectorSource.addFeature(iconFeature);
+
+  return iconFeature;
 }

@@ -16,6 +16,7 @@ interface ToolState {
   undoRedoInteraction: UndoRedo | null;
   lineColor: string;
   lineWidth: number;
+  orthoMode: boolean;
 
   // Actions
   setActiveTool: (tool: string) => void;
@@ -27,6 +28,7 @@ interface ToolState {
   setLineWidth: (width: number) => void;
   handleLegendSelect: (legend: LegendType) => void;
   handleIconSelect: (iconPath: string) => void;
+  toggleOrthoMode: () => void;
   undo: () => void;
   redo: () => void;
 }
@@ -40,6 +42,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
   undoRedoInteraction: null,
   lineColor: DEFAULT_LINE_COLOR,
   lineWidth: DEFAULT_LINE_WIDTH,
+  orthoMode: false,
 
   setActiveTool: (tool) =>
     set((state) => ({
@@ -61,6 +64,8 @@ export const useToolStore = create<ToolState>((set, get) => ({
       selectedIconPath: iconPath,
       activeTool: 'icons',
     }),
+
+  toggleOrthoMode: () => set((state) => ({ orthoMode: !state.orthoMode })),
 
   undo: () => get().undoRedoInteraction?.undo(),
   redo: () => get().undoRedoInteraction?.redo(),

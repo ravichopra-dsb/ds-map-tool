@@ -12,11 +12,13 @@ import { STYLE_DEFAULTS } from '@/constants/styleDefaults';
 interface UseHoverInteractionOptions {
   map: Map | null;
   vectorLayer: VectorLayer<VectorSource<Feature<Geometry>>> | null;
+  selectInteraction: Select | null;
 }
 
 export const useHoverInteraction = ({
   map,
   vectorLayer,
+  selectInteraction,
 }: UseHoverInteractionOptions): void => {
   const hoverInteractionRef = useRef<Select | null>(null);
 
@@ -26,7 +28,15 @@ export const useHoverInteraction = ({
     const hoverInteraction = new Select({
       condition: pointerMove,
       layers: [vectorLayer],
-      style: (feature) => createHoverStyle(feature as Feature<Geometry>),
+      filter: (feature) => {
+        // Don't trigger hover on selected features
+        if (!selectInteraction) return true;
+        const selectedFeatures = selectInteraction.getFeatures().getArray();
+        return !selectedFeatures.includes(feature as Feature<Geometry>);
+      },
+      style: (feature) => {
+        return createHoverStyle(feature as Feature<Geometry>);
+      },
       hitTolerance: STYLE_DEFAULTS.HIT_TOLERANCE,
     });
 
@@ -39,5 +49,5 @@ export const useHoverInteraction = ({
         hoverInteractionRef.current = null;
       }
     };
-  }, [map, vectorLayer]);
+  }, [map, vectorLayer, selectInteraction]);
 };

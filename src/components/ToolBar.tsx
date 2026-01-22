@@ -9,9 +9,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   FilePlus,
-  ArrowDownToLine,
   ChevronUp,
   ChevronDown,
+  ArrowUpFromLine,
+  Undo,
+  Redo,
 } from "lucide-react";
 import { TOOLS, type ToolCategory } from "../tools/toolConfig";
 import { LegendDropdown } from "./LegendDropdown";
@@ -20,6 +22,7 @@ import { Link } from "react-router";
 import type { Project } from "@/hooks/useMapProjects";
 import type { PGlite } from "@electric-sql/pglite";
 import { JobSelection } from "./JobSelection";
+import { useToolStore } from "@/stores/useToolStore";
 
 interface ToolbarProps {
   onFileImport: () => void;
@@ -59,6 +62,7 @@ const Toolbar = ({
   const [activeCategory, setActiveCategory] = useState<ToolCategory>("edit");
   // const [isSwitchingJob, setIsSwitchingJob] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { undo, redo } = useToolStore();
 
   // const handleJobSelect = async (projectId: string) => {
   //   if (!onSelectProject) return;
@@ -90,7 +94,10 @@ const Toolbar = ({
             {categories.map((category) => (
               <button
                 key={category}
-                onClick={() => {setActiveCategory(category);setIsCollapsed(false)}}
+                onClick={() => {
+                  setActiveCategory(category);
+                  setIsCollapsed(false);
+                }}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-all cursor-pointer ${
                   activeCategory === category
                     ? "bg-blue-100 text-blue-900 border border-blue-300"
@@ -109,6 +116,24 @@ const Toolbar = ({
               variant="ghost"
               size="sm"
               className="cursor-pointer h-8 px-3"
+              onClick={() => undo()}
+              title="Undo (Ctrl+Z)"
+            >
+              <Undo className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="cursor-pointer h-8 px-3"
+              onClick={() => redo()}
+              title="Redo (Ctrl+Y)"
+            >
+              <Redo className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="cursor-pointer h-8 px-3"
               title="Import GeoJson/Kml/Kmz"
               onClick={onFileImport}
             >
@@ -122,7 +147,7 @@ const Toolbar = ({
                   size="sm"
                   className="cursor-pointer h-8 px-3"
                 >
-                  <ArrowDownToLine className="w-4 h-4" />
+                  <ArrowUpFromLine className="w-4 h-4" />
                   <span className="ml-1 text-xs">Export</span>
                 </Button>
               </DropdownMenuTrigger>

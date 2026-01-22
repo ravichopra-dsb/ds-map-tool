@@ -3,11 +3,6 @@ import type { Geometry } from 'ol/geom';
 import type { GeometryTypeName } from '@/types/features';
 
 export interface HiddenTypesState {
-  pit: boolean;
-  tower: boolean;
-  junction: boolean;
-  gp: boolean;
-  triangle: boolean;
   measure: boolean;
   arrow: boolean;
   freehand: boolean;
@@ -26,11 +21,6 @@ interface VisibilityConfig {
 }
 
 const VISIBILITY_CONFIGS: VisibilityConfig[] = [
-  { hiddenKey: 'pit', flag: 'isPit', types: ['MultiLineString'] },
-  { hiddenKey: 'tower', flag: 'isTower', types: ['GeometryCollection'] },
-  { hiddenKey: 'junction', flag: 'isJunction', types: ['GeometryCollection'] },
-  { hiddenKey: 'gp', flag: 'isGP', types: ['GeometryCollection'] },
-  { hiddenKey: 'triangle', flag: 'isTriangle', types: ['Polygon'] },
   { hiddenKey: 'measure', flag: 'isMeasure', types: ['LineString', 'MultiLineString'] },
   { hiddenKey: 'arrow', flag: 'isArrow', types: ['LineString', 'MultiLineString'] },
   { hiddenKey: 'freehand', flag: 'isFreehand', types: ['LineString', 'MultiLineString'] },

@@ -19,16 +19,15 @@ export function TogglingObject() {
   return (
     <Sheet>
       <SheetTrigger asChild className="absolute left-2 bottom-2">
-        <Button variant="outline">Open</Button>
+        <Button variant="outline">Layer</Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-60">
         <SheetHeader>
           <SheetTitle>Layers</SheetTitle>
         </SheetHeader>
         <div className="px-4 divide-transparent divide-y-12">
-          {TOOLS.slice(3).map((tool) => {
+          {TOOLS.slice(6).map((tool) => {
             const Icon = tool.icon;
-            // console.log("ID XXX : ",tool.id)
             return (
               <div key={tool.id} className="flex items-center gap-4 ">
                 <Checkbox

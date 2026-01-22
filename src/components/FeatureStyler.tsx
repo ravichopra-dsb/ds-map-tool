@@ -1,23 +1,33 @@
-import { Style, Text, RegularShape } from "ol/style";
+import { Style, Text, RegularShape, Circle } from "ol/style";
 import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
-import { Point } from "ol/geom";
+import { Point, MultiLineString, LineString } from "ol/geom";
 import { getCenter } from "ol/extent";
 import type { FeatureLike } from "ol/Feature";
 import type { LegendType } from "@/tools/legendsConfig";
 import { getLegendById } from "@/tools/legendsConfig";
 import { applyOpacityToColor } from "@/utils/colorUtils";
 import { getFeatureTypeStyle } from "@/utils/featureUtils";
-import { createPointStyle, createLineStyle, createPolygonStyle } from "@/utils/styleUtils";
+import {
+  createPointStyle,
+  createLineStyle,
+  createPolygonStyle,
+} from "@/utils/styleUtils";
 import { getTextStyle } from "@/icons/Text";
-import { supportsCustomLineStyle, DEFAULT_LINE_STYLE } from "@/utils/featureTypeUtils";
+import {
+  supportsCustomLineStyle,
+  DEFAULT_LINE_STYLE,
+} from "@/utils/featureTypeUtils";
 
-export type FeatureStylerFunction = (feature: FeatureLike, selectedLegend?: LegendType) => Style | Style[] | null;
+export type FeatureStylerFunction = (
+  feature: FeatureLike,
+  selectedLegend?: LegendType,
+) => Style | Style[] | null;
 
 // ✅ Reusable function for legends with text along line path
 export const getTextAlongLineStyle = (
   feature: FeatureLike,
-  legendType: LegendType
+  legendType: LegendType,
 ): Style[] => {
   const geometry = feature.getGeometry();
   if (!geometry) return [];
@@ -30,19 +40,25 @@ export const getTextAlongLineStyle = (
 
   // Check for custom width first, fallback to legend type width
   const customWidth = feature.get("lineWidth");
-  const width = customWidth !== undefined ? customWidth : legendType.style.strokeWidth;
+  const width =
+    customWidth !== undefined ? customWidth : legendType.style.strokeWidth;
+
+  // Check for custom opacity first, fallback to legend type opacity
+  const customOpacity = feature.get("opacity");
+  const opacity =
+    customOpacity !== undefined ? customOpacity : legendType.style.opacity || 1;
 
   // Base line style from legend configuration
   styles.push(
     new Style({
       stroke: new Stroke({
-        color: strokeColor,
+        color: applyOpacityToColor(strokeColor, opacity),
         width: width,
         lineDash: legendType.style.strokeDash,
         lineCap: "butt",
       }),
       zIndex: 1, // Base line layer
-    })
+    }),
   );
 
   // Add repeated text along the line if text is configured
@@ -78,9 +94,11 @@ export const getTextAlongLineStyle = (
           scale: textStyle.scale,
         }),
         zIndex: 100, // High z-index to ensure text always appears above line
-      })
+      }),
     );
   }
+
+  // Vertices are only shown on hover/selection, not in default style
 
   return styles;
 };
@@ -114,10 +132,15 @@ export const getArrowStyle = (feature: FeatureLike) => {
   const dy = endPoint[1] - startPoint[1];
   const angle = Math.atan2(dy, dx);
 
-  // Get custom color and width (support custom styling)
+  // Get custom color, width, and opacity (support custom styling)
   const customColor = feature.get("lineColor") || "#000000";
   const customWidth = feature.get("lineWidth");
   const width = customWidth !== undefined ? customWidth : 4;
+  const opacity =
+    feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
+
+  // Apply opacity to color
+  const colorWithOpacity = applyOpacityToColor(customColor, opacity);
 
   // Create arrow head using RegularShape
   const arrowHead = new RegularShape({
@@ -126,14 +149,14 @@ export const getArrowStyle = (feature: FeatureLike) => {
     rotation: -angle,
     angle: 10,
     displacement: [0, 0],
-    fill: new Fill({ color: customColor }),
+    fill: new Fill({ color: colorWithOpacity }),
   });
 
-  return [
+  const styles: Style[] = [
     // Line style
     new Style({
       stroke: new Stroke({
-        color: customColor,
+        color: colorWithOpacity,
         width: width,
       }),
     }),
@@ -143,6 +166,68 @@ export const getArrowStyle = (feature: FeatureLike) => {
       image: arrowHead,
     }),
   ];
+
+  // Vertices are only shown on hover/selection, not in default style
+
+  return styles;
+};
+
+// Vertex colors for start and end points
+const VERTEX_START_COLOR = "#7ccf00"; // Green for starting vertex
+const VERTEX_END_COLOR = "#fb2c36"; // Red for ending vertex
+const VERTEX_MIDDLE_COLOR = "rgba(0, 102, 204, 0.8)"; // Blue for middle vertices
+
+// ✅ Vertex highlighting for LineStrings
+// Only used for hover/selection styles, not default feature styles
+export const getLineStringVertexStyle = (feature: FeatureLike): Style[] => {
+  const geometry = feature.getGeometry();
+  if (!geometry) return [];
+
+  let coordinates: number[][] = [];
+
+  // Extract coordinates from LineString or MultiLineString
+  if (geometry.getType() === "LineString") {
+    coordinates = (geometry as LineString).getCoordinates();
+  } else if (geometry.getType() === "MultiLineString") {
+    const lineStrings = (geometry as MultiLineString).getLineStrings();
+    lineStrings.forEach((lineString) => {
+      coordinates = coordinates.concat(lineString.getCoordinates());
+    });
+  } else {
+    return [];
+  }
+
+  if (coordinates.length === 0) return [];
+
+  const styles: Style[] = [];
+  const lastIndex = coordinates.length - 1;
+
+  // Create a small circle marker for each vertex with position-based coloring
+  coordinates.forEach((coord, index) => {
+    // Determine color based on position
+    let fillColor: string;
+    if (index === 0) {
+      fillColor = VERTEX_START_COLOR; // Green for start
+    } else if (index === lastIndex) {
+      fillColor = VERTEX_END_COLOR; // Red for end
+    } else {
+      fillColor = VERTEX_MIDDLE_COLOR; // Blue for middle
+    }
+
+    styles.push(
+      new Style({
+        geometry: new Point(coord),
+        image: new Circle({
+          radius: 4,
+          fill: new Fill({ color: fillColor }),
+          stroke: new Stroke({ color: "#ffffff", width: 1.5 }),
+        }),
+        zIndex: 50, // High z-index to appear above the line
+      }),
+    );
+  });
+
+  return styles;
 };
 
 /**
@@ -151,10 +236,12 @@ export const getArrowStyle = (feature: FeatureLike) => {
  */
 const shouldShowLabel = (feature: FeatureLike): boolean => {
   // Skip features that already have their own text display systems
-  if (feature.get("isArrow") ||
-      feature.get("isText") ||
-      feature.get("islegends") ||
-      feature.get("isMeasure")) {
+  if (
+    feature.get("isArrow") ||
+    feature.get("isText") ||
+    feature.get("islegends") ||
+    feature.get("isMeasure")
+  ) {
     return false;
   }
 
@@ -166,15 +253,8 @@ const shouldShowLabel = (feature: FeatureLike): boolean => {
   // Point geometry (standard points and custom icons)
   if (geometryType === "Point") return true;
 
-  // Icon features with non-Point geometry
-  if (feature.get("isTriangle") && geometryType === "Polygon") return true;
-  if (feature.get("isPit") && geometryType === "MultiLineString") return true;
-  if ((feature.get("isGP") || feature.get("isTower") || feature.get("isJunction"))
-      && geometryType === "GeometryCollection") return true;
-
   return false;
 };
-
 
 /**
  * Create text style for feature labels
@@ -225,7 +305,7 @@ const getLabelTextStyle = (feature: FeatureLike): Style | null => {
 // ✅ Custom feature styles (used for GeoJSON, KML, and KMZ)
 export const getFeatureStyle = (
   feature: FeatureLike,
-  selectedLegend?: LegendType
+  selectedLegend?: LegendType,
 ) => {
   const type = feature.getGeometry()?.getType();
   const isArrow = feature.get("isArrow");
@@ -235,14 +315,22 @@ export const getFeatureStyle = (
   }
 
   // Handle measure features
-  if (feature.get("isMeasure") && (type === "LineString" || type === "MultiLineString")) {
+  if (
+    feature.get("isMeasure") &&
+    (type === "LineString" || type === "MultiLineString")
+  ) {
     return getMeasureTextStyle(feature);
   }
 
   // Handle text features
   if (feature.get("isText") && type === "Point") {
     const textContent = feature.get("text") || "Text";
-    return getTextStyle(textContent);
+    const textScale = feature.get("textScale") ?? 1;
+    const textRotation = feature.get("textRotation") ?? 0;
+    const textOpacity = feature.get("textOpacity") ?? 1;
+    const textFillColor = feature.get("textFillColor") || "#000000";
+    const textStrokeColor = feature.get("textStrokeColor") || "#ffffff";
+    return getTextStyle(textContent, textScale, textRotation, textOpacity, textFillColor, textStrokeColor);
   }
 
   // Handle icon features using utility
@@ -265,25 +353,66 @@ export const getFeatureStyle = (
   // Handle Box features
   if (feature.get("isBox") && (type === "Polygon" || type === "MultiPolygon")) {
     const strokeColor = feature.get("strokeColor") || "#000000";
+    const strokeOpacity =
+      feature.get("strokeOpacity") !== undefined
+        ? feature.get("strokeOpacity")
+        : 1;
     const fillColor = feature.get("fillColor") || "#ffffff";
-    const fillOpacity = feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
-    return createPolygonStyle(strokeColor, 2, 1, fillColor, fillOpacity);
+    const fillOpacity =
+      feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
+    return createPolygonStyle(
+      strokeColor,
+      2,
+      strokeOpacity,
+      fillColor,
+      fillOpacity,
+    );
   }
 
   // Handle Circle features
-  if (feature.get("isCircle") && (type === "Polygon" || type === "MultiPolygon")) {
+  if (
+    feature.get("isCircle") &&
+    (type === "Polygon" || type === "MultiPolygon")
+  ) {
     const strokeColor = feature.get("strokeColor") || "#000000";
+    const strokeOpacity =
+      feature.get("strokeOpacity") !== undefined
+        ? feature.get("strokeOpacity")
+        : 1;
     const fillColor = feature.get("fillColor") || "#ffffff";
-    const fillOpacity = feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
-    return createPolygonStyle(strokeColor, 2, 1, fillColor, fillOpacity);
+    const fillOpacity =
+      feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
+    return createPolygonStyle(
+      strokeColor,
+      2,
+      strokeOpacity,
+      fillColor,
+      fillOpacity,
+    );
   }
 
   // Handle Revision Cloud features
-  if (feature.get("isRevisionCloud") && (type === "Polygon" || type === "MultiPolygon")) {
-    const strokeColor = feature.get("strokeColor") || "#ff0000";
+  if (
+    feature.get("isRevisionCloud") &&
+    (type === "Polygon" || type === "MultiPolygon")
+  ) {
+    const strokeColor = feature.get("strokeColor") || "#00ff00";
+    const strokeWidth =
+      feature.get("strokeWidth") !== undefined ? feature.get("strokeWidth") : 2;
+    const strokeOpacity =
+      feature.get("strokeOpacity") !== undefined
+        ? feature.get("strokeOpacity")
+        : 1;
     const fillColor = feature.get("fillColor");
-    const fillOpacity = feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
-    return createPolygonStyle(strokeColor, 2, 1, fillColor, fillOpacity);
+    const fillOpacity =
+      feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
+    return createPolygonStyle(
+      strokeColor,
+      strokeWidth,
+      strokeOpacity,
+      fillColor,
+      fillOpacity,
+    );
   }
 
   if (
@@ -312,15 +441,25 @@ export const getFeatureStyle = (
     }
 
     const styles: Style[] = [];
-    const opacity = legendType.style.opacity || 1;
+
+    // Check for custom opacity first, fallback to legend type opacity
+    const customOpacity = feature.get("opacity");
+    const opacity =
+      customOpacity !== undefined
+        ? customOpacity
+        : legendType.style.opacity || 1;
 
     // Check for custom color first, fallback to legend type color
     const customColor = feature.get("lineColor");
-    const strokeColor = customColor || legendType.style.strokeColor || "#000000";
+    const strokeColor =
+      customColor || legendType.style.strokeColor || "#000000";
 
     // Check for custom width first, fallback to legend type width
     const customWidth = feature.get("lineWidth");
-    const width = customWidth !== undefined ? customWidth : (legendType.style.strokeWidth || 2);
+    const width =
+      customWidth !== undefined
+        ? customWidth
+        : legendType.style.strokeWidth || 2;
 
     styles.push(
       new Style({
@@ -330,23 +469,27 @@ export const getFeatureStyle = (
           lineDash: legendType.style.strokeDash || [5, 5],
           lineCap: "butt",
         }),
-      })
+      }),
     );
+
+    // Vertices are only shown on hover/selection, not in default style
+
     return styles;
   }
 
   // Handle label display for Point and icon features
   if (shouldShowLabel(feature)) {
-    const baseStyle = type === "LineString" || type === "MultiLineString"
-      ? createLineStyle("#00ff00", 4)
-      : type === "Point" || type === "MultiPoint"
-      ? createPointStyle({
-          radius: 6,
-          fillColor: "#ff0000",
-          strokeColor: "#ffffff",
-          strokeWidth: 2,
-        })
-      : getFeatureTypeStyle(feature) || new Style();
+    const baseStyle =
+      type === "LineString" || type === "MultiLineString"
+        ? createLineStyle("#00ff00", 4)
+        : type === "Point" || type === "MultiPoint"
+          ? createPointStyle({
+              radius: 6,
+              fillColor: "#ff0000",
+              strokeColor: "#ffffff",
+              strokeWidth: 2,
+            })
+          : getFeatureTypeStyle(feature) || new Style();
 
     const labelTextStyle = getLabelTextStyle(feature);
 
@@ -363,27 +506,52 @@ export const getFeatureStyle = (
   }
 
   // Handle Arc features
-  if (feature.get("isArc") && (type === "LineString" || type === "MultiLineString")) {
+  if (
+    feature.get("isArc") &&
+    (type === "LineString" || type === "MultiLineString")
+  ) {
     const strokeColor = feature.get("lineColor") || "#00ff00";
-    const strokeWidth = feature.get("lineWidth") !== undefined ? feature.get("lineWidth") : 4;
-    return createLineStyle(strokeColor, strokeWidth);
+    const strokeWidth =
+      feature.get("lineWidth") !== undefined ? feature.get("lineWidth") : 4;
+    const opacity =
+      feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
+    return createLineStyle(strokeColor, strokeWidth, opacity);
   }
 
   if (type === "LineString" || type === "MultiLineString") {
+    const styles: Style[] = [];
+
     // Check for custom line styling (Polyline/Freehand only)
     if (supportsCustomLineStyle(feature)) {
       const customColor = feature.get("lineColor");
       const customWidth = feature.get("lineWidth");
+      const opacity =
+        feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
 
       // Use custom values if set, otherwise use defaults
       const color = customColor || DEFAULT_LINE_STYLE.color;
-      const width = customWidth !== undefined ? customWidth : DEFAULT_LINE_STYLE.width;
+      const width =
+        customWidth !== undefined ? customWidth : DEFAULT_LINE_STYLE.width;
 
-      return createLineStyle(color, width);
+      const lineStyle = createLineStyle(color, width, opacity);
+      if (Array.isArray(lineStyle)) {
+        styles.push(...lineStyle);
+      } else {
+        styles.push(lineStyle);
+      }
+    } else {
+      // Fallback for other LineString types
+      const lineStyle = createLineStyle("#00ff00", 4);
+      if (Array.isArray(lineStyle)) {
+        styles.push(...lineStyle);
+      } else {
+        styles.push(lineStyle);
+      }
     }
 
-    // Fallback for other LineString types
-    return createLineStyle("#00ff00", 4);
+    // Vertices are only shown on hover/selection, not in default style
+
+    return styles;
   }
 
   if (type === "Point" || type === "MultiPoint") {
@@ -397,15 +565,24 @@ export const getFeatureStyle = (
 };
 
 /**
- * Format distance with automatic unit switching
+ * Format distance with unit switching
  * @param distance - Distance in meters
+ * @param unit - Optional unit ('km' or 'm'). If not set, auto-switches based on distance.
  * @returns Formatted distance string
  */
-const formatDistance = (distance: number): string => {
+const formatDistance = (distance: number, unit?: string): string => {
+  // If unit is explicitly set, use it
+  if (unit === "m") {
+    return `${distance.toFixed(3)}m`;
+  }
+  if (unit === "km") {
+    return `${(distance / 1000).toFixed(3)}km`;
+  }
+  // Default: auto-switch based on distance
   if (distance < 1000) {
     return `${Math.round(distance)}m`;
   } else {
-    return `${(distance / 1000).toFixed(1)}km`;
+    return `${(distance / 1000).toFixed(3)}km`;
   }
 };
 
@@ -416,11 +593,11 @@ const formatDistance = (distance: number): string => {
  */
 export const getMeasureTextStyle = (feature: FeatureLike): Style[] => {
   const geometry = feature.getGeometry();
-  const distance = feature.get('distance');
+  const distance = feature.get("distance");
 
   if (!geometry || distance === undefined) return [];
 
-  if (geometry.getType() !== 'LineString') return [];
+  if (geometry.getType() !== "LineString") return [];
 
   const lineString = geometry as any;
   const coordinates = lineString.getCoordinates();
@@ -429,7 +606,8 @@ export const getMeasureTextStyle = (feature: FeatureLike): Style[] => {
 
   // Get the end point (last coordinate)
   const endPoint = coordinates[coordinates.length - 1];
-  const formattedDistance = formatDistance(distance);
+  const lengthUnit = feature.get("lengthUnit");
+  const formattedDistance = formatDistance(distance, lengthUnit);
 
   const styles: Style[] = [];
 
@@ -445,7 +623,7 @@ export const getMeasureTextStyle = (feature: FeatureLike): Style[] => {
           lineCap: "round",
         }),
         zIndex: 10,
-      })
+      }),
     );
   }
 
@@ -454,23 +632,25 @@ export const getMeasureTextStyle = (feature: FeatureLike): Style[] => {
     new Style({
       text: new Text({
         text: formattedDistance,
-        font: 'bold 12px Arial, sans-serif',
-        fill: new Fill({ color: '#000000' }),
+        font: "bold 12px Arial, sans-serif",
+        fill: new Fill({ color: "#000000" }),
         stroke: new Stroke({
-          color: '#ffffff',
-          width: 3
+          color: "#ffffff",
+          width: 3,
         }),
-        backgroundFill: new Fill({ color: 'rgba(255, 255, 255, 0.8)' }),
+        backgroundFill: new Fill({ color: "rgba(255, 255, 255, 0.8)" }),
         padding: [2, 4, 2, 4],
-        textAlign: 'left',
-        textBaseline: 'middle',
+        textAlign: "left",
+        textBaseline: "middle",
         offsetX: 8, // Offset slightly to the right of the end point
         offsetY: 0,
       }),
       geometry: new Point(endPoint),
       zIndex: 11,
-    })
+    }),
   );
+
+  // Vertices are only shown on hover/selection, not in default style
 
   return styles;
 };

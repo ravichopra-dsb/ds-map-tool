@@ -17,6 +17,7 @@ export interface KeyboardShortcutsProps {
   onRedoOperation?: () => void;
   onClearSelection?: () => void;
   onDeleteOperation?: () => void;
+  onOrthoToggle?: () => void;
   disabled?: boolean;
 }
 
@@ -32,6 +33,7 @@ export const useKeyboardShortcuts = ({
   onRedoOperation,
   onClearSelection,
   onDeleteOperation,
+  onOrthoToggle,
   disabled = false,
 }: KeyboardShortcutsProps) => {
   const currentCursorCoordinates = useRef<number[] | null>(null);
@@ -47,6 +49,59 @@ export const useKeyboardShortcuts = ({
       // Ignore if user is typing in an input field
       const target = event.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      // Handle F8 key for Ortho mode toggle
+      if (event.key === 'F8') {
+        event.preventDefault();
+        onOrthoToggle?.();
+        return;
+      }
+
+      // Handle Escape key - only dispatch global event when NOT drawing
+      // During drawing, the draw interaction's own escape handler will finish/abort the drawing
+      if (event.key === 'Escape') {
+        if (!isDrawing()) {
+          event.preventDefault();
+          window.dispatchEvent(new CustomEvent('globalEscape'));
+        }
+        return;
+      }
+
+      // Handle Arrow keys for map panning
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+        event.preventDefault();
+        const view = map.getView();
+        const center = view.getCenter();
+        if (!center) return;
+
+        // Pan distance is proportional to current resolution (zoom level)
+        const resolution = view.getResolution() || 1;
+        const panDistance = resolution * 100; // 100 pixels worth of movement
+
+        let newCenter: [number, number];
+        switch (event.key) {
+          case 'ArrowUp':
+            newCenter = [center[0], center[1] + panDistance];
+            break;
+          case 'ArrowDown':
+            newCenter = [center[0], center[1] - panDistance];
+            break;
+          case 'ArrowLeft':
+            newCenter = [center[0] - panDistance, center[1]];
+            break;
+          case 'ArrowRight':
+            newCenter = [center[0] + panDistance, center[1]];
+            break;
+          default:
+            return;
+        }
+
+        view.animate({
+          center: newCenter,
+          duration: 100
+        });
         return;
       }
 
@@ -216,6 +271,7 @@ export const useKeyboardShortcuts = ({
     onRedoOperation,
     onClearSelection,
     onDeleteOperation,
+    onOrthoToggle,
     disabled
   ]);
 

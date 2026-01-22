@@ -25,6 +25,8 @@ import { useState } from "react";
 import { Edit2, MoreHorizontal, Trash2 } from "lucide-react";
 import { useMapProjects } from "@/hooks/useMapProjects";
 import { LoadingOverlay } from "./LoadingOverlay";
+import { useNavigate } from "react-router";
+import { getMapUrl } from "@/utils/routeUtils";
 
 interface JobSelectionProps {
   projects: Project[];
@@ -37,6 +39,7 @@ export function JobSelection({
   currentProjectId,
   onSelectProject,
 }: JobSelectionProps) {
+  const navigate = useNavigate();
   const [editingProject, setEditingProject] = useState<{
     id: string;
     name: string;
@@ -55,6 +58,12 @@ export function JobSelection({
     setIsSwitching(true);
     try {
       await onSelectProject(projectId);
+
+      // Update URL after successful project load
+      const project = projects.find(p => p.id === projectId);
+      if (project) {
+        navigate(getMapUrl(projectId, project.name), { replace: true });
+      }
     } finally {
       setIsSwitching(false);
     }

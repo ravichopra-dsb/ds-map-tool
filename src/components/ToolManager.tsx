@@ -7,11 +7,6 @@ import { Vector as VectorSource } from "ol/source";
 import type { Geometry } from "ol/geom";
 import type { LegendType } from "@/tools/legendsConfig";
 import { getLegendById } from "@/tools/legendsConfig";
-import { handleTriangleClick } from "@/icons/Triangle";
-import { handlePitClick } from "@/icons/Pit";
-import { handleGPClick } from "@/icons/Gp";
-import { handleJunctionClick } from "@/icons/JunctionPoint";
-import { handleTowerClickFromSvg } from "@/icons/Tower";
 import {
   createPointDraw,
   createPolylineDraw,
@@ -26,7 +21,7 @@ import {
 } from "@/utils/interactionUtils";
 import { createLineStyle } from "@/utils/styleUtils";
 import { useClickHandlerManager } from "@/hooks/useClickHandlerManager";
-import { TOWER_CONFIG } from "@/config/toolConfig";
+import { getCursorForTool } from "@/utils/cursorUtils";
 import { getTextAlongLineStyle } from "./FeatureStyler";
 import { handleIconClick } from "@/icons/IconPicker";
 
@@ -94,6 +89,13 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
     // Remove all click handlers using the hook
     removeAllClickHandlers(map);
 
+    // Apply cursor for the active tool
+    const cursor = getCursorForTool(activeTool);
+    const mapElement = map.getTargetElement();
+    if (mapElement) {
+      mapElement.style.cursor = cursor;
+    }
+
     switch (activeTool) {
       case "point":
         drawInteractionRef.current = createPointDraw(vectorSource, (event) => {
@@ -108,7 +110,11 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
       case "polyline":
         drawInteractionRef.current = createPolylineDraw(
           vectorSource,
-          undefined,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              onFeatureSelect(event.feature);
+            }
+          },
           lineColor,
           lineWidth
         );
@@ -118,7 +124,11 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
       case "freehand":
         drawInteractionRef.current = createFreehandDraw(
           vectorSource,
-          undefined,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              onFeatureSelect(event.feature);
+            }
+          },
           lineColor,
           lineWidth
         );
@@ -128,7 +138,11 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
       case "arrow":
         drawInteractionRef.current = createArrowDraw(
           vectorSource,
-          undefined,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              onFeatureSelect(event.feature);
+            }
+          },
           lineColor,
           lineWidth
         );
@@ -169,79 +183,14 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         drawInteractionRef.current = createLegendDraw(
           vectorSource,
           drawStyle,
-          selectedLegend.id
+          selectedLegend.id,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              onFeatureSelect(event.feature);
+            }
+          }
         );
         map.addInteraction(drawInteractionRef.current);
-        break;
-
-      case "triangle":
-        registerClickHandler(
-          map,
-          {
-            toolId: "triangle",
-            handlerKey: "triangleClickHandler",
-            onClick: (coordinate) =>
-              handleTriangleClick(vectorSource, coordinate),
-          },
-          vectorSource
-        );
-        break;
-
-      case "pit":
-        registerClickHandler(
-          map,
-          {
-            toolId: "pit",
-            handlerKey: "PitClickHandler",
-            onClick: (coordinate) => handlePitClick(vectorSource, coordinate),
-          },
-          vectorSource
-        );
-        break;
-
-      case "gp":
-        registerClickHandler(
-          map,
-          {
-            toolId: "gp",
-            handlerKey: "GpClickHandler",
-            onClick: (coordinate) => handleGPClick(vectorSource, coordinate),
-          },
-          vectorSource
-        );
-        break;
-
-      case "junction":
-        registerClickHandler(
-          map,
-          {
-            toolId: "junction",
-            handlerKey: "JuctionPointClickHandler",
-            onClick: (coordinate) =>
-              handleJunctionClick(vectorSource, coordinate),
-          },
-          vectorSource
-        );
-        break;
-
-      case "tower":
-        registerClickHandler(
-          map,
-          {
-            toolId: "tower",
-            handlerKey: "TowerClickHandler",
-            onClick: (coordinate) => {
-              handleTowerClickFromSvg(
-                vectorSource,
-                coordinate,
-                TOWER_CONFIG.svgPath,
-                TOWER_CONFIG.scale,
-                TOWER_CONFIG.strokeWidth
-              );
-            },
-          },
-          vectorSource
-        );
         break;
 
       case "text":
@@ -275,7 +224,10 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
               toolId: "icons",
               handlerKey: "IconClickHandler",
               onClick: (coordinate) => {
-                handleIconClick(vectorSource, coordinate, selectedIconPath);
+                const feature = handleIconClick(vectorSource, coordinate, selectedIconPath);
+                if (feature && onFeatureSelect) {
+                  onFeatureSelect(feature);
+                }
               },
             },
             vectorSource
@@ -299,26 +251,49 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
 
           drawInteractionRef.current = createMeasureDraw(
             vectorSource,
-            measureDrawStyle
+            measureDrawStyle,
+            (event) => {
+              if (onFeatureSelect && event.feature) {
+                onFeatureSelect(event.feature);
+              }
+            }
           );
           map.addInteraction(drawInteractionRef.current);
         }
         break;
 
       case "box":
-        drawInteractionRef.current = createBoxDraw(vectorSource);
+        drawInteractionRef.current = createBoxDraw(
+          vectorSource,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              onFeatureSelect(event.feature);
+            }
+          }
+        );
         map.addInteraction(drawInteractionRef.current);
         break;
 
       case "circle":
-        drawInteractionRef.current = createCircleDraw(vectorSource);
+        drawInteractionRef.current = createCircleDraw(
+          vectorSource,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              onFeatureSelect(event.feature);
+            }
+          }
+        );
         map.addInteraction(drawInteractionRef.current);
         break;
 
       case "arc":
         drawInteractionRef.current = createArcDraw(
           vectorSource,
-          undefined,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              onFeatureSelect(event.feature);
+            }
+          },
           lineColor,
           lineWidth
         );
@@ -328,7 +303,11 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
       case "revcloud":
         drawInteractionRef.current = createRevisionCloudDraw(
           vectorSource,
-          undefined,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              onFeatureSelect(event.feature);
+            }
+          },
           lineColor
         );
         map.addInteraction(drawInteractionRef.current);
@@ -359,6 +338,11 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         map.removeInteraction(drawInteractionRef.current);
         drawInteractionRef.current = null;
       }
+      // Reset cursor to default
+      const mapElement = map.getTargetElement();
+      if (mapElement) {
+        mapElement.style.cursor = "auto";
+      }
     };
   }, [
     activeTool,
@@ -370,6 +354,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
     lineWidth,
     registerClickHandler,
     removeAllClickHandlers,
+    onFeatureSelect,
   ]);
 
   return null; // This component doesn't render anything

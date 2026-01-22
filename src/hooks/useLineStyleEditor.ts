@@ -11,12 +11,14 @@ export interface UseLineStyleEditorReturn {
   // State
   lineColor: string;
   lineWidth: number;
+  opacity: number;
   supportsLineStyle: boolean;
   isEditingLineStyle: boolean;
 
   // Actions
   handleColorChange: (color: string) => void;
   handleWidthChange: (width: number) => void;
+  handleOpacityChange: (opacity: number) => void;
   setLineColor: (color: string) => void;
   resetToOriginal: () => void;
   commitLineStyle: () => void;
@@ -30,12 +32,14 @@ export const useLineStyleEditor = (
 ): UseLineStyleEditorReturn => {
   const [lineColor, setLineColor] = useState<string>(DEFAULT_LINE_STYLE.color);
   const [lineWidth, setLineWidth] = useState<number>(DEFAULT_LINE_STYLE.width);
+  const [opacity, setOpacity] = useState<number>(1);
   const [originalLineColor, setOriginalLineColor] = useState<string>(
     DEFAULT_LINE_STYLE.color
   );
   const [originalLineWidth, setOriginalLineWidth] = useState<number>(
     DEFAULT_LINE_STYLE.width
   );
+  const [originalOpacity, setOriginalOpacity] = useState<number>(1);
   const [isEditingLineStyle, setIsEditingLineStyle] = useState(false);
 
   // Check if selected feature supports custom line styling
@@ -51,15 +55,23 @@ export const useLineStyleEditor = (
         selectedFeature.get("lineColor") || DEFAULT_LINE_STYLE.color;
       const width =
         selectedFeature.get("lineWidth") || DEFAULT_LINE_STYLE.width;
+      const featureOpacity =
+        selectedFeature.get("opacity") !== undefined
+          ? selectedFeature.get("opacity")
+          : 1;
       setLineColor(color);
       setLineWidth(width);
+      setOpacity(featureOpacity);
       setOriginalLineColor(color);
       setOriginalLineWidth(width);
+      setOriginalOpacity(featureOpacity);
     } else {
       setLineColor(DEFAULT_LINE_STYLE.color);
       setLineWidth(DEFAULT_LINE_STYLE.width);
+      setOpacity(1);
       setOriginalLineColor(DEFAULT_LINE_STYLE.color);
       setOriginalLineWidth(DEFAULT_LINE_STYLE.width);
+      setOriginalOpacity(1);
     }
     setIsEditingLineStyle(false);
   }, [selectedFeature]);
@@ -87,16 +99,8 @@ export const useLineStyleEditor = (
         features.push(selectedFeature);
       }
     }
-
-    return () => {
-      // Cleanup: restore selection on unmount
-      if (!isEditingLineStyle && selectInteraction && selectedFeature) {
-        const features = selectInteraction.getFeatures();
-        if (!features.getArray().includes(selectedFeature)) {
-          features.push(selectedFeature);
-        }
-      }
-    };
+    // Note: No cleanup function - cleanup was causing stale closure issues
+    // where the old selectedFeature would be re-added after Escape press
   }, [isEditingLineStyle, selectedFeature, selectInteraction, supportsLineStyle]);
 
   // Handle immediate line color change with live preview
@@ -138,30 +142,48 @@ export const useLineStyleEditor = (
     [selectedFeature, map]
   );
 
+  // Handle immediate opacity change with live preview
+  const handleOpacityChange = useCallback(
+    (newOpacity: number) => {
+      setOpacity(newOpacity);
+      if (selectedFeature) {
+        selectedFeature.set("opacity", newOpacity);
+        selectedFeature.changed();
+        map?.render();
+      }
+    },
+    [selectedFeature, map]
+  );
+
   const resetToOriginal = useCallback(() => {
     setLineColor(originalLineColor);
     setLineWidth(originalLineWidth);
+    setOpacity(originalOpacity);
     if (selectedFeature) {
       selectedFeature.set("lineColor", originalLineColor);
       selectedFeature.set("lineWidth", originalLineWidth);
+      selectedFeature.set("opacity", originalOpacity);
       selectedFeature.changed();
       map?.render();
     }
-  }, [selectedFeature, map, originalLineColor, originalLineWidth]);
+  }, [selectedFeature, map, originalLineColor, originalLineWidth, originalOpacity]);
 
   // Commit current values as new originals (call on save)
   const commitLineStyle = useCallback(() => {
     setOriginalLineColor(lineColor);
     setOriginalLineWidth(lineWidth);
-  }, [lineColor, lineWidth]);
+    setOriginalOpacity(opacity);
+  }, [lineColor, lineWidth, opacity]);
 
   return {
     lineColor,
     lineWidth,
+    opacity,
     supportsLineStyle,
     isEditingLineStyle,
     handleColorChange,
     handleWidthChange,
+    handleOpacityChange,
     setLineColor: setLineColorHandler,
     resetToOriginal,
     commitLineStyle,

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useParams, useNavigate } from "react-router";
 import { Vector as VectorSource } from "ol/source";
 import { Feature } from "ol";
 import { Point } from "ol/geom";
@@ -19,6 +20,7 @@ import { useMapState } from "@/hooks/useMapState";
 import { useToolState } from "@/hooks/useToolState";
 import { useFeatureState } from "@/hooks/useFeatureState";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useEscapeHandler } from "@/hooks/useEscapeHandler";
 import { Select, DragBox } from "ol/interaction";
 import {
   convertFeaturesToGeoJSON,
@@ -27,6 +29,7 @@ import {
   normalizeImportedGeoJSON,
 } from "@/utils/serializationUtils";
 import { fitMapToFeatures, restoreMapView } from "@/utils/mapStateUtils";
+import { getMapUrl } from "@/utils/routeUtils";
 // import { JobSelection } from "../components/JobSelection";
 import { useMapProjects } from "@/hooks/useMapProjects";
 import PropertiesPanel from "../components/PropertiesPanel";
@@ -47,10 +50,13 @@ import {
 import { IconPickerDialog } from "../components/IconPickerDialog";
 import { MergePropertiesDialog } from "@/components/MergePropertiesDialog";
 import { type MergeRequestDetail } from "@/components/MapInteractions";
-import { performMerge, createOffsetLineString } from "@/utils/splitUtils";
+import { performMerge } from "@/utils/splitUtils";
 import type { PdfExportConfig } from "@/types/pdf";
-import { OffsetDialog, type OffsetDirection } from "@/components/OffsetDialog";
 import { HelpModal } from "@/components/HelpModal";
+import { useToolStore } from "@/stores/useToolStore";
+import { useFolderStore } from "@/stores/useFolderStore";
+import { SeparateFeatures } from "@/components/SeparateFeatures";
+import { ToolCommand } from "@/components/ToolCommand";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -60,9 +66,19 @@ interface SerializedMapData {
     zoom: number;
     viewMode: "osm" | "satellite";
   };
+  folderStructure?: {
+    folders: Record<string, any>;
+  };
 }
 
 const MapEditor: React.FC = () => {
+  // URL routing
+  const { projectId: urlProjectId } = useParams<{
+    projectId: string;
+    projectName: string;
+  }>();
+  const navigate = useNavigate();
+
   // Core map references
   const mapRef = useRef<Map | null>(null);
   const vectorSourceRef = useRef(new VectorSource());
@@ -112,6 +128,8 @@ const MapEditor: React.FC = () => {
     clearClipboard,
   } = useFeatureState();
 
+  const { setUndoRedoInteraction, toggleOrthoMode } = useToolStore();
+
   const selectInteractionRef = useRef<Select | null>(null);
   const undoRedoInteractionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -133,12 +151,6 @@ const MapEditor: React.FC = () => {
   // Merge properties dialog state
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   const [pendingMerge, setPendingMerge] = useState<MergeRequestDetail | null>(
-    null
-  );
-
-  // Offset dialog state
-  const [offsetDialogOpen, setOffsetDialogOpen] = useState(false);
-  const [offsetFeature, setOffsetFeature] = useState<Feature<Geometry> | null>(
     null
   );
 
@@ -255,7 +267,16 @@ const MapEditor: React.FC = () => {
           return;
         }
 
-        vectorSourceRef.current.clear();
+        // Create folder for imported features (extract filename without extension)
+        const filename = file.name.replace(/\.[^/.]+$/, "");
+        const folderId = useFolderStore.getState().createFolder(filename);
+
+        // Set folderId on all imported features
+        features.forEach((feature) => {
+          feature.set("folderId", folderId);
+        });
+
+        // Add features without clearing existing ones
         vectorSourceRef.current.addFeatures(features);
 
         const extent: Extent = vectorSourceRef.current.getExtent();
@@ -395,6 +416,7 @@ const MapEditor: React.FC = () => {
 
   const handleUndoInteractionReady = (undoInteraction: any) => {
     undoRedoInteractionRef.current = undoInteraction;
+    setUndoRedoInteraction(undoInteraction);
     setInteractionReady(true);
   };
 
@@ -574,6 +596,7 @@ const MapEditor: React.FC = () => {
           zoom: mapRef.current.getView().getZoom() || 0,
           viewMode: currentMapView,
         },
+        folderStructure: useFolderStore.getState().exportToStorage(),
       };
 
       await saveToDb(mapData);
@@ -598,6 +621,8 @@ const MapEditor: React.FC = () => {
       // 1. ALWAYS clear the map first!
       // This ensures old project data is removed even if the new project is empty
       vectorSourceRef.current.clear();
+      // Also clear folder structure when switching projects
+      useFolderStore.getState().clearAll();
 
       const mapData = await loadFromDb();
       if (mapData?.features) {
@@ -609,6 +634,10 @@ const MapEditor: React.FC = () => {
         if (!isEmptyExtent(extent) && mapRef.current) {
           fitMapToFeatures(mapRef.current, extent);
         }
+      }
+      // Restore folder structure if available
+      if (mapData?.folderStructure) {
+        useFolderStore.getState().loadFromStorage(mapData.folderStructure);
       }
       if (mapData?.mapState && mapRef.current) {
         restoreMapView(mapRef.current, mapData.mapState, handleMapViewChange);
@@ -628,6 +657,27 @@ const MapEditor: React.FC = () => {
       undoRedoInteractionRef.current?.setActive(true);
     }
   };
+
+  // Initialize project from URL on mount
+  useEffect(() => {
+    if (urlProjectId && !currentProjectId) {
+      console.log('Loading project from URL:', urlProjectId);
+      loadProject(urlProjectId).catch(error => {
+        console.error('Failed to load project from URL:', error);
+        navigate('/'); // Redirect to home if project not found
+      });
+    }
+  }, []); // Run only on mount
+
+  // Keep URL in sync with current project
+  useEffect(() => {
+    if (currentProjectId && urlProjectId !== currentProjectId) {
+      const project = projects.find(p => p.id === currentProjectId);
+      if (project) {
+        navigate(getMapUrl(currentProjectId, project.name), { replace: true });
+      }
+    }
+  }, [currentProjectId, projects, navigate, urlProjectId]);
 
   // Update ready flag
   useEffect(() => {
@@ -683,6 +733,15 @@ const MapEditor: React.FC = () => {
       undoRedoInteractionRef.current?.un("redo", onRedo);
     };
   }, [interactionReady, currentProjectId, currentDb, currentMapView]);
+
+  // Auto-close Properties Panel when switching tools (except select tool)
+  useEffect(() => {
+    // Only keep selection when switching TO select tool
+    // Clear selection when switching to other tools to auto-close Properties Panel
+    if (activeTool !== "select") {
+      setSelectedFeature(null);
+    }
+  }, [activeTool, setSelectedFeature]);
 
   // Text tool event listener
   useEffect(() => {
@@ -761,31 +820,6 @@ const MapEditor: React.FC = () => {
     };
   }, []);
 
-  // Offset request event listener
-  useEffect(() => {
-    const handleOffsetRequest = (
-      event: CustomEvent<{
-        feature: Feature<Geometry>;
-        vectorSource: VectorSource<Feature<Geometry>>;
-      }>
-    ) => {
-      setOffsetFeature(event.detail.feature);
-      setOffsetDialogOpen(true);
-    };
-
-    window.addEventListener(
-      "offsetRequest",
-      handleOffsetRequest as EventListener
-    );
-
-    return () => {
-      window.removeEventListener(
-        "offsetRequest",
-        handleOffsetRequest as EventListener
-      );
-    };
-  }, []);
-
   // Handle text feature selection for editing
   useEffect(() => {
     // Only handle editing when select tool is active and a text feature is selected
@@ -824,13 +858,19 @@ const MapEditor: React.FC = () => {
   const handleTextSubmit = (
     textContent: string,
     scale?: number,
-    rotation?: number
+    rotation?: number,
+    opacity?: number,
+    fillColor?: string,
+    strokeColor?: string
   ) => {
     if (editingTextFeature) {
       // Update existing text feature with all properties
       editingTextFeature.set("text", textContent);
       editingTextFeature.set("textScale", scale || 1);
       editingTextFeature.set("textRotation", rotation || 0);
+      editingTextFeature.set("textOpacity", opacity ?? 1);
+      editingTextFeature.set("textFillColor", fillColor || "#000000");
+      editingTextFeature.set("textStrokeColor", strokeColor || "#ffffff");
 
       // Remove temporary flag if it was a new text feature
       if (editingTextFeature.get("_isTemporaryTextPreview")) {
@@ -845,13 +885,16 @@ const MapEditor: React.FC = () => {
       // Clear selection after editing
       setSelectedFeature(null);
     } else if (pendingCoordinate && vectorSourceRef.current) {
-      // Create new text feature with scale/rotation
+      // Create new text feature with scale/rotation/opacity/colors
       handleTextClick(
         vectorSourceRef.current,
         pendingCoordinate,
         textContent,
         scale,
-        rotation
+        rotation,
+        opacity,
+        fillColor,
+        strokeColor
       );
     }
   };
@@ -939,65 +982,47 @@ const MapEditor: React.FC = () => {
     setPendingMerge(null);
   };
 
-  // Offset dialog handlers
-  const handleOffsetConfirm = (
-    direction: OffsetDirection,
-    distance: number
-  ) => {
-    if (!offsetFeature) return;
-
-    const vectorSource = vectorSourceRef.current;
-
-    // Create offset(s) based on direction
-    if (direction === "left") {
-      const offsetLeft = createOffsetLineString(offsetFeature, distance);
-      if (offsetLeft) {
-        vectorSource.addFeature(offsetLeft);
-      }
-    } else if (direction === "right") {
-      const offsetRight = createOffsetLineString(offsetFeature, -distance);
-      if (offsetRight) {
-        vectorSource.addFeature(offsetRight);
-      }
-    } else if (direction === "both") {
-      const offsetLeft = createOffsetLineString(offsetFeature, distance);
-      const offsetRight = createOffsetLineString(offsetFeature, -distance);
-      if (offsetLeft) {
-        vectorSource.addFeature(offsetLeft);
-      }
-      if (offsetRight) {
-        // Update name to distinguish from left offset
-        const name = offsetRight.get("name");
-        if (name && name.includes("(offset)")) {
-          offsetRight.set("name", name.replace("(offset)", "(offset right)"));
-        }
-        vectorSource.addFeature(offsetRight);
-      }
-      // Update left offset name for clarity
-      if (offsetLeft) {
-        const name = offsetLeft.get("name");
-        if (name && name.includes("(offset)")) {
-          offsetLeft.set("name", name.replace("(offset)", "(offset left)"));
-        }
-      }
-    }
-
-    // Save state to database after creating offsets
-    if (isProjectReadyRef.current && currentDb) {
-      saveMapState();
-    }
-  };
-
-  const handleOffsetDialogClose = () => {
-    setOffsetDialogOpen(false);
-    setOffsetFeature(null);
-  };
-
   const handleRedoOperation = () => {
     if (undoRedoInteractionRef.current?.hasRedo()) {
       undoRedoInteractionRef.current.redo();
     }
   };
+
+  // Global Escape handler - closes all dialogs/panels, deselects features, activates select tool
+  const handleEscapePress = useCallback(() => {
+    // Close all dialogs
+    setTextDialogOpen(false);
+    setIconPickerOpen(false);
+    setMergeDialogOpen(false);
+    setPdfDialogOpen(false);
+
+    // Cancel DragBox selection if active
+    if (isDragBoxActive && dragBoxRef.current && mapRef.current) {
+      mapRef.current.removeInteraction(dragBoxRef.current);
+      dragBoxRef.current = null;
+      setIsDragBoxActive(false);
+      setSelectedExtent(null);
+    }
+
+    // Clear feature selection (closes PropertiesPanel)
+    setSelectedFeature(null);
+
+    // Clear select interaction selection
+    if (selectInteractionRef.current) {
+      selectInteractionRef.current.getFeatures().clear();
+    }
+
+    // Clear editing states
+    setEditingTextFeature(null);
+    setPendingMerge(null);
+    setPendingCoordinate(null);
+
+    // Activate select tool
+    setActiveTool('select');
+  }, [isDragBoxActive, setSelectedFeature, setActiveTool]);
+
+  // Subscribe to global escape events
+  useEscapeHandler(handleEscapePress);
 
   // Multi-select handler (memoized to prevent Select interaction recreation)
   const handleMultiSelectChange = useCallback(
@@ -1021,6 +1046,7 @@ const MapEditor: React.FC = () => {
     onRedoOperation: handleRedoOperation,
     onClearSelection: handleClearSelection,
     onDeleteOperation: handleDeleteFromKeyboard,
+    onOrthoToggle: toggleOrthoMode,
     disabled: false,
   });
 
@@ -1046,7 +1072,10 @@ const MapEditor: React.FC = () => {
       <PropertiesPanel
         map={mapRef.current}
         selectedFeature={selectedFeature}
-        onClose={() => setSelectedFeature(null)}
+        onClose={() => {
+          setSelectedFeature(null);
+          selectInteractionRef.current?.getFeatures().clear();
+        }}
         onSave={saveMapState}
         selectInteraction={selectInteractionRef.current}
       />
@@ -1059,6 +1088,9 @@ const MapEditor: React.FC = () => {
         initialText={editingTextFeature?.get("text") || ""}
         initialScale={editingTextScale}
         initialRotation={editingTextRotation}
+        initialOpacity={editingTextFeature?.get("textOpacity")}
+        initialFillColor={editingTextFeature?.get("textFillColor")}
+        initialStrokeColor={editingTextFeature?.get("textStrokeColor")}
         isEditing={!!editingTextFeature}
         selectInteraction={selectInteractionRef.current}
         editingTextFeature={editingTextFeature}
@@ -1076,13 +1108,6 @@ const MapEditor: React.FC = () => {
         onConfirm={handleMergeConfirm}
         feature1={pendingMerge?.feature1 || null}
         feature2={pendingMerge?.feature2 || null}
-      />
-
-      <OffsetDialog
-        isOpen={offsetDialogOpen}
-        onClose={handleOffsetDialogClose}
-        onConfirm={handleOffsetConfirm}
-        feature={offsetFeature}
       />
 
       <PdfExportDialog
@@ -1105,6 +1130,7 @@ const MapEditor: React.FC = () => {
         onSelectInteractionReady={handleSelectInteractionReady}
         onUndoInteractionReady={handleUndoInteractionReady}
         onMultiSelectChange={handleMultiSelectChange}
+        saveMapState={saveMapState}
       />
 
       <ToolManager
@@ -1157,6 +1183,7 @@ const MapEditor: React.FC = () => {
 
       {/* Shortcuts */}
       <HelpModal />
+      <ToolCommand onToolSelect={handleToolActivation} activeTool={activeTool} />
 
       <MapViewToggle
         currentView={currentMapView}
@@ -1164,6 +1191,10 @@ const MapEditor: React.FC = () => {
       />
 
       <TogglingObject />
+      <SeparateFeatures
+        vectorSource={vectorSourceRef.current}
+        onSaveMapState={saveMapState}
+      />
     </div>
   );
 };

@@ -9,14 +9,9 @@ let state: HiddenFeatureTypes = {
     freehand: false,
     polyline: false,
     point: false,
-    pit: false,
     measure: false,
     text: false,
     legends: false,
-    triangle: false,
-    gp: false,
-    junction: false,
-    tower: false,
     revcloud: false,
 };
 

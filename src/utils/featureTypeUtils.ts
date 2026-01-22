@@ -1,10 +1,4 @@
-import type Feature from "ol/Feature";
-import type Geometry from "ol/geom/Geometry";
 import type { FeatureLike } from "ol/Feature";
-import { isTriangleFeature } from "@/icons/Triangle";
-import { isPitFeature } from "@/icons/Pit";
-import { isGPFeature } from "@/icons/Gp";
-import { isJunctionFeature } from "@/icons/JunctionPoint";
 
 /**
  * Universal selector - ALL features with geometry are selectable
@@ -52,16 +46,6 @@ export const isEditableFeature = (feature: FeatureLike): boolean => {
     return true;
   }
 
-  // NOT editable: Special icon features (Triangle, Pit, GP, Junction)
-  if (
-    isTriangleFeature(feature as Feature<Geometry>) ||
-    isPitFeature(feature as Feature<Geometry>) ||
-    isGPFeature(feature as Feature<Geometry>) ||
-    isJunctionFeature(feature as Feature<Geometry>)
-  ) {
-    return false;
-  }
-
   // NOT editable: Box, Circle, and Revision Cloud shapes (no vertex editing)
   if (feature.get("isBox") || feature.get("isCircle") || feature.get("isRevisionCloud")) {
     return false;
@@ -91,25 +75,9 @@ export const isLegacySelectableFeature = (feature: FeatureLike): boolean => {
   // Get feature properties
   const isArrow = feature.get("isArrow");
   const isLegends = feature.get("islegends");
-  const isTower = feature.get("isTower");
 
   // Cannot select point features
   if (geometryType === "Point" || geometryType === "MultiPoint") {
-    return false;
-  }
-
-  // Cannot select special icon features (Triangle, Pit, GP, Junction)
-  if (
-    isTriangleFeature(feature as Feature<Geometry>) ||
-    isPitFeature(feature as Feature<Geometry>) ||
-    isGPFeature(feature as Feature<Geometry>) ||
-    isJunctionFeature(feature as Feature<Geometry>)
-  ) {
-    return false;
-  }
-
-  // Cannot select tower features
-  if (isTower) {
     return false;
   }
 
@@ -161,3 +129,19 @@ export const DEFAULT_LINE_STYLE = {
   color: "#00ff00",
   width: 4,
 } as const;
+
+/**
+ * Default text style configuration
+ */
+export const DEFAULT_TEXT_STYLE = {
+  fillColor: "#000000",
+  strokeColor: "#ffffff",
+} as const;
+
+/**
+ * Determines if a feature supports custom text styling (fill and stroke colors)
+ * Only text features support custom text styling
+ */
+export const supportsTextStyle = (feature: FeatureLike): boolean => {
+  return feature.get("isText") === true;
+};
