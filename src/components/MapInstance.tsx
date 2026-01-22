@@ -166,6 +166,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
                     offsetX: scaledOffsetX,
                     offsetY: scaledOffsetY,
                     scale: finalLabelScale,
+                    rotation: (iconRotation * Math.PI) / 180, // Rotate label with icon
                   }),
                   zIndex: 100,
                 }),
