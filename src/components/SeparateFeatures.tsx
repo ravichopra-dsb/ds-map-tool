@@ -366,7 +366,7 @@ export function SeparateFeatures({
 
   return (
     <Sheet>
-      <SheetTrigger asChild className="absolute left-32 bottom-2">
+      <SheetTrigger asChild className="absolute left-20 bottom-2">
         <Button variant="outline" className="gap-2">
           Features
         </Button>

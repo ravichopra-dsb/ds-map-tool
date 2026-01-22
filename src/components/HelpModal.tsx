@@ -41,7 +41,7 @@ export function HelpModal() {
   console.log(getToolsByCategory(activeTab));
 
   return (
-    <div className="absolute left-20 bottom-2">
+    <div className="absolute left-43 bottom-2">
       <Dialog>
         <form>
           <DialogTrigger asChild>
