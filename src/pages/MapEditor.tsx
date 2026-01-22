@@ -343,7 +343,7 @@ const MapEditor: React.FC = () => {
     setCopiedFeatures(features, isCut);
   };
 
-  const handlePasteOperation = (
+    const handlePasteOperation = (
     _features: Feature<Geometry>[],
     coordinates: number[] // target center coordinate for paste
   ) => {
@@ -353,7 +353,7 @@ const MapEditor: React.FC = () => {
     if (originals.length === 0) return;
 
     // 1. Determine a reference point for the group —
-    //    here: center of bounding box of first (or you can also compute bounding box of all)
+    //    here: center of bounding box of first
     const refGeom = originals[0].getGeometry();
     if (!refGeom) return;
     const refExtent = refGeom.getExtent();
@@ -362,7 +362,7 @@ const MapEditor: React.FC = () => {
       (refExtent[1] + refExtent[3]) / 2,
     ];
 
-    // 2. Compute how much to shift the *group* so refCenter goes to the user-specified coordinates
+    // 2. Compute how much to shift the *group*
     const offsetX = coordinates[0] - refCenter[0];
     const offsetY = coordinates[1] - refCenter[1];
 
@@ -374,11 +374,17 @@ const MapEditor: React.FC = () => {
         geom.translate(offsetX, offsetY);
         clone.setGeometry(geom);
       }
+
+      // FIX: Reset style to prevent inheriting the "selected" style 
+      // from the original feature (if it was selected).
+      // This ensures the clone starts with the layer's default style.
+      clone.setStyle(undefined);
+
       vectorSourceRef.current.addFeature(clone);
       pastedFeatures.push(clone);
     });
 
-    // Sync with Select interaction to ensure pasted features are selected, not originals
+    // Sync with Select interaction to ensure pasted features are selected
     if (selectInteractionRef.current && pastedFeatures.length > 0) {
       // Ensure Select interaction is active before modifying selection
       const wasActive = selectInteractionRef.current.getActive();
