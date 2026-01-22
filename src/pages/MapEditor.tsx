@@ -49,8 +49,10 @@ import {
 } from "@/utils/mapImageExport";
 import { IconPickerDialog } from "../components/IconPickerDialog";
 import { MergePropertiesDialog } from "@/components/MergePropertiesDialog";
+import { OffsetDialog } from "@/components/OffsetDialog";
 import { type MergeRequestDetail } from "@/components/MapInteractions";
 import { performMerge } from "@/utils/splitUtils";
+import { createOffsetFeature, type OffsetSide } from "@/utils/offsetUtils";
 import type { PdfExportConfig } from "@/types/pdf";
 import { HelpModal } from "@/components/HelpModal";
 import { useToolStore } from "@/stores/useToolStore";
@@ -151,6 +153,12 @@ const MapEditor: React.FC = () => {
   // Merge properties dialog state
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   const [pendingMerge, setPendingMerge] = useState<MergeRequestDetail | null>(
+    null
+  );
+
+  // Offset dialog state
+  const [offsetDialogOpen, setOffsetDialogOpen] = useState(false);
+  const [pendingOffsetFeature, setPendingOffsetFeature] = useState<Feature<Geometry> | null>(
     null
   );
 
@@ -820,6 +828,26 @@ const MapEditor: React.FC = () => {
     };
   }, []);
 
+  // Offset request event listener
+  useEffect(() => {
+    const handleOffsetRequest = (event: CustomEvent<{ feature: Feature<Geometry>; vectorSource: any }>) => {
+      setPendingOffsetFeature(event.detail.feature);
+      setOffsetDialogOpen(true);
+    };
+
+    window.addEventListener(
+      "offsetRequest",
+      handleOffsetRequest as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "offsetRequest",
+        handleOffsetRequest as EventListener
+      );
+    };
+  }, []);
+
   // Handle text feature selection for editing
   useEffect(() => {
     // Only handle editing when select tool is active and a text feature is selected
@@ -982,6 +1010,26 @@ const MapEditor: React.FC = () => {
     setPendingMerge(null);
   };
 
+  // Offset dialog handlers
+  const handleOffsetApply = (distance: number, side: OffsetSide) => {
+    if (!pendingOffsetFeature) return;
+
+    const newFeature = createOffsetFeature(pendingOffsetFeature, distance, side);
+    if (newFeature) {
+      vectorSourceRef.current.addFeature(newFeature);
+      setSelectedFeature(newFeature);
+      saveMapState();
+    }
+
+    setOffsetDialogOpen(false);
+    setPendingOffsetFeature(null);
+  };
+
+  const handleOffsetDialogClose = () => {
+    setOffsetDialogOpen(false);
+    setPendingOffsetFeature(null);
+  };
+
   const handleRedoOperation = () => {
     if (undoRedoInteractionRef.current?.hasRedo()) {
       undoRedoInteractionRef.current.redo();
@@ -1110,6 +1158,13 @@ const MapEditor: React.FC = () => {
         feature2={pendingMerge?.feature2 || null}
       />
 
+      <OffsetDialog
+        isOpen={offsetDialogOpen}
+        onClose={handleOffsetDialogClose}
+        onApply={handleOffsetApply}
+        feature={pendingOffsetFeature}
+      />
+
       <PdfExportDialog
         isOpen={pdfDialogOpen}
         onClose={() => setPdfDialogOpen(false)}
@@ -1130,7 +1185,6 @@ const MapEditor: React.FC = () => {
         onSelectInteractionReady={handleSelectInteractionReady}
         onUndoInteractionReady={handleUndoInteractionReady}
         onMultiSelectChange={handleMultiSelectChange}
-        saveMapState={saveMapState}
       />
 
       <ToolManager

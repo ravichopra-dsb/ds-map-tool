@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { useMatchProperties } from "@/hooks/useMatchProperties";
+import { useOffsetTool } from "@/hooks/interactions/useOffsetTool";
 import { DragPan, Select } from "ol/interaction";
 import type { Draw } from "ol/interaction";
 import type Map from "ol/Map";
@@ -45,7 +46,6 @@ export interface MapInteractionsProps {
   onUndoInteractionReady?: (undoInteraction: UndoRedo | null) => void;
   onMultiSelectChange?: (features: Feature<Geometry>[]) => void;
   multiSelectMode?: MultiSelectMode;
-  saveMapState?: () => void;
 }
 
 export const MapInteractions: React.FC<MapInteractionsProps> = ({
@@ -57,7 +57,6 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
   onUndoInteractionReady,
   onMultiSelectChange,
   multiSelectMode = "shift-click",
-  saveMapState,
 }) => {
   const continuationDrawRef = useRef<Draw | null>(null);
   const isContinuingRef = useRef<boolean>(false);
@@ -136,7 +135,16 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     activeTool,
   });
 
-  // Handle offset tool activation/deactivation
+  // Handle offset tool - click to select feature and emit event for dialog
+  useOffsetTool({
+    map,
+    vectorLayer,
+    isActive: activeTool === "offset",
+    selectInteraction,
+    modifyInteraction,
+  });
+
+  // Handle offset tool - drag-based offset with Ctrl key for quick interactive offset
   useEffect(() => {
     if (!map || !vectorLayer) return;
 
@@ -183,7 +191,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
       map.addOverlay(tooltip);
       offsetTooltipRef.current = tooltip;
 
-      // Create offset interaction
+      // Create offset interaction for drag-based offset
       const offsetInteraction = new Offset({
         source: vectorSource,
         filter: isOffsettableFeature,
@@ -265,7 +273,6 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
             }
           }
         }
-        saveMapState?.();
       });
 
       map.addInteraction(offsetInteraction as any);
