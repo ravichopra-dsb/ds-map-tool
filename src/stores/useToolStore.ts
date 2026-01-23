@@ -34,7 +34,7 @@ interface ToolState {
 }
 
 export const useToolStore = create<ToolState>((set, get) => ({
-  activeTool: '',
+  activeTool: 'select',
   previousTool: null,
   selectedLegend: undefined,
   selectedIconPath: undefined,
