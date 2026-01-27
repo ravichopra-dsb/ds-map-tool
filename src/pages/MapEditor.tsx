@@ -53,6 +53,12 @@ import { OffsetDialog } from "@/components/OffsetDialog";
 import { type MergeRequestDetail } from "@/components/MapInteractions";
 import { performMerge } from "@/utils/splitUtils";
 import { createOffsetFeature, type OffsetSide } from "@/utils/offsetUtils";
+import {
+  injectKmlStyles,
+  parseKmlStyles,
+  parsePlacemarkStyles,
+  applyKmlStylesToFeatures,
+} from "@/utils/kmlStyleUtils";
 import type { PdfExportConfig } from "@/types/pdf";
 import { HelpModal } from "@/components/HelpModal";
 import { useToolStore } from "@/stores/useToolStore";
@@ -195,6 +201,11 @@ const MapEditor: React.FC = () => {
           try {
             console.log("kml : ", data);
 
+            // Step 0: Parse standard KML styles (for Google Earth compatibility)
+            const kmlStyleMap = parseKmlStyles(data as string);
+            const placemarkStyles = parsePlacemarkStyles(data as string);
+            console.log("Parsed KML styles:", kmlStyleMap.size, "styles found");
+
             // Step 1: Parse KML to OpenLayers Features with correct projections
             const kmlFeatures = new KML({ extractStyles: false }).readFeatures(
               data,
@@ -203,6 +214,9 @@ const MapEditor: React.FC = () => {
                 dataProjection: "EPSG:4326", // CRITICAL: KML is always in WGS84
               }
             );
+
+            // Step 1.5: Apply parsed KML styles to features (if no ExtendedData styles)
+            applyKmlStylesToFeatures(kmlFeatures, kmlStyleMap, placemarkStyles);
 
             // Step 2: Convert Features to GeoJSON with proper property preservation
             const tempSource = new VectorSource();
@@ -241,6 +255,11 @@ const MapEditor: React.FC = () => {
               return;
             }
 
+            // Step 0: Parse standard KML styles (for Google Earth compatibility)
+            const kmlStyleMap = parseKmlStyles(kmlText);
+            const placemarkStyles = parsePlacemarkStyles(kmlText);
+            console.log("Parsed KMZ styles:", kmlStyleMap.size, "styles found");
+
             // Step 1: Parse KML to OpenLayers Features with correct projections
             const kmlFeatures = new KML({ extractStyles: false }).readFeatures(
               kmlText,
@@ -249,6 +268,9 @@ const MapEditor: React.FC = () => {
                 dataProjection: "EPSG:4326", // CRITICAL: KML is always in WGS84
               }
             );
+
+            // Step 1.5: Apply parsed KML styles to features (if no ExtendedData styles)
+            applyKmlStylesToFeatures(kmlFeatures, kmlStyleMap, placemarkStyles);
 
             // Step 2: Convert Features to GeoJSON with proper property preservation
             const tempSource = new VectorSource();
@@ -488,10 +510,13 @@ const MapEditor: React.FC = () => {
       // KML DOWNLOAD
       // -------------------------------
       const kmlFormat = new KML();
-      const kmlString = kmlFormat.writeFeatures(olFeatures, {
+      let kmlString = kmlFormat.writeFeatures(olFeatures, {
         featureProjection: "EPSG:3857", // Current display projection
         dataProjection: "EPSG:4326", // Export coordinates in WGS84
       });
+
+      // Inject standard KML styles for Google Earth compatibility
+      kmlString = injectKmlStyles(kmlString, olFeatures);
 
       if (format === "kml") {
         const blob = new Blob([kmlString], {
