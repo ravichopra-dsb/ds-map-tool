@@ -381,12 +381,10 @@ export const applyKmlStylesToFeatures = (
     // Apply icon styles for points
     if (geomType === "Point") {
       if (style.iconHref) {
-        // Convert Google Earth icon to app icon if possible
-        const appIconPath = convertGoogleEarthToAppIcon(style.iconHref);
-        if (appIconPath) {
-          feature.set("iconPath", appIconPath);
-          feature.set("isIcon", true);
-        }
+        // Use the Google Earth icon URL directly for display in the app
+        const iconPath = convertGoogleEarthToAppIcon(style.iconHref);
+        feature.set("iconPath", iconPath);
+        feature.set("isIcon", true);
       }
       if (style.iconScale !== undefined) {
         feature.set("iconScale", style.iconScale);
@@ -410,25 +408,9 @@ export const applyKmlStylesToFeatures = (
 
 /**
  * Convert Google Earth icon URL to app icon path
+ * Returns the original URL if no local mapping exists, allowing external icons to be used
  */
-const convertGoogleEarthToAppIcon = (googleIconUrl: string): string | null => {
-  // Map Google Earth icons to app icons
-  const reverseIconMap: Record<string, string> = {
-    "http://maps.google.com/mapfiles/kml/shapes/square.png": "/google_earth_icons/landmark-symbols/GP.png",
-    "http://maps.google.com/mapfiles/kml/shapes/dollar.png": "/google_earth_icons/landmark-symbols/Bank.png",
-    "http://maps.google.com/mapfiles/kml/shapes/firedept.png": "/google_earth_icons/landmark-symbols/FIRE STATION.png",
-  };
-
-  // Check for direct mapping
-  if (reverseIconMap[googleIconUrl]) {
-    return reverseIconMap[googleIconUrl];
-  }
-
-  // For pushpins and other standard Google icons, return null (use default point style)
-  if (googleIconUrl.includes("maps.google.com/mapfiles/kml/pushpin") ||
-      googleIconUrl.includes("maps.google.com/mapfiles/kml/paddle")) {
-    return null; // Will render as default point
-  }
-
-  return null;
+const convertGoogleEarthToAppIcon = (googleIconUrl: string): string => {
+  // Return the original Google Earth icon URL for use in the app
+  return googleIconUrl;
 };
