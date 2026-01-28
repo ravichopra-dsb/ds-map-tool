@@ -251,9 +251,10 @@ const createVertexStylesForGeometry = (
  * Creates a hover/highlight style for a feature
  * Applies a bright outline to indicate hover state
  * @param feature - The feature to create hover style for
+ * @param resolution - Optional map resolution for resolution-based scaling
  * @returns OpenLayers Style object or array of styles
  */
-export const createHoverStyle = (feature: Feature<Geometry>): Style | Style[] => {
+export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number): Style | Style[] => {
   const geometry = feature.getGeometry();
   if (!geometry) return new Style();
 
@@ -291,17 +292,27 @@ export const createHoverStyle = (feature: Feature<Geometry>): Style | Style[] =>
       ];
     }
 
-    // Text feature
+    // Text feature with resolution-based scaling (same as MapInstance.tsx)
     if (feature.get("isText")) {
       const textContent = feature.get("text") || "Text";
       const textScale = feature.get("textScale") || 1;
       const textRotation = feature.get("textRotation") || 0;
 
+      // Apply resolution-based scaling when resolution is available
+      let finalTextScale = textScale;
+      if (resolution) {
+        const desiredPxSize = 16;
+        const referenceResolution = 1.0;
+        const TEXT_FONT_SIZE = 14;
+        const baseScaleFactor = (desiredPxSize / TEXT_FONT_SIZE) * (referenceResolution / resolution);
+        finalTextScale = baseScaleFactor * textScale;
+      }
+
       return new Style({
         text: new Text({
           text: textContent,
-          font: `${14 * textScale}px Arial, sans-serif`,
-          scale: textScale,
+          font: `14px Arial, sans-serif`,
+          scale: finalTextScale,
           rotation: (textRotation * Math.PI) / 180,
           fill: new Fill({ color: HOVER_HIGHLIGHT_COLOR }),
           stroke: new Stroke({
