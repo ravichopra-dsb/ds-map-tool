@@ -103,6 +103,8 @@ export function SeparateFeatures({
     getRootFolders,
     getChildFolders,
     isDescendantOf,
+    activeFolderId,
+    setActiveFolder,
   } = useFolderStore();
 
   // Sensors for drag and drop
@@ -318,8 +320,10 @@ export function SeparateFeatures({
             allFeatures={features}
             depth={depth}
             isOverTarget={overFolderId === folder.id}
+            isActive={activeFolderId === folder.id}
             onDeleteFolder={handleDeleteFolder}
             onSaveMapState={onSaveMapState}
+            onSelect={setActiveFolder}
           >
             {renderFolderTree(folder.id, depth + 1)}
           </FolderItem>
@@ -432,7 +436,15 @@ export function SeparateFeatures({
             items={getAllSortableIds()}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-1 max-h-[calc(100vh-120px)] overflow-y-auto p-2 pt-0">
+            <div
+              className="space-y-1 h-screen overflow-y-auto p-2 pt-0 pb-10"
+              onClick={(e) => {
+                // Clear active folder when clicking empty space
+                if (e.target === e.currentTarget) {
+                  setActiveFolder(null);
+                }
+              }}
+            >
               {features.length === 0 && Object.keys(folders).length === 0 ? (
                 <div className="text-sm text-muted-foreground text-center py-8">
                   No features yet. Draw or import features to see them here.
@@ -451,8 +463,10 @@ export function SeparateFeatures({
                       allFeatures={features}
                       depth={0}
                       isOverTarget={overFolderId === folder.id}
+                      isActive={activeFolderId === folder.id}
                       onDeleteFolder={handleDeleteFolder}
                       onSaveMapState={onSaveMapState}
+                      onSelect={setActiveFolder}
                     >
                       {renderFolderTree(folder.id, 1)}
                     </FolderItem>

@@ -34,8 +34,10 @@ interface FolderItemProps {
   allFeatures: Feature<Geometry>[];
   depth: number;
   isOverTarget?: boolean;
+  isActive?: boolean;
   onDeleteFolder: (folderId: string, featureIds: string[]) => void;
   onSaveMapState?: () => void;
+  onSelect?: (folderId: string | null) => void;
   children?: React.ReactNode;
 }
 
@@ -50,8 +52,10 @@ export function FolderItem({
   allFeatures,
   depth,
   isOverTarget,
+  isActive,
   onDeleteFolder,
   onSaveMapState,
+  onSelect,
   children,
 }: FolderItemProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -172,14 +176,33 @@ export function FolderItem({
   // Count total features including nested folders
   const totalFeatureCount = allFeatureIds.length;
 
+  // Handle folder selection (click on row, not chevron)
+  const handleSelectFolder = (e: React.MouseEvent) => {
+    if (isEditing) return;
+    e.stopPropagation();
+    // Read fresh state from store to avoid stale prop issues during rapid clicks
+    const currentActiveFolderId = useFolderStore.getState().activeFolderId;
+    const isFolderActive = currentActiveFolderId === folder.id;
+    // Toggle selection - if already active, deselect
+    onSelect?.(isFolderActive ? null : folder.id);
+  };
+
+  // Handle chevron click for expand/collapse
+  const handleChevronClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleFolderExpanded(folder.id);
+  };
+
   return (
     <div ref={setNodeRef} style={style}>
       <div
         className={`flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-accent group cursor-pointer transition-all duration-200 ${
           someHidden && !allHidden ? "opacity-75" : allHidden ? "opacity-50" : ""
-        } ${isOverTarget ? "bg-primary/20 ring-2 ring-primary ring-inset" : ""}`}
+        } ${isOverTarget ? "bg-primary/20 ring-2 ring-primary ring-inset" : ""} ${
+          isActive ? "bg-primary/10 border-l-3 border-l-primary" : ""
+        }`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
-        onClick={() => !isEditing && toggleFolderExpanded(folder.id)}
+        onClick={handleSelectFolder}
       >
         {/* Drag handle */}
         <div
@@ -192,7 +215,10 @@ export function FolderItem({
         </div>
 
         {/* Expand/collapse chevron */}
-        <div className="shrink-0">
+        <div
+          className="shrink-0 hover:bg-accent rounded p-0.5 -m-0.5"
+          onClick={handleChevronClick}
+        >
           {folder.isExpanded ? (
             <ChevronDown className="size-4 text-muted-foreground" />
           ) : (

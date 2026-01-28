@@ -16,6 +16,7 @@ import {
 } from "./revisionCloudUtils";
 import { applyOrthoToMarkedCoordinates, constrainToOrtho } from "./orthoUtils";
 import { useToolStore } from "@/stores/useToolStore";
+import { useFolderStore } from "@/stores/useFolderStore";
 
 /**
  * Draw interaction configuration interface
@@ -164,12 +165,19 @@ export const createDrawInteraction = (config: DrawInteractionConfig): Draw => {
   drawInteraction.on("drawend", (event) => {
     removeDrawKeyboardHandlers(drawInteraction);
 
+    const feature = event.feature;
+
     // Set feature properties if specified
     if (config.featureProperties) {
-      const feature = event.feature;
       Object.entries(config.featureProperties!).forEach(([key, value]) => {
         feature.set(key, value);
       });
+    }
+
+    // Set active folder ID if one is selected
+    const activeFolderId = useFolderStore.getState().activeFolderId;
+    if (activeFolderId) {
+      feature.set("folderId", activeFolderId);
     }
 
     // Call custom onDrawEnd handler if provided

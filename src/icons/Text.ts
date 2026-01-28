@@ -2,6 +2,7 @@ import { Style, Fill, Stroke, Text } from "ol/style";
 import { Feature } from "ol";
 import { Point } from "ol/geom";
 import { Vector as VectorSource } from "ol/source";
+import { useFolderStore } from "@/stores/useFolderStore";
 
 /**
  * Convert hex color to rgba with opacity
@@ -98,6 +99,12 @@ export const handleTextClick = (
     textFeature.set("textOpacity", opacity ?? 1);
     textFeature.set("textFillColor", fillColor || "#000000");
     textFeature.set("textStrokeColor", strokeColor || "#ffffff");
+
+    // Set active folder ID if one is selected
+    const activeFolderId = useFolderStore.getState().activeFolderId;
+    if (activeFolderId) {
+      textFeature.set("folderId", activeFolderId);
+    }
 
     // Style handled by layer style function to prevent double styling conflicts
     // Note: Removed direct setStyle() call - layer style function will handle text visibility

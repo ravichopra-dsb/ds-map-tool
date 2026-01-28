@@ -3,6 +3,7 @@ import { Point } from "ol/geom";
 import { Vector as VectorSource } from "ol/source";
 import type { Geometry } from "ol/geom";
 import { getIconNameFromPath } from "@/utils/iconUtils";
+import { useFolderStore } from "@/stores/useFolderStore";
 
 /**
  * Create and add a custom icon feature to the map
@@ -24,6 +25,12 @@ export function handleIconClick(
   iconFeature.set("isIcon", true);
   iconFeature.set("iconPath", iconPath);
   iconFeature.set("name", getIconNameFromPath(iconPath));
+
+  // Set active folder ID if one is selected
+  const activeFolderId = useFolderStore.getState().activeFolderId;
+  if (activeFolderId) {
+    iconFeature.set("folderId", activeFolderId);
+  }
 
   // Add the feature to the vector source
   // Note: Style is handled by layer's style function (getFeatureStyle) which
