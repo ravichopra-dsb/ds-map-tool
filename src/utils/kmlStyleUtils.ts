@@ -1,5 +1,7 @@
 import { Feature } from "ol";
 import type { Geometry } from "ol/geom";
+import type { Folder } from "@/types/folders";
+import { restructureKmlWithFolders } from "./kmlFolderUtils";
 
 // ============================================================================
 // COLOR CONVERSION UTILITIES
@@ -143,8 +145,13 @@ const convertIconPathToGoogleEarth = (iconPath: string): string => {
 
 /**
  * Inject KML <Style> elements into KML string for Google Earth compatibility
+ * Optionally restructures KML with folder hierarchy if folders are provided
  */
-export const injectKmlStyles = (kmlString: string, features: Feature<Geometry>[]): string => {
+export const injectKmlStyles = (
+  kmlString: string,
+  features: Feature<Geometry>[],
+  folders?: Record<string, Folder>
+): string => {
   // Generate styles for each feature
   const styles: KmlStyleInfo[] = [];
   const styleUrls: Map<Feature<Geometry>, string> = new Map();
@@ -185,6 +192,11 @@ export const injectKmlStyles = (kmlString: string, features: Feature<Geometry>[]
     }
     return "<Placemark>";
   });
+
+  // If folders provided, restructure KML with folder hierarchy
+  if (folders && Object.keys(folders).length > 0) {
+    return restructureKmlWithFolders(result, folders, features);
+  }
 
   return result;
 };

@@ -59,6 +59,11 @@ import {
   parsePlacemarkStyles,
   applyKmlStylesToFeatures,
 } from "@/utils/kmlStyleUtils";
+import {
+  createExportedGeoJSON,
+  extractFolderStructureFromGeoJSON,
+  parseKmlFolders,
+} from "@/utils/kmlFolderUtils";
 import type { PdfExportConfig } from "@/types/pdf";
 import { HelpModal } from "@/components/HelpModal";
 import { useToolStore } from "@/stores/useToolStore";
@@ -194,6 +199,18 @@ const MapEditor: React.FC = () => {
       try {
         if (name.endsWith(".geojson") || name.endsWith(".json")) {
           const json = JSON.parse(data as string);
+
+          // Check for folder structure from dsMapTool export
+          const importedFolderStructure = extractFolderStructureFromGeoJSON(json);
+          if (importedFolderStructure) {
+            // Merge imported folders with existing folders
+            const currentFolders = useFolderStore.getState().folders;
+            useFolderStore.getState().loadFromStorage({
+              folders: { ...currentFolders, ...importedFolderStructure.folders },
+            });
+            console.log("Imported folder structure:", Object.keys(importedFolderStructure.folders).length, "folders");
+          }
+
           features = new GeoJSON().readFeatures(json, {
             featureProjection: "EPSG:3857",
           });
@@ -201,7 +218,11 @@ const MapEditor: React.FC = () => {
           try {
             console.log("kml : ", data);
 
-            // Step 0: Parse standard KML styles (for Google Earth compatibility)
+            // Step 0: Parse folder structure from KML
+            const { folders: importedFolders, featureFolderMap } = parseKmlFolders(data as string);
+            console.log("Parsed KML folders:", Object.keys(importedFolders).length, "folders found");
+
+            // Step 0.5: Parse standard KML styles (for Google Earth compatibility)
             const kmlStyleMap = parseKmlStyles(data as string);
             const placemarkStyles = parsePlacemarkStyles(data as string);
             console.log("Parsed KML styles:", kmlStyleMap.size, "styles found");
@@ -217,6 +238,21 @@ const MapEditor: React.FC = () => {
 
             // Step 1.5: Apply parsed KML styles to features (if no ExtendedData styles)
             applyKmlStylesToFeatures(kmlFeatures, kmlStyleMap, placemarkStyles);
+
+            // Step 1.6: Apply folder assignments from KML structure
+            if (Object.keys(importedFolders).length > 0) {
+              kmlFeatures.forEach((feature, index) => {
+                const folderId = featureFolderMap.get(index);
+                if (folderId) {
+                  feature.set("folderId", folderId);
+                }
+              });
+              // Merge imported folders into store
+              const currentFolders = useFolderStore.getState().folders;
+              useFolderStore.getState().loadFromStorage({
+                folders: { ...currentFolders, ...importedFolders },
+              });
+            }
 
             // Step 2: Convert Features to GeoJSON with proper property preservation
             const tempSource = new VectorSource();
@@ -255,7 +291,11 @@ const MapEditor: React.FC = () => {
               return;
             }
 
-            // Step 0: Parse standard KML styles (for Google Earth compatibility)
+            // Step 0: Parse folder structure from KML
+            const { folders: importedFolders, featureFolderMap } = parseKmlFolders(kmlText);
+            console.log("Parsed KMZ folders:", Object.keys(importedFolders).length, "folders found");
+
+            // Step 0.5: Parse standard KML styles (for Google Earth compatibility)
             const kmlStyleMap = parseKmlStyles(kmlText);
             const placemarkStyles = parsePlacemarkStyles(kmlText);
             console.log("Parsed KMZ styles:", kmlStyleMap.size, "styles found");
@@ -271,6 +311,21 @@ const MapEditor: React.FC = () => {
 
             // Step 1.5: Apply parsed KML styles to features (if no ExtendedData styles)
             applyKmlStylesToFeatures(kmlFeatures, kmlStyleMap, placemarkStyles);
+
+            // Step 1.6: Apply folder assignments from KML structure
+            if (Object.keys(importedFolders).length > 0) {
+              kmlFeatures.forEach((feature, index) => {
+                const folderId = featureFolderMap.get(index);
+                if (folderId) {
+                  feature.set("folderId", folderId);
+                }
+              });
+              // Merge imported folders into store
+              const currentFolders = useFolderStore.getState().folders;
+              useFolderStore.getState().loadFromStorage({
+                folders: { ...currentFolders, ...importedFolders },
+              });
+            }
 
             // Step 2: Convert Features to GeoJSON with proper property preservation
             const tempSource = new VectorSource();
@@ -297,14 +352,19 @@ const MapEditor: React.FC = () => {
           return;
         }
 
-        // Create folder for imported features (extract filename without extension)
-        const filename = file.name.replace(/\.[^/.]+$/, "");
-        const folderId = useFolderStore.getState().createFolder(filename);
+        // Check if features already have folder assignments (from imported structure)
+        const hasExistingFolders = features.some((f) => f.get("folderId"));
 
-        // Set folderId on all imported features
-        features.forEach((feature) => {
-          feature.set("folderId", folderId);
-        });
+        // Only create wrapper folder if features don't already have folder assignments
+        if (!hasExistingFolders) {
+          const filename = file.name.replace(/\.[^/.]+$/, "");
+          const folderId = useFolderStore.getState().createFolder(filename);
+
+          // Set folderId on all imported features
+          features.forEach((feature) => {
+            feature.set("folderId", folderId);
+          });
+        }
 
         // Add features without clearing existing ones
         vectorSourceRef.current.addFeatures(features);
@@ -489,10 +549,14 @@ const MapEditor: React.FC = () => {
       const fileName = currentProject?.name || "map-export";
 
       // -------------------------------
-      // GEOJSON DOWNLOAD
+      // GEOJSON DOWNLOAD (with folder structure)
       // -------------------------------
       if (format === "geojson") {
-        const jsonString = JSON.stringify(mapData.features, null, 2);
+        const exportData = createExportedGeoJSON(
+          mapData.features,
+          mapData.folderStructure
+        );
+        const jsonString = JSON.stringify(exportData, null, 2);
         const blob = new Blob([jsonString], { type: "application/json" });
 
         downloadBlob(blob, `${fileName}.json`);
@@ -515,8 +579,12 @@ const MapEditor: React.FC = () => {
         dataProjection: "EPSG:4326", // Export coordinates in WGS84
       });
 
-      // Inject standard KML styles for Google Earth compatibility
-      kmlString = injectKmlStyles(kmlString, olFeatures);
+      // Inject standard KML styles and folder structure for Google Earth compatibility
+      kmlString = injectKmlStyles(
+        kmlString,
+        olFeatures,
+        mapData.folderStructure?.folders
+      );
 
       if (format === "kml") {
         const blob = new Blob([kmlString], {
