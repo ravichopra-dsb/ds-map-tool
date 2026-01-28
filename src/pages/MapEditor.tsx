@@ -39,7 +39,6 @@ import SearchWrapper, {
   type SearchWrapperRef,
 } from "../components/SearchWrapper";
 import type { SearchResult } from "../components/SearchPanel";
-import { TogglingObject } from "../components/TogglingObject";
 import { PdfExportDialog } from "../components/PdfExportDialog";
 import { DragBoxInstruction } from "../components/DragBoxInstruction";
 import {
@@ -1391,7 +1390,6 @@ const MapEditor: React.FC = () => {
         onViewChange={handleMapViewChange}
       />
 
-      <TogglingObject />
       <SeparateFeatures
         vectorSource={vectorSourceRef.current}
         onSaveMapState={saveMapState}

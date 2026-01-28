@@ -26,10 +26,11 @@ import {
 } from "@/components/ui/sheet";
 import { useHiddenFeaturesStore } from "@/stores/useHiddenFeaturesStore";
 import { useFolderStore } from "@/stores/useFolderStore";
+import { usePanelStore } from "@/stores/usePanelStore";
 import { Vector as VectorSource } from "ol/source";
 import type { Feature } from "ol";
 import type { Geometry } from "ol/geom";
-import { Plus, Folder, Home } from "lucide-react";
+import { Plus, Folder, Home, Settings2 } from "lucide-react";
 import { FolderItem } from "./FolderItem";
 import { DraggableFeatureItem } from "./DraggableFeatureItem";
 import { Input } from "./ui/input";
@@ -106,6 +107,9 @@ export function SeparateFeatures({
     activeFolderId,
     setActiveFolder,
   } = useFolderStore();
+
+  const { activePanel, openFeatures, closePanel, toggleToLayers } =
+    usePanelStore();
 
   // Sensors for drag and drop
   const sensors = useSensors(
@@ -369,8 +373,11 @@ export function SeparateFeatures({
   const activeItem = getActiveItem();
 
   return (
-    <Sheet>
-      <SheetTrigger asChild className="absolute left-20 bottom-2">
+    <Sheet
+      open={activePanel === "features"}
+      onOpenChange={(open) => (open ? openFeatures() : closePanel())}
+    >
+      <SheetTrigger asChild className="absolute left-2 bottom-2">
         <Button variant="outline" className="gap-2">
           Features
         </Button>
@@ -381,15 +388,25 @@ export function SeparateFeatures({
             <SheetTitle className="flex items-center gap-2">
               Features ({features.length})
             </SheetTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleCreateFolder}
-              title="Create new folder"
-              className="mr-5"
-            >
-              <Plus className="size-4" />
-            </Button>
+            <div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCreateFolder}
+                title="Create new folder"
+              >
+                <Plus className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Switch to Layers"
+                className="mr-5"
+                onClick={toggleToLayers}
+              >
+                <Settings2 className="size-4" />
+              </Button>
+            </div>
           </div>
         </SheetHeader>
 
