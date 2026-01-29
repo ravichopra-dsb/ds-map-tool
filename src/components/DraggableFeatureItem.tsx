@@ -25,6 +25,7 @@ interface DraggableFeatureItemProps {
   depth: number;
   onToggleVisibility: (feature: Feature<Geometry>) => void;
   onDelete: (feature: Feature<Geometry>) => void;
+  onDoubleClick?: (feature: Feature<Geometry>) => void;
 }
 
 // Icon color configuration based on feature type
@@ -109,6 +110,7 @@ export function DraggableFeatureItem({
   depth,
   onToggleVisibility,
   onDelete,
+  onDoubleClick,
 }: DraggableFeatureItemProps) {
   const {
     attributes,
@@ -143,6 +145,7 @@ export function DraggableFeatureItem({
       className={`flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent group ${
         isHidden ? "opacity-50" : ""
       }`}
+      onDoubleClick={() => onDoubleClick?.(feature)}
       {...attributes}
     >
       {/* Indent based on depth */}

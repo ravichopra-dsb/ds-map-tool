@@ -456,6 +456,9 @@ const MapEditor: React.FC = () => {
     const offsetX = coordinates[0] - refCenter[0];
     const offsetY = coordinates[1] - refCenter[1];
 
+    // Group all paste operations as a single undo/redo action
+    (undoRedoInteractionRef.current as any)?.blockStart('paste');
+
     originals.forEach((originalFeature) => {
       const clone = originalFeature.clone();
       const geom = clone.getGeometry();
@@ -473,6 +476,8 @@ const MapEditor: React.FC = () => {
       vectorSourceRef.current.addFeature(clone);
       pastedFeatures.push(clone);
     });
+
+    (undoRedoInteractionRef.current as any)?.blockEnd();
 
     // Sync with Select interaction to ensure pasted features are selected
     if (selectInteractionRef.current && pastedFeatures.length > 0) {
@@ -1395,6 +1400,7 @@ const MapEditor: React.FC = () => {
       <SeparateFeatures
         vectorSource={vectorSourceRef.current}
         onSaveMapState={saveMapState}
+        map={mapRef.current}
       />
       <TogglingObject />
     </div>
