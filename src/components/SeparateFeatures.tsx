@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { createEmpty, extend, isEmpty } from "ol/extent";
+import type { Map } from "ol";
 import {
   DndContext,
   DragOverlay,
@@ -38,6 +40,7 @@ import { Input } from "./ui/input";
 interface SeparateFeaturesProps {
   vectorSource: VectorSource<Feature<Geometry>>;
   onSaveMapState: () => void;
+  map: Map | null;
 }
 
 // Get unique ID for feature
@@ -87,6 +90,7 @@ function RootDropZone({
 export function SeparateFeatures({
   vectorSource,
   onSaveMapState,
+  map,
 }: SeparateFeaturesProps) {
   const [features, setFeatures] = useState<Feature<Geometry>[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -106,6 +110,7 @@ export function SeparateFeatures({
     isDescendantOf,
     activeFolderId,
     setActiveFolder,
+    getAllDescendantFolderIds,
   } = useFolderStore();
 
   const { activePanel, openFeatures, closePanel, toggleToLayers } =
@@ -212,6 +217,57 @@ export function SeparateFeatures({
     });
   };
 
+  // Zoom to a single feature
+  const handleZoomToFeature = useCallback(
+    (feature: Feature<Geometry>) => {
+      if (!map) return;
+      const geometry = feature.getGeometry();
+      if (!geometry) return;
+
+      const extent = geometry.getExtent();
+      map.getView().fit(extent, {
+        duration: 1000,
+        padding: [50, 50, 50, 50],
+        maxZoom: 18,
+      });
+    },
+    [map],
+  );
+
+  // Zoom to all features in a folder (including descendants)
+  const handleZoomToFolder = useCallback(
+    (folderId: string) => {
+      if (!map) return;
+
+      // Get all features in this folder and its descendants
+      const descendantFolderIds = getAllDescendantFolderIds(folderId);
+      const allFolderIds = [folderId, ...descendantFolderIds];
+
+      const folderFeatures = features.filter((f) => {
+        const featureFolderId = f.get("folderId");
+        return featureFolderId && allFolderIds.includes(featureFolderId);
+      });
+
+      if (folderFeatures.length === 0) return;
+
+      // Calculate combined extent
+      const extent = createEmpty();
+      folderFeatures.forEach((f) => {
+        const geom = f.getGeometry();
+        if (geom) extend(extent, geom.getExtent());
+      });
+
+      if (!isEmpty(extent)) {
+        map.getView().fit(extent, {
+          duration: 1000,
+          padding: [50, 50, 50, 50],
+          maxZoom: 18,
+        });
+      }
+    },
+    [map, features, getAllDescendantFolderIds],
+  );
+
   // Drag handlers
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -311,6 +367,7 @@ export function SeparateFeatures({
               depth={depth + 1}
               onToggleVisibility={handleToggleVisibility}
               onDelete={handleDelete}
+              onDoubleClick={handleZoomToFeature}
             />
           );
         })}
@@ -328,6 +385,7 @@ export function SeparateFeatures({
             onDeleteFolder={handleDeleteFolder}
             onSaveMapState={onSaveMapState}
             onSelect={setActiveFolder}
+            onDoubleClick={handleZoomToFolder}
           >
             {renderFolderTree(folder.id, depth + 1)}
           </FolderItem>
@@ -484,6 +542,7 @@ export function SeparateFeatures({
                       onDeleteFolder={handleDeleteFolder}
                       onSaveMapState={onSaveMapState}
                       onSelect={setActiveFolder}
+                      onDoubleClick={handleZoomToFolder}
                     >
                       {renderFolderTree(folder.id, 1)}
                     </FolderItem>
@@ -503,6 +562,7 @@ export function SeparateFeatures({
                         depth={0}
                         onToggleVisibility={handleToggleVisibility}
                         onDelete={handleDelete}
+                        onDoubleClick={handleZoomToFeature}
                       />
                     );
                   })}

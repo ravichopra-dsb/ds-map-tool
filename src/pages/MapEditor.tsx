@@ -1400,6 +1400,7 @@ const MapEditor: React.FC = () => {
       <SeparateFeatures
         vectorSource={vectorSourceRef.current}
         onSaveMapState={saveMapState}
+        map={mapRef.current}
       />
       <TogglingObject />
     </div>
