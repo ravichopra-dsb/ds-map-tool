@@ -70,6 +70,7 @@ import { useFolderStore } from "@/stores/useFolderStore";
 import { SeparateFeatures } from "@/components/SeparateFeatures";
 import { TogglingObject } from "@/components/TogglingObject";
 import { ToolCommand } from "@/components/ToolCommand";
+import { CommandBar } from "@/components/CommandBar";
 
 // Interface for properly serializable map data
 interface SerializedMapData {
@@ -1390,7 +1391,8 @@ const MapEditor: React.FC = () => {
 
       {/* Shortcuts */}
       <HelpModal />
-      <ToolCommand onToolSelect={handleToolActivation} activeTool={activeTool} />
+      <ToolCommand onToolSelect={handleToolActivation} onIconSelect={handleIconSelect} activeTool={activeTool} />
+      <CommandBar onToolSelect={handleToolActivation} onIconSelect={handleIconSelect} activeTool={activeTool} />
 
       <MapViewToggle
         currentView={currentMapView}
