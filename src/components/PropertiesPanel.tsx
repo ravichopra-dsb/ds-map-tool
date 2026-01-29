@@ -1106,10 +1106,14 @@ interface IconStyleSectionProps {
     opacity: number;
     iconScale: number;
     labelScale: number;
+    textOffsetX: number;
+    textOffsetY: number;
     rotation: number;
     handleOpacityChange: (opacity: number) => void;
     handleIconScaleChange: (scale: number) => void;
     handleLabelScaleChange: (scale: number) => void;
+    handleTextOffsetXChange: (offset: number) => void;
+    handleTextOffsetYChange: (offset: number) => void;
     handleRotationChange: (rotation: number) => void;
   };
   isEditing: boolean;
@@ -1130,6 +1134,8 @@ const IconStyleSection: React.FC<IconStyleSectionProps> = ({
           opacity={iconProperties.opacity}
           iconScale={iconProperties.iconScale}
           labelScale={iconProperties.labelScale}
+          textOffsetX={iconProperties.textOffsetX}
+          textOffsetY={iconProperties.textOffsetY}
           rotation={iconProperties.rotation}
         />
       ) : (
@@ -1143,6 +1149,8 @@ interface IconStyleDisplayProps {
   opacity: number;
   iconScale: number;
   labelScale: number;
+  textOffsetX: number;
+  textOffsetY: number;
   rotation: number;
 }
 
@@ -1150,6 +1158,8 @@ const IconStyleDisplay: React.FC<IconStyleDisplayProps> = ({
   opacity,
   iconScale,
   labelScale,
+  textOffsetX,
+  textOffsetY,
   rotation,
 }) => (
   <div className="space-y-2">
@@ -1166,6 +1176,14 @@ const IconStyleDisplay: React.FC<IconStyleDisplayProps> = ({
       <span className="text-gray-600 dark:text-gray-400">{labelScale.toFixed(1)}x</span>
     </div>
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Label Offset X:</span>
+      <span className="text-gray-600 dark:text-gray-400">{textOffsetX}px</span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">Label Offset Y:</span>
+      <span className="text-gray-600 dark:text-gray-400">{textOffsetY}px</span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
       <span className="font-medium text-gray-700 dark:text-gray-300">Rotation:</span>
       <span className="text-gray-600 dark:text-gray-400">{Math.round(rotation)}°</span>
     </div>
@@ -1177,10 +1195,14 @@ interface IconStyleEditorProps {
     opacity: number;
     iconScale: number;
     labelScale: number;
+    textOffsetX: number;
+    textOffsetY: number;
     rotation: number;
     handleOpacityChange: (opacity: number) => void;
     handleIconScaleChange: (scale: number) => void;
     handleLabelScaleChange: (scale: number) => void;
+    handleTextOffsetXChange: (offset: number) => void;
+    handleTextOffsetYChange: (offset: number) => void;
     handleRotationChange: (rotation: number) => void;
   };
 }
@@ -1271,6 +1293,64 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({ iconProperties }) => 
       <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
         <span>0.1x</span>
         <span>5x</span>
+      </div>
+    </div>
+
+    {/* Text Offset X Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Label Offset X: {iconProperties.textOffsetX}px
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[iconProperties.textOffsetX]}
+          onValueChange={(value) => iconProperties.handleTextOffsetXChange(value[0])}
+          min={-100}
+          max={100}
+          step={1}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => iconProperties.handleTextOffsetXChange(0)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>-100px</span>
+        <span>100px</span>
+      </div>
+    </div>
+
+    {/* Text Offset Y Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Label Offset Y: {iconProperties.textOffsetY}px
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[iconProperties.textOffsetY]}
+          onValueChange={(value) => iconProperties.handleTextOffsetYChange(value[0])}
+          min={-100}
+          max={100}
+          step={1}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => iconProperties.handleTextOffsetYChange(0)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>-100px</span>
+        <span>100px</span>
       </div>
     </div>
 

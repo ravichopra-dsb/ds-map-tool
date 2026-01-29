@@ -216,6 +216,7 @@ const Toolbar = ({
                     <LegendDropdown
                       selectedLegend={selectedLegend}
                       onLegendSelect={onLegendSelect}
+                      activeTool={activeTool}
                     />
                   </div>
                 );

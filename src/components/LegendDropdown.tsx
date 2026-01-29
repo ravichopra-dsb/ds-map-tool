@@ -9,11 +9,13 @@ import { getAvailableLegends, type LegendType } from "@/tools/legendsConfig";
 
 interface LegendDropdownProps {
   selectedLegend?: LegendType;
+  activeTool?: string;
   onLegendSelect: (legend: LegendType) => void;
 }
 
 export function LegendDropdown({
   selectedLegend,
+  activeTool,
   onLegendSelect,
 }: LegendDropdownProps) {
   const legends = getAvailableLegends().filter(legend => legend.id !== 'measure');
@@ -22,14 +24,20 @@ export function LegendDropdown({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className={`p-2 rounded-md transition-colors ${
-            selectedLegend
-              ? "focus:bg-zinc-200/60 hover:bg-[#e0dfff]"
-              : "hover:bg-[#e0dfff]"
-          }`}
+          // className={`p-2 rounded-md transition-colors ${
+          //   selectedLegend
+          //     ? "focus:bg-zinc-200/60 hover:bg-[#e0dfff]"
+          //     : "hover:bg-[#e0dfff]"
+          // }`}
+          className={`flex items-center gap-2 px-3 py-2 rounded-md transition-all cursor-pointer ${
+                    activeTool === "legends"
+                      ? "bg-blue-500 text-white shadow-md"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
           title="Select Legend Type"
         >
           <Minus className="w-4 h-4" />
+          <span className="text-xs font-medium">Line Types</span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">

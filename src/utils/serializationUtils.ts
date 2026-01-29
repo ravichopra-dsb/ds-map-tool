@@ -142,6 +142,16 @@ export const extractStyleMetadata = (feature: Feature<Geometry>): any => {
   // Store folder assignment for feature grouping
   if (feature.get("folderId")) properties.folderId = feature.get("folderId");
 
+  // Store icon properties (Google Earth icons from IconPickerDialog)
+  if (feature.get("isIcon")) properties.isIcon = true;
+  if (feature.get("iconPath")) properties.iconPath = feature.get("iconPath");
+  if (feature.get("opacity") !== undefined) properties.opacity = feature.get("opacity");
+  if (feature.get("iconScale") !== undefined) properties.iconScale = feature.get("iconScale");
+  if (feature.get("labelScale") !== undefined) properties.labelScale = feature.get("labelScale");
+  if (feature.get("textOffsetX") !== undefined) properties.textOffsetX = feature.get("textOffsetX");
+  if (feature.get("textOffsetY") !== undefined) properties.textOffsetY = feature.get("textOffsetY");
+  if (feature.get("iconRotation") !== undefined) properties.iconRotation = feature.get("iconRotation");
+
   return properties;
 };
 

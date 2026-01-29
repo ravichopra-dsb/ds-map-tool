@@ -39,7 +39,6 @@ import SearchWrapper, {
   type SearchWrapperRef,
 } from "../components/SearchWrapper";
 import type { SearchResult } from "../components/SearchPanel";
-import { TogglingObject } from "../components/TogglingObject";
 import { PdfExportDialog } from "../components/PdfExportDialog";
 import { DragBoxInstruction } from "../components/DragBoxInstruction";
 import {
@@ -49,13 +48,27 @@ import {
 } from "@/utils/mapImageExport";
 import { IconPickerDialog } from "../components/IconPickerDialog";
 import { MergePropertiesDialog } from "@/components/MergePropertiesDialog";
+import { OffsetDialog } from "@/components/OffsetDialog";
 import { type MergeRequestDetail } from "@/components/MapInteractions";
 import { performMerge } from "@/utils/splitUtils";
+import { createOffsetFeature, type OffsetSide } from "@/utils/offsetUtils";
+import {
+  injectKmlStyles,
+  parseKmlStyles,
+  parsePlacemarkStyles,
+  applyKmlStylesToFeatures,
+} from "@/utils/kmlStyleUtils";
+import {
+  createExportedGeoJSON,
+  extractFolderStructureFromGeoJSON,
+  parseKmlFolders,
+} from "@/utils/kmlFolderUtils";
 import type { PdfExportConfig } from "@/types/pdf";
 import { HelpModal } from "@/components/HelpModal";
 import { useToolStore } from "@/stores/useToolStore";
 import { useFolderStore } from "@/stores/useFolderStore";
 import { SeparateFeatures } from "@/components/SeparateFeatures";
+import { TogglingObject } from "@/components/TogglingObject";
 import { ToolCommand } from "@/components/ToolCommand";
 
 // Interface for properly serializable map data
@@ -154,6 +167,12 @@ const MapEditor: React.FC = () => {
     null
   );
 
+  // Offset dialog state
+  const [offsetDialogOpen, setOffsetDialogOpen] = useState(false);
+  const [pendingOffsetFeature, setPendingOffsetFeature] = useState<Feature<Geometry> | null>(
+    null
+  );
+
   // PDF export dialog state
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -180,12 +199,33 @@ const MapEditor: React.FC = () => {
       try {
         if (name.endsWith(".geojson") || name.endsWith(".json")) {
           const json = JSON.parse(data as string);
+
+          // Check for folder structure from dsMapTool export
+          const importedFolderStructure = extractFolderStructureFromGeoJSON(json);
+          if (importedFolderStructure) {
+            // Merge imported folders with existing folders
+            const currentFolders = useFolderStore.getState().folders;
+            useFolderStore.getState().loadFromStorage({
+              folders: { ...currentFolders, ...importedFolderStructure.folders },
+            });
+            console.log("Imported folder structure:", Object.keys(importedFolderStructure.folders).length, "folders");
+          }
+
           features = new GeoJSON().readFeatures(json, {
             featureProjection: "EPSG:3857",
           });
         } else if (name.endsWith(".kml")) {
           try {
             console.log("kml : ", data);
+
+            // Step 0: Parse folder structure from KML
+            const { folders: importedFolders, featureFolderMap } = parseKmlFolders(data as string);
+            console.log("Parsed KML folders:", Object.keys(importedFolders).length, "folders found");
+
+            // Step 0.5: Parse standard KML styles (for Google Earth compatibility)
+            const kmlStyleMap = parseKmlStyles(data as string);
+            const placemarkStyles = parsePlacemarkStyles(data as string);
+            console.log("Parsed KML styles:", kmlStyleMap.size, "styles found");
 
             // Step 1: Parse KML to OpenLayers Features with correct projections
             const kmlFeatures = new KML({ extractStyles: false }).readFeatures(
@@ -195,6 +235,24 @@ const MapEditor: React.FC = () => {
                 dataProjection: "EPSG:4326", // CRITICAL: KML is always in WGS84
               }
             );
+
+            // Step 1.5: Apply parsed KML styles to features (if no ExtendedData styles)
+            applyKmlStylesToFeatures(kmlFeatures, kmlStyleMap, placemarkStyles);
+
+            // Step 1.6: Apply folder assignments from KML structure
+            if (Object.keys(importedFolders).length > 0) {
+              kmlFeatures.forEach((feature, index) => {
+                const folderId = featureFolderMap.get(index);
+                if (folderId) {
+                  feature.set("folderId", folderId);
+                }
+              });
+              // Merge imported folders into store
+              const currentFolders = useFolderStore.getState().folders;
+              useFolderStore.getState().loadFromStorage({
+                folders: { ...currentFolders, ...importedFolders },
+              });
+            }
 
             // Step 2: Convert Features to GeoJSON with proper property preservation
             const tempSource = new VectorSource();
@@ -233,6 +291,15 @@ const MapEditor: React.FC = () => {
               return;
             }
 
+            // Step 0: Parse folder structure from KML
+            const { folders: importedFolders, featureFolderMap } = parseKmlFolders(kmlText);
+            console.log("Parsed KMZ folders:", Object.keys(importedFolders).length, "folders found");
+
+            // Step 0.5: Parse standard KML styles (for Google Earth compatibility)
+            const kmlStyleMap = parseKmlStyles(kmlText);
+            const placemarkStyles = parsePlacemarkStyles(kmlText);
+            console.log("Parsed KMZ styles:", kmlStyleMap.size, "styles found");
+
             // Step 1: Parse KML to OpenLayers Features with correct projections
             const kmlFeatures = new KML({ extractStyles: false }).readFeatures(
               kmlText,
@@ -241,6 +308,24 @@ const MapEditor: React.FC = () => {
                 dataProjection: "EPSG:4326", // CRITICAL: KML is always in WGS84
               }
             );
+
+            // Step 1.5: Apply parsed KML styles to features (if no ExtendedData styles)
+            applyKmlStylesToFeatures(kmlFeatures, kmlStyleMap, placemarkStyles);
+
+            // Step 1.6: Apply folder assignments from KML structure
+            if (Object.keys(importedFolders).length > 0) {
+              kmlFeatures.forEach((feature, index) => {
+                const folderId = featureFolderMap.get(index);
+                if (folderId) {
+                  feature.set("folderId", folderId);
+                }
+              });
+              // Merge imported folders into store
+              const currentFolders = useFolderStore.getState().folders;
+              useFolderStore.getState().loadFromStorage({
+                folders: { ...currentFolders, ...importedFolders },
+              });
+            }
 
             // Step 2: Convert Features to GeoJSON with proper property preservation
             const tempSource = new VectorSource();
@@ -267,14 +352,19 @@ const MapEditor: React.FC = () => {
           return;
         }
 
-        // Create folder for imported features (extract filename without extension)
-        const filename = file.name.replace(/\.[^/.]+$/, "");
-        const folderId = useFolderStore.getState().createFolder(filename);
+        // Check if features already have folder assignments (from imported structure)
+        const hasExistingFolders = features.some((f) => f.get("folderId"));
 
-        // Set folderId on all imported features
-        features.forEach((feature) => {
-          feature.set("folderId", folderId);
-        });
+        // Only create wrapper folder if features don't already have folder assignments
+        if (!hasExistingFolders) {
+          const filename = file.name.replace(/\.[^/.]+$/, "");
+          const folderId = useFolderStore.getState().createFolder(filename);
+
+          // Set folderId on all imported features
+          features.forEach((feature) => {
+            feature.set("folderId", folderId);
+          });
+        }
 
         // Add features without clearing existing ones
         vectorSourceRef.current.addFeatures(features);
@@ -343,7 +433,7 @@ const MapEditor: React.FC = () => {
     setCopiedFeatures(features, isCut);
   };
 
-  const handlePasteOperation = (
+    const handlePasteOperation = (
     _features: Feature<Geometry>[],
     coordinates: number[] // target center coordinate for paste
   ) => {
@@ -353,7 +443,7 @@ const MapEditor: React.FC = () => {
     if (originals.length === 0) return;
 
     // 1. Determine a reference point for the group —
-    //    here: center of bounding box of first (or you can also compute bounding box of all)
+    //    here: center of bounding box of first
     const refGeom = originals[0].getGeometry();
     if (!refGeom) return;
     const refExtent = refGeom.getExtent();
@@ -362,7 +452,7 @@ const MapEditor: React.FC = () => {
       (refExtent[1] + refExtent[3]) / 2,
     ];
 
-    // 2. Compute how much to shift the *group* so refCenter goes to the user-specified coordinates
+    // 2. Compute how much to shift the *group*
     const offsetX = coordinates[0] - refCenter[0];
     const offsetY = coordinates[1] - refCenter[1];
 
@@ -374,11 +464,17 @@ const MapEditor: React.FC = () => {
         geom.translate(offsetX, offsetY);
         clone.setGeometry(geom);
       }
+
+      // FIX: Reset style to prevent inheriting the "selected" style 
+      // from the original feature (if it was selected).
+      // This ensures the clone starts with the layer's default style.
+      clone.setStyle(undefined);
+
       vectorSourceRef.current.addFeature(clone);
       pastedFeatures.push(clone);
     });
 
-    // Sync with Select interaction to ensure pasted features are selected, not originals
+    // Sync with Select interaction to ensure pasted features are selected
     if (selectInteractionRef.current && pastedFeatures.length > 0) {
       // Ensure Select interaction is active before modifying selection
       const wasActive = selectInteractionRef.current.getActive();
@@ -448,13 +544,19 @@ const MapEditor: React.FC = () => {
         return;
       }
 
-      const fileName = `map-export-${new Date().toISOString().split("T")[0]}`;
+      // Use current active job name as fileName
+      const currentProject = projects.find(p => p.id === currentProjectId);
+      const fileName = currentProject?.name || "map-export";
 
       // -------------------------------
-      // GEOJSON DOWNLOAD
+      // GEOJSON DOWNLOAD (with folder structure)
       // -------------------------------
       if (format === "geojson") {
-        const jsonString = JSON.stringify(mapData.features, null, 2);
+        const exportData = createExportedGeoJSON(
+          mapData.features,
+          mapData.folderStructure
+        );
+        const jsonString = JSON.stringify(exportData, null, 2);
         const blob = new Blob([jsonString], { type: "application/json" });
 
         downloadBlob(blob, `${fileName}.json`);
@@ -472,10 +574,17 @@ const MapEditor: React.FC = () => {
       // KML DOWNLOAD
       // -------------------------------
       const kmlFormat = new KML();
-      const kmlString = kmlFormat.writeFeatures(olFeatures, {
+      let kmlString = kmlFormat.writeFeatures(olFeatures, {
         featureProjection: "EPSG:3857", // Current display projection
         dataProjection: "EPSG:4326", // Export coordinates in WGS84
       });
+
+      // Inject standard KML styles and folder structure for Google Earth compatibility
+      kmlString = injectKmlStyles(
+        kmlString,
+        olFeatures,
+        mapData.folderStructure?.folders
+      );
 
       if (format === "kml") {
         const blob = new Blob([kmlString], {
@@ -820,28 +929,86 @@ const MapEditor: React.FC = () => {
     };
   }, []);
 
-  // Handle text feature selection for editing
+  // Offset request event listener
   useEffect(() => {
-    // Only handle editing when select tool is active and a text feature is selected
+    const handleOffsetRequest = (event: CustomEvent<{ feature: Feature<Geometry>; vectorSource: any }>) => {
+      setPendingOffsetFeature(event.detail.feature);
+      setOffsetDialogOpen(true);
+    };
+
+    window.addEventListener(
+      "offsetRequest",
+      handleOffsetRequest as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "offsetRequest",
+        handleOffsetRequest as EventListener
+      );
+    };
+  }, []);
+
+  // Continuation complete event listener - save to DB after LineString continuation
+  useEffect(() => {
+    const handleContinuationComplete = () => {
+      console.log("Continuation complete, saving to DB");
+      saveMapState();
+    };
+
+    window.addEventListener(
+      "continuationComplete",
+      handleContinuationComplete as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "continuationComplete",
+        handleContinuationComplete as EventListener
+      );
+    };
+  }, [saveMapState]);
+
+  // Track previous selected text feature for double-click-to-edit detection
+  const previousSelectedTextRef = useRef<Feature<Geometry> | null>(null);
+
+  // Handle text feature selection for editing
+  // Only open edit dialog on double-click (clicking same text twice)
+  // Single click just selects for dragging
+  useEffect(() => {
+    // Only handle when select tool is active and a text feature is selected
     if (
       activeTool === "select" &&
       selectedFeature &&
       selectedFeature.get("isText")
     ) {
-      const geometry = selectedFeature.getGeometry();
-      if (geometry && geometry.getType() === "Point") {
-        const point = geometry as any;
-        const coordinate = point.getCoordinates();
+      // Check if this is a "double-click" (clicking same text that's already selected)
+      const isSameTextClicked = previousSelectedTextRef.current === selectedFeature;
 
-        const currentScale = selectedFeature.get("textScale") || 1;
-        const currentRotation = selectedFeature.get("textRotation") || 0;
+      if (isSameTextClicked && !textDialogOpen) {
+        // Second click on same text - open edit dialog
+        const geometry = selectedFeature.getGeometry();
+        if (geometry && geometry.getType() === "Point") {
+          const point = geometry as any;
+          const coordinate = point.getCoordinates();
 
-        setEditingTextFeature(selectedFeature);
-        setEditingTextScale(currentScale);
-        setEditingTextRotation(currentRotation);
-        setPendingCoordinate(coordinate);
-        setTextDialogOpen(true);
+          const currentScale = selectedFeature.get("textScale") || 1;
+          const currentRotation = selectedFeature.get("textRotation") || 0;
+
+          setEditingTextFeature(selectedFeature);
+          setEditingTextScale(currentScale);
+          setEditingTextRotation(currentRotation);
+          setPendingCoordinate(coordinate);
+
+          // Clear selection styling before opening dialog
+          selectInteractionRef.current?.getFeatures().clear();
+
+          setTextDialogOpen(true);
+        }
       }
+
+      // Update previous reference for next click detection
+      previousSelectedTextRef.current = selectedFeature;
     } else if (
       activeTool !== "select" ||
       !selectedFeature ||
@@ -851,8 +1018,12 @@ const MapEditor: React.FC = () => {
       setEditingTextFeature(null);
       setEditingTextScale(1);
       setEditingTextRotation(0);
+      // Clear previous text reference when deselected or different feature selected
+      if (!selectedFeature?.get("isText")) {
+        previousSelectedTextRef.current = null;
+      }
     }
-  }, [activeTool, selectedFeature]);
+  }, [activeTool, selectedFeature, textDialogOpen]);
 
   // Text dialog handlers
   const handleTextSubmit = (
@@ -911,6 +1082,10 @@ const MapEditor: React.FC = () => {
         }
       }
     }
+
+    // Deselect feature (same as PropertiesPanel)
+    setSelectedFeature(null);
+    selectInteractionRef.current?.getFeatures().clear();
 
     setTextDialogOpen(false);
     setPendingCoordinate(null);
@@ -980,6 +1155,26 @@ const MapEditor: React.FC = () => {
   const handleMergeDialogClose = () => {
     setMergeDialogOpen(false);
     setPendingMerge(null);
+  };
+
+  // Offset dialog handlers
+  const handleOffsetApply = (distance: number, side: OffsetSide) => {
+    if (!pendingOffsetFeature) return;
+
+    const newFeature = createOffsetFeature(pendingOffsetFeature, distance, side);
+    if (newFeature) {
+      vectorSourceRef.current.addFeature(newFeature);
+      setSelectedFeature(newFeature);
+      saveMapState();
+    }
+
+    setOffsetDialogOpen(false);
+    setPendingOffsetFeature(null);
+  };
+
+  const handleOffsetDialogClose = () => {
+    setOffsetDialogOpen(false);
+    setPendingOffsetFeature(null);
   };
 
   const handleRedoOperation = () => {
@@ -1092,7 +1287,6 @@ const MapEditor: React.FC = () => {
         initialFillColor={editingTextFeature?.get("textFillColor")}
         initialStrokeColor={editingTextFeature?.get("textStrokeColor")}
         isEditing={!!editingTextFeature}
-        selectInteraction={selectInteractionRef.current}
         editingTextFeature={editingTextFeature}
       />
 
@@ -1110,11 +1304,19 @@ const MapEditor: React.FC = () => {
         feature2={pendingMerge?.feature2 || null}
       />
 
+      <OffsetDialog
+        isOpen={offsetDialogOpen}
+        onClose={handleOffsetDialogClose}
+        onApply={handleOffsetApply}
+        feature={pendingOffsetFeature}
+      />
+
       <PdfExportDialog
         isOpen={pdfDialogOpen}
         onClose={() => setPdfDialogOpen(false)}
         onExport={handlePdfExport}
         isExporting={isExportingPdf}
+        jobName={projects.find(p => p.id === currentProjectId)?.name}
       />
 
       <DragBoxInstruction isActive={isDragBoxActive} />
@@ -1130,7 +1332,7 @@ const MapEditor: React.FC = () => {
         onSelectInteractionReady={handleSelectInteractionReady}
         onUndoInteractionReady={handleUndoInteractionReady}
         onMultiSelectChange={handleMultiSelectChange}
-        saveMapState={saveMapState}
+        onSaveMapState={saveMapState}
       />
 
       <ToolManager
@@ -1190,11 +1392,11 @@ const MapEditor: React.FC = () => {
         onViewChange={handleMapViewChange}
       />
 
-      <TogglingObject />
       <SeparateFeatures
         vectorSource={vectorSourceRef.current}
         onSaveMapState={saveMapState}
       />
+      <TogglingObject />
     </div>
   );
 };

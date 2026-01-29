@@ -18,7 +18,7 @@ export interface UseToolStateReturn {
 }
 
 export const useToolState = (): UseToolStateReturn => {
-  const [activeTool, setActiveTool] = useState<string>("");
+  const [activeTool, setActiveTool] = useState<string>("select");
   const [selectedLegend, setSelectedLegend] = useState<LegendType | undefined>(
     undefined
   );

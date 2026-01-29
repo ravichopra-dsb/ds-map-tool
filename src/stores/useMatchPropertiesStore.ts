@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Feature } from 'ol';
 import type { Geometry } from 'ol/geom';
+import { getLegendById } from '@/tools/legendsConfig';
 
 /**
  * Captured styles from a source feature that can be applied to target features.
@@ -11,6 +12,7 @@ export interface CapturedStyles {
     lineColor?: string;
     lineWidth?: number;
     opacity?: number;
+    strokeDash?: number[];  // Dash pattern from legends
 
     // Shape styles (box, circle, revcloud)
     strokeColor?: string;
@@ -22,10 +24,15 @@ export interface CapturedStyles {
     // Text styles
     textScale?: number;
     textRotation?: number;
-    color?: string;
+    textOpacity?: number;
+    textFillColor?: string;
+    textStrokeColor?: string;
 
     // Point styles
     pointOpacity?: number;
+
+    // Legend type ID for text legends (OIL, HW, GAS, etc.)
+    legendType?: string;
 }
 
 export type MatchPropertiesPhase = 'idle' | 'awaiting-source' | 'awaiting-targets';
@@ -86,8 +93,14 @@ const extractStylesFromFeature = (feature: Feature<Geometry>): CapturedStyles =>
     if (feature.get('textRotation') !== undefined) {
         styles.textRotation = feature.get('textRotation');
     }
-    if (feature.get('color') !== undefined) {
-        styles.color = feature.get('color');
+    if (feature.get('textOpacity') !== undefined) {
+        styles.textOpacity = feature.get('textOpacity');
+    }
+    if (feature.get('textFillColor') !== undefined) {
+        styles.textFillColor = feature.get('textFillColor');
+    }
+    if (feature.get('textStrokeColor') !== undefined) {
+        styles.textStrokeColor = feature.get('textStrokeColor');
     }
 
     // Point styles
@@ -95,41 +108,116 @@ const extractStylesFromFeature = (feature: Feature<Geometry>): CapturedStyles =>
         styles.pointOpacity = feature.get('pointOpacity');
     }
 
+    // Extract styles from legend features (including defaults from legend config)
+    if (feature.get('islegends')) {
+        const legendTypeId = feature.get('legendType');
+        if (legendTypeId) {
+            // Capture the legendType ID for text legends (OIL, HW, GAS, etc.)
+            styles.legendType = legendTypeId;
+
+            const legendType = getLegendById(legendTypeId);
+            if (legendType) {
+                // Extract color from legend config if not custom-set on feature
+                if (!styles.lineColor && legendType.style.strokeColor) {
+                    styles.lineColor = legendType.style.strokeColor;
+                }
+                // Extract width from legend config if not custom-set
+                if (styles.lineWidth === undefined && legendType.style.strokeWidth !== undefined) {
+                    styles.lineWidth = legendType.style.strokeWidth;
+                }
+                // Extract opacity from legend config if not custom-set
+                if (styles.opacity === undefined && legendType.style.opacity !== undefined) {
+                    styles.opacity = legendType.style.opacity;
+                }
+                // Extract strokeDash from legend config
+                if (legendType.style.strokeDash) {
+                    styles.strokeDash = legendType.style.strokeDash;
+                }
+            }
+        }
+    }
+    // Custom strokeDash on feature overrides legend config
+    if (feature.get('strokeDash') !== undefined) {
+        styles.strokeDash = feature.get('strokeDash');
+    }
+
     return styles;
 };
 
 /**
- * Apply captured styles to a target feature based on its type
+ * Resolve the primary color from captured styles (cross-type)
+ */
+const resolveColor = (styles: CapturedStyles): string | undefined => {
+    return styles.lineColor ?? styles.strokeColor;
+};
+
+/**
+ * Resolve width from captured styles (cross-type)
+ */
+const resolveWidth = (styles: CapturedStyles): number | undefined => {
+    return styles.lineWidth ?? styles.strokeWidth;
+};
+
+/**
+ * Resolve opacity from captured styles (cross-type)
+ */
+const resolveOpacity = (styles: CapturedStyles): number | undefined => {
+    return styles.opacity ?? styles.strokeOpacity ?? styles.pointOpacity;
+};
+
+/**
+ * Apply captured styles to a target feature with cross-type mapping
  */
 const applyStylesToFeature = (feature: Feature<Geometry>, styles: CapturedStyles): void => {
-    // Line styles - apply if target feature has line properties OR is a line-type feature
+    // Feature type detection - ALL types included
     const isLineFeature = feature.get('isPolyline') || feature.get('isFreehand') ||
-        feature.get('isArrow') || feature.get('isMeasure') || feature.get('islegends');
+        feature.get('isArrow') || feature.get('islegends') || feature.get('isArc');
+    const isMeasureFeature = feature.get('isMeasure');
+    const isShapeFeature = feature.get('isBox') || feature.get('isCircle') || feature.get('isRevisionCloud');
+    const isTextFeature = feature.get('isText');
+    // Point features include ALL icon types: GP, Tower, Junction, Triangle, Pit
+    const isPointFeature = feature.get('isPoint') ||
+        feature.get('isGP') || feature.get('isTower') ||
+        feature.get('isJunction') || feature.get('isTriangle') || feature.get('isPit');
 
-    if (isLineFeature) {
-        if (styles.lineColor !== undefined) {
-            feature.set('lineColor', styles.lineColor);
+    // Resolve equivalent properties from captured styles
+    const resolvedColor = resolveColor(styles);
+    const resolvedWidth = resolveWidth(styles);
+    const resolvedOpacity = resolveOpacity(styles);
+
+    // Apply to LINE features (including all legends, excluding Measure)
+    if (isLineFeature && !isMeasureFeature) {
+        if (resolvedColor !== undefined) {
+            feature.set('lineColor', resolvedColor);
         }
-        if (styles.lineWidth !== undefined) {
-            feature.set('lineWidth', styles.lineWidth);
+        if (resolvedWidth !== undefined) {
+            feature.set('lineWidth', resolvedWidth);
         }
-        if (styles.opacity !== undefined) {
-            feature.set('opacity', styles.opacity);
+        if (resolvedOpacity !== undefined) {
+            feature.set('opacity', resolvedOpacity);
+        }
+        // Apply strokeDash pattern from legends
+        if (styles.strokeDash !== undefined) {
+            feature.set('strokeDash', styles.strokeDash);
+        }
+        // Apply legendType for text legends (OIL, HW, GAS, etc.)
+        // Also set islegends:true to enable text rendering on target features
+        if (styles.legendType !== undefined) {
+            feature.set('legendType', styles.legendType);
+            feature.set('islegends', true);
         }
     }
 
-    // Shape styles - apply if target feature is a shape
-    const isShapeFeature = feature.get('isBox') || feature.get('isCircle') || feature.get('isRevisionCloud');
-
+    // Apply to SHAPE features (Box, Circle, RevisionCloud)
     if (isShapeFeature) {
-        if (styles.strokeColor !== undefined) {
-            feature.set('strokeColor', styles.strokeColor);
+        if (resolvedColor !== undefined) {
+            feature.set('strokeColor', resolvedColor);
         }
-        if (styles.strokeWidth !== undefined) {
-            feature.set('strokeWidth', styles.strokeWidth);
+        if (resolvedWidth !== undefined) {
+            feature.set('strokeWidth', resolvedWidth);
         }
-        if (styles.strokeOpacity !== undefined) {
-            feature.set('strokeOpacity', styles.strokeOpacity);
+        if (resolvedOpacity !== undefined) {
+            feature.set('strokeOpacity', resolvedOpacity);
         }
         if (styles.fillColor !== undefined) {
             feature.set('fillColor', styles.fillColor);
@@ -137,33 +225,44 @@ const applyStylesToFeature = (feature: Feature<Geometry>, styles: CapturedStyles
         if (styles.fillOpacity !== undefined) {
             feature.set('fillOpacity', styles.fillOpacity);
         }
+        // Apply strokeDash to shapes too
+        if (styles.strokeDash !== undefined) {
+            feature.set('strokeDash', styles.strokeDash);
+        }
+        // Apply legendType for text legends (OIL, HW, GAS, etc.) to shapes
+        if (styles.legendType !== undefined) {
+            feature.set('legendType', styles.legendType);
+        }
     }
 
-    // Text styles - apply if target feature is text
-    const isTextFeature = feature.get('isText');
-
+    // Apply to TEXT features
     if (isTextFeature) {
+        // Text-specific color properties
+        if (styles.textFillColor !== undefined) {
+            feature.set('textFillColor', styles.textFillColor);
+        }
+        if (styles.textStrokeColor !== undefined) {
+            feature.set('textStrokeColor', styles.textStrokeColor);
+        }
+        if (styles.textOpacity !== undefined) {
+            feature.set('textOpacity', styles.textOpacity);
+        }
+        // Text-specific layout properties
         if (styles.textScale !== undefined) {
             feature.set('textScale', styles.textScale);
         }
         if (styles.textRotation !== undefined) {
             feature.set('textRotation', styles.textRotation);
         }
-        if (styles.color !== undefined) {
-            feature.set('color', styles.color);
-        }
     }
 
-    // Point styles - apply if target feature is a point
-    const isPointFeature = feature.get('isPoint');
-
+    // Apply to POINT/ICON features (Point, GP, Tower, Junction, Triangle, Pit)
     if (isPointFeature) {
-        if (styles.pointOpacity !== undefined) {
-            feature.set('pointOpacity', styles.pointOpacity);
+        if (resolvedOpacity !== undefined) {
+            feature.set('pointOpacity', resolvedOpacity);
         }
-        // Also apply color if available
-        if (styles.color !== undefined) {
-            feature.set('color', styles.color);
+        if (resolvedColor !== undefined) {
+            feature.set('color', resolvedColor);
         }
     }
 

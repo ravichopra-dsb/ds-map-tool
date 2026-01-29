@@ -13,7 +13,11 @@ import {
   type Orientation,
 } from "@/components/layout";
 import { getFabricExportSettings } from "@/utils/canvasExportUtils";
-import { type Resolution, DEFAULT_RESOLUTION, PAGE_SIZES as PDF_PAGE_SIZES } from "@/types/pdf";
+import {
+  type Resolution,
+  DEFAULT_RESOLUTION,
+  PAGE_SIZES as PDF_PAGE_SIZES,
+} from "@/types/pdf";
 import { ArrowLeft, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
@@ -46,6 +50,7 @@ export default function LayoutEditor() {
     pendingBackgroundImage,
     pendingPageSize,
     pendingLayoutId,
+    pendingLayoutName,
     clearPendingBackground,
   } = useLayoutStore(
     useShallow((state) => ({
@@ -56,8 +61,9 @@ export default function LayoutEditor() {
       pendingBackgroundImage: state.pendingBackgroundImage,
       pendingPageSize: state.pendingPageSize,
       pendingLayoutId: state.pendingLayoutId,
+      pendingLayoutName: state.pendingLayoutName,
       clearPendingBackground: state.clearPendingBackground,
-    }))
+    })),
   );
 
   // Component state
@@ -65,7 +71,7 @@ export default function LayoutEditor() {
   const [selectedObject, setSelectedObject] =
     useState<fabric.FabricObject | null>(null);
   const [currentLayoutId, setCurrentLayoutId] = useState<string | null>(
-    layoutId ?? null
+    layoutId ?? null,
   );
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showLimitWarning, setShowLimitWarning] = useState(false);
@@ -75,12 +81,13 @@ export default function LayoutEditor() {
   const [zoom, setZoom] = useState(100);
   const [pdfResolution] = useState<Resolution>(DEFAULT_RESOLUTION);
   const [backgroundImage, setBackgroundImage] = useState<string | undefined>(
-    undefined
+    undefined,
   );
 
   const nameInputRef = useRef<HTMLInputElement>(null);
   const fabricRef = useRef<fabric.Canvas | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [savedJobName, setSavedJobName] = useState<string | null>(null);
 
   const currentLayout = currentLayoutId ? getLayout(currentLayoutId) : null;
 
@@ -88,6 +95,13 @@ export default function LayoutEditor() {
   useEffect(() => {
     setCurrentLayoutId(layoutId ?? null);
   }, [layoutId]);
+
+  // Capture pending job name before it gets cleared
+  useEffect(() => {
+    if (pendingLayoutName && !savedJobName) {
+      setSavedJobName(pendingLayoutName);
+    }
+  }, [pendingLayoutName, savedJobName]);
 
   // Handle pending background image from map export
   useEffect(() => {
@@ -110,17 +124,16 @@ export default function LayoutEditor() {
 
   // Load layout data when ID changes
   useEffect(() => {
-    if (currentLayout) {
+    // When coming from map export, prioritize job name over layout name
+    if (savedJobName) {
+      setEditingName(savedJobName);
+    } else if (currentLayout) {
       setEditingName(currentLayout.name);
-      // Don't set backgroundImage here - the map image is already in canvasData
-      // Setting it would cause a duplicate because LayoutCanvas would add it again
     } else {
       // Reset for new layout
       setEditingName("New Layout");
-      // Only clear background if we're not coming from map export
-      // The pendingBackgroundImage is handled by the separate useEffect above
     }
-  }, [currentLayout]);
+  }, [currentLayout, savedJobName]);
 
   // Delete keyboard shortcut
   useEffect(() => {
@@ -195,11 +208,18 @@ export default function LayoutEditor() {
       const dataUrl = event.target?.result as string;
       fabric.FabricImage.fromURL(dataUrl).then((img) => {
         const canvas = fabricRef.current;
-        if (!canvas || !canvas.width || !canvas.height || !img.width || !img.height) return;
+        if (
+          !canvas ||
+          !canvas.width ||
+          !canvas.height ||
+          !img.width ||
+          !img.height
+        )
+          return;
         const scale = Math.min(
           (canvas.width * 0.8) / img.width,
           (canvas.height * 0.8) / img.height,
-          1
+          1,
         );
         img.set({
           scaleX: scale,
@@ -242,9 +262,10 @@ export default function LayoutEditor() {
     // Get page dimensions in mm based on orientation
     const pageSizeLower = pageSize.toLowerCase() as keyof typeof PDF_PAGE_SIZES;
     const pageDims = PDF_PAGE_SIZES[pageSizeLower];
-    const [pageWidthMm, pageHeightMm] = orientation === 'landscape'
-      ? [pageDims.height, pageDims.width]
-      : [pageDims.width, pageDims.height];
+    const [pageWidthMm, pageHeightMm] =
+      orientation === "landscape"
+        ? [pageDims.height, pageDims.width]
+        : [pageDims.width, pageDims.height];
 
     // Calculate export settings using shared utility (DRY approach)
     const exportSettings = getFabricExportSettings({
@@ -274,7 +295,7 @@ export default function LayoutEditor() {
     const pdfHeight = pdf.internal.pageSize.getHeight();
 
     // Add image to fill the entire page
-    const imageFormat = exportSettings.format.toUpperCase() as 'JPEG' | 'PNG';
+    const imageFormat = exportSettings.format.toUpperCase() as "JPEG" | "PNG";
     pdf.addImage(dataUrl, imageFormat, 0, 0, pdfWidth, pdfHeight);
 
     // Generate filename
@@ -297,7 +318,9 @@ export default function LayoutEditor() {
 
     const canvasData = canvas.toJSON();
 
-    const layoutData: Partial<Omit<import("@/stores/layoutStore").Layout, "id">> = {
+    const layoutData: Partial<
+      Omit<import("@/stores/layoutStore").Layout, "id">
+    > = {
       name,
       canvasData,
       previewImage,
@@ -460,7 +483,8 @@ export default function LayoutEditor() {
           <DialogHeader>
             <DialogTitle>Layout Limit Reached</DialogTitle>
             <DialogDescription>
-              Maximum layout limit (3) reached. Please delete an existing layout before creating a new one.
+              Maximum layout limit (3) reached. Please delete an existing layout
+              before creating a new one.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

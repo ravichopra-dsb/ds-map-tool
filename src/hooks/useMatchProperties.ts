@@ -10,6 +10,7 @@ interface UseMatchPropertiesOptions {
     map: Map | null;
     vectorLayer: VectorLayer<VectorSource<Feature<Geometry>>> | null;
     activeTool: string;  // Pass activeTool as prop since it comes from useToolState, not useToolStore
+    onSave?: () => void;  // Callback to save state after applying styles
 }
 
 interface UseMatchPropertiesReturn {
@@ -26,6 +27,7 @@ export const useMatchProperties = ({
     map,
     vectorLayer,
     activeTool,
+    onSave,
 }: UseMatchPropertiesOptions): UseMatchPropertiesReturn => {
     const clickHandlerRef = useRef<((evt: any) => void) | null>(null);
 
@@ -82,9 +84,11 @@ export const useMatchProperties = ({
                 // Apply captured styles to the target feature
                 applyStyles(feature);
                 map.render();
+                // Trigger save to persist changes to database
+                onSave?.();
             }
         },
-        [isActive, map, phase, getFeatureAtPixel, captureStyles, applyStyles]
+        [isActive, map, phase, getFeatureAtPixel, captureStyles, applyStyles, onSave]
     );
 
     // Register/unregister click handler

@@ -7,24 +7,41 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import { TOOLS } from "../tools/toolConfig";
 import { useHiddenFeatures } from "@/hooks/useToggleObjects";
+import { usePanelStore } from "@/stores/usePanelStore";
+import { Settings2 } from "lucide-react";
 
 export function TogglingObject() {
   const { hiddenTypes, toggleFeature } = useHiddenFeatures();
+  const { activePanel, openLayers, closePanel, toggleToFeatures } =
+    usePanelStore();
   console.log(hiddenTypes);
 
   return (
-    <Sheet>
-      <SheetTrigger asChild className="absolute left-2 bottom-2">
+    <Sheet
+      open={activePanel === "layers"}
+      onOpenChange={(open) => (open ? openLayers() : closePanel())}
+    >
+      {/* <SheetTrigger asChild className="absolute left-2 bottom-2">
         <Button variant="outline">Layer</Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="w-60">
-        <SheetHeader>
-          <SheetTitle>Layers</SheetTitle>
-        </SheetHeader>
+      </SheetTrigger> */}
+      <SheetContent side="left" className="w-80">
+        <div className="flex items-center justify-between -mt-1">
+          <SheetHeader>
+            <SheetTitle>Layers</SheetTitle>
+          </SheetHeader>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="Switch to Features"
+            className="mr-8"
+            onClick={toggleToFeatures}
+          >
+            <Settings2 className="size-4" />
+          </Button>
+        </div>
         <div className="px-4 divide-transparent divide-y-12">
           {TOOLS.slice(6).map((tool) => {
             const Icon = tool.icon;

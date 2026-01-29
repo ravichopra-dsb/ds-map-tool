@@ -15,6 +15,7 @@ export function getIconCategories(): IconCategory[] {
       path: "google_earth_icons/landmark-symbols",
       icons: ["AIRPORT.png",
         "Bank.png",
+        "Volcano.png",
         "BRIDGE.png",
         "BT.png",
         "Bus Stop.png",

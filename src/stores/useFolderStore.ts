@@ -4,6 +4,7 @@ import type { Folder, FolderStructure } from "@/types/folders";
 interface FolderState {
   // State
   folders: Record<string, Folder>;
+  activeFolderId: string | null;
 
   // Actions
   createFolder: (name: string, parentId?: string | null) => string;
@@ -12,6 +13,8 @@ interface FolderState {
   moveFolder: (folderId: string, newParentId: string | null) => void;
   toggleFolderExpanded: (folderId: string) => void;
   setFolderExpanded: (folderId: string, expanded: boolean) => void;
+  setActiveFolder: (folderId: string | null) => void;
+  clearActiveFolder: () => void;
 
   // Hierarchy helpers
   getChildFolders: (parentId: string | null) => Folder[];
@@ -32,6 +35,7 @@ const generateId = (): string => {
 
 export const useFolderStore = create<FolderState>((set, get) => ({
   folders: {},
+  activeFolderId: null,
 
   createFolder: (name, parentId = null) => {
     const id = generateId();
@@ -66,7 +70,11 @@ export const useFolderStore = create<FolderState>((set, get) => ({
       allIdsToDelete.forEach((id) => {
         delete newFolders[id];
       });
-      return { folders: newFolders };
+      // Clear active folder if it was deleted
+      const newActiveFolderId = allIdsToDelete.includes(state.activeFolderId || "")
+        ? null
+        : state.activeFolderId;
+      return { folders: newFolders, activeFolderId: newActiveFolderId };
     });
   },
 
@@ -137,6 +145,14 @@ export const useFolderStore = create<FolderState>((set, get) => ({
     });
   },
 
+  setActiveFolder: (folderId) => {
+    set({ activeFolderId: folderId });
+  },
+
+  clearActiveFolder: () => {
+    set({ activeFolderId: null });
+  },
+
   getChildFolders: (parentId) => {
     return Object.values(get().folders)
       .filter((f) => f.parentId === parentId)
@@ -178,6 +194,6 @@ export const useFolderStore = create<FolderState>((set, get) => ({
   },
 
   clearAll: () => {
-    set({ folders: {} });
+    set({ folders: {}, activeFolderId: null });
   },
 }));

@@ -15,13 +15,15 @@ console.log("getIconCategories", getIconCategories());
 
 const shortcuts = [
   { title: "Copy", value: "ctrl c", symbol: "+" },
+  { title: "Cut", value: "ctrl x", symbol: "+" },
   { title: "Paste", value: "ctrl v", symbol: "+" },
   { title: "Undo", value: "ctrl z", symbol: "+" },
   { title: "Redo", value: "ctrl y", symbol: "+" },
-  { title: "Multi-select with drag", value: "ctrl Right-Click", symbol: "+" },
-  { title: "Multi-select with click", value: "shift Right-Click", symbol: "+" },
-  {title: "Zoom in", value: "shift Right-Click", symbol: "+" },
-  // { title: "Move", value: "hold ctrl" },
+  { title: "Ortho Mode", value: "F8", symbol: null },
+  { title: "Cancel", value: "Escape", symbol: null },
+  { title: "Pan Map", value: "Arrow Keys", symbol: null },
+  { title: "Multi-select (drag)", value: "ctrl Right-Click", symbol: "+" },
+  { title: "Multi-select (click)", value: "shift Click", symbol: "+" },
   { title: "Delete", value: "backspace delete", symbol: "or" },
 ];
 
@@ -41,7 +43,7 @@ export function HelpModal() {
   console.log(getToolsByCategory(activeTab));
 
   return (
-    <div className="absolute left-20 bottom-2">
+    <div className="absolute left-26 bottom-2">
       <Dialog>
         <form>
           <DialogTrigger asChild>
@@ -113,9 +115,11 @@ export function HelpModal() {
                             {shortcut.value.split(" ")[0]}
                           </span>
                           {shortcut.symbol && <span>{shortcut.symbol}</span>}
-                          <span className="bg-[#e0dfff] px-2 py-0.5 rounded-sm">
-                            {shortcut.value.split(" ")[1]}
-                          </span>
+                          {shortcut.value.split(" ")[1] && (
+                            <span className="bg-[#e0dfff] px-2 py-0.5 rounded-sm">
+                              {shortcut.value.split(" ")[1]}
+                            </span>
+                          )}
                         </span>
                       </li>
                     ))}

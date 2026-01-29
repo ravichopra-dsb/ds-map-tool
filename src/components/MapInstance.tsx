@@ -121,6 +121,8 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           const iconOpacity = feature.get("opacity") ?? 1;
           const iconScale = feature.get("iconScale") ?? 1;
           const labelScale = feature.get("labelScale") ?? 1;
+          const textOffsetX = feature.get("textOffsetX") ?? 0;
+          const textOffsetY = feature.get("textOffsetY") ?? 0;
           const iconRotation = feature.get("iconRotation") ?? 0;
 
           if (iconPath) {
@@ -147,8 +149,10 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
               // Calculate label scale factor (base scale * user label scale)
               const finalLabelScale = baseScaleFactor * labelScale;
               // Scale the offset proportionally with the icon
+              // User offsets must also be scaled to remain constant relative to icon size
               const baseOffsetY = -40;
-              const scaledOffsetY = baseOffsetY * finalIconScale;
+              const scaledOffsetY = (baseOffsetY + textOffsetY) * finalIconScale;
+              const scaledOffsetX = textOffsetX * finalIconScale;
 
               styles.push(
                 new Style({
@@ -159,8 +163,10 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
                     stroke: new Stroke({ color: "#ffffff", width: 3 }),
                     textAlign: "center",
                     textBaseline: "middle",
+                    offsetX: scaledOffsetX,
                     offsetY: scaledOffsetY,
                     scale: finalLabelScale,
+                    rotation: (iconRotation * Math.PI) / 180, // Rotate label with icon
                   }),
                   zIndex: 100,
                 }),

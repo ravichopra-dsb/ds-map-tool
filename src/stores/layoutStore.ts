@@ -19,6 +19,7 @@ interface LayoutStore {
   pendingBackgroundImage: string | null
   pendingPageSize: PageSize | null
   pendingLayoutId: string | null
+  pendingLayoutName: string | null
 
   addLayout: (layout: Omit<Layout, 'id' | 'createdAt' | 'updatedAt'>) => string
   updateLayout: (id: string, data: Partial<Omit<Layout, 'id' | 'createdAt'>>) => void
@@ -26,7 +27,7 @@ interface LayoutStore {
   getLayout: (id: string) => Layout | undefined
 
   // Pending background methods
-  setPendingBackground: (image: string, pageSize: PageSize, layoutId: string | null) => void
+  setPendingBackground: (image: string, pageSize: PageSize, layoutId: string | null, layoutName?: string | null) => void
   clearPendingBackground: () => void
 }
 
@@ -41,6 +42,7 @@ export const useLayoutStore = create<LayoutStore>()(
       pendingBackgroundImage: null,
       pendingPageSize: null,
       pendingLayoutId: null,
+      pendingLayoutName: null,
 
       addLayout: (layout) => {
         const currentLayouts = get().layouts
@@ -80,11 +82,12 @@ export const useLayoutStore = create<LayoutStore>()(
         return get().layouts.find((layout) => layout.id === id)
       },
 
-      setPendingBackground: (image, pageSize, layoutId) => {
+      setPendingBackground: (image, pageSize, layoutId, layoutName) => {
         set({
           pendingBackgroundImage: image,
           pendingPageSize: pageSize,
           pendingLayoutId: layoutId,
+          pendingLayoutName: layoutName || null,
         })
       },
 
@@ -93,6 +96,7 @@ export const useLayoutStore = create<LayoutStore>()(
           pendingBackgroundImage: null,
           pendingPageSize: null,
           pendingLayoutId: null,
+          pendingLayoutName: null,
         })
       },
     }),

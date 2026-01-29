@@ -52,6 +52,7 @@ export const useSelectModify = ({
   const continuationDrawRef = useRef<Draw | null>(null);
   const isContinuingRef = useRef<boolean>(false);
   const currentSelectedFeatureRef = useRef<Feature<Geometry> | null>(null);
+  const isEKeyPressedRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!map || !vectorLayer) return;
@@ -105,17 +106,22 @@ export const useSelectModify = ({
       }
     });
 
-    // Helper function to end continuation mode
-    const endContinuation = () => {
+    // Helper function to end continuation mode and trigger save
+    const endContinuation = (shouldSave: boolean = false) => {
       if (continuationDrawRef.current) {
         map.removeInteraction(continuationDrawRef.current);
         continuationDrawRef.current = null;
       }
       isContinuingRef.current = false;
       newModifyInteraction.setActive(true);
+
+      // Dispatch event to trigger database save after successful continuation
+      if (shouldSave) {
+        window.dispatchEvent(new CustomEvent('continuationComplete'));
+      }
     };
 
-    // Helper function to start continuation from an endpoint
+    // Helper function to start continuation from a specific endpoint
     const startContinuation = (feature: Feature<Geometry>, endpoint: 'start' | 'end') => {
       const vectorSource = vectorLayer.getSource();
       if (!vectorSource) return;
@@ -131,35 +137,68 @@ export const useSelectModify = ({
         featureType: featureType || 'polyline',
         onComplete: (newCoords) => {
           extendLineStringCoordinates(feature, newCoords, endpoint);
-          endContinuation();
+          endContinuation(true); // Save after successful continuation
         },
         onCancel: () => {
-          endContinuation();
+          endContinuation(false); // Don't save on cancel
         },
       });
 
       map.addInteraction(continuationDrawRef.current);
     };
 
-    // Click handler for endpoint detection
-    const handleEndpointClick = (evt: any) => {
-      if (isContinuingRef.current) return;
+    // Track 'e' key state for continuation shortcut
+    const handleKeyDown = (evt: KeyboardEvent) => {
+      // Ignore if user is typing in an input field
+      const target = evt.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      if (evt.key === 'e' || evt.key === 'E') {
+        isEKeyPressedRef.current = true;
+      }
+
+      // Handle Escape to finish continuation (keep drawn coordinates, like normal mode)
+      if (evt.key === 'Escape' && isContinuingRef.current) {
+        evt.preventDefault();
+        evt.stopImmediatePropagation();
+        if (continuationDrawRef.current) {
+          continuationDrawRef.current.finishDrawing();
+        }
+      }
+    };
+
+    const handleKeyUp = (evt: KeyboardEvent) => {
+      if (evt.key === 'e' || evt.key === 'E') {
+        isEKeyPressedRef.current = false;
+      }
+    };
+
+    // Click handler for e + click continuation
+    const handleContinuationClick = (evt: any) => {
+      // Only trigger if 'e' key is held and we're not already continuing
+      if (!isEKeyPressedRef.current || isContinuingRef.current) return;
 
       const selectedFeature = currentSelectedFeatureRef.current;
       if (!selectedFeature || !isContinuableFeature(selectedFeature)) return;
 
+      // Detect which endpoint was clicked (tolerance in pixels)
       const coordinate = evt.coordinate;
-      const clickedEndpoint = detectEndpointClick(selectedFeature, coordinate, 50);
+      const clickedEndpoint = detectEndpointClick(selectedFeature, coordinate, 15);
 
-      if (clickedEndpoint) {
-        startContinuation(selectedFeature, clickedEndpoint);
-      }
+      // Only start continuation if click is within tolerance of an endpoint
+      if (!clickedEndpoint) return;
+
+      startContinuation(selectedFeature, clickedEndpoint);
     };
 
-    map.on('singleclick', handleEndpointClick);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    map.on('singleclick', handleContinuationClick);
 
-    // Select event handler
-    newSelectInteraction.on('select', () => {
+    // Helper function to update panning and translate based on selection state
+    const updateSelectionState = () => {
       const allSelectedFeatures = newSelectInteraction.getFeatures().getArray();
 
       currentSelectedFeatureRef.current =
@@ -173,6 +212,13 @@ export const useSelectModify = ({
         dragPanRef.current?.setActive(true);
       }
 
+      return allSelectedFeatures;
+    };
+
+    // Select event handler (fired when user clicks to select/deselect)
+    newSelectInteraction.on('select', () => {
+      const allSelectedFeatures = updateSelectionState();
+
       onMultiSelectChange?.(allSelectedFeatures);
       onFeatureSelect(allSelectedFeatures[0] || null);
 
@@ -183,6 +229,17 @@ export const useSelectModify = ({
         }
       });
     });
+
+    // Listen to features collection changes to handle programmatic clears
+    // (e.g., Delete key, Cut operation, tool switches)
+    // This ensures panning is re-enabled even when clear() is called directly
+    const selectedFeatures = newSelectInteraction.getFeatures();
+
+    const handleFeaturesChange = () => {
+      updateSelectionState();
+    };
+
+    selectedFeatures.on('remove', handleFeaturesChange);
 
     // Set state to trigger re-render with interaction values
     setSelectInteraction(newSelectInteraction);
@@ -198,8 +255,17 @@ export const useSelectModify = ({
       }
       isContinuingRef.current = false;
       currentSelectedFeatureRef.current = null;
+      isEKeyPressedRef.current = false;
 
-      map.un('singleclick', handleEndpointClick);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      map.un('singleclick', handleContinuationClick);
+
+      // Remove features collection listener
+      selectedFeatures.un('remove', handleFeaturesChange);
+
+      // Re-enable panning on cleanup to prevent it being left disabled
+      dragPanRef.current?.setActive(true);
 
       map.removeInteraction(newSelectInteraction);
       map.removeInteraction(newModifyInteraction);

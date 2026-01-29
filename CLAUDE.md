@@ -29,19 +29,22 @@ Use Context7 for up-to-date docs when implementing new libraries/frameworks.
 - **Icons:** GP, Tower, Junction Point, Triangle, Pit
 - **Special:** Legend, Measure (dark gray dashed lines with distance labels), Text (rotate/scale), Search, Split, Merge, Transform, Offset
 - **Ortho Mode:** F8 to constrain drawing to orthogonal directions (horizontal/vertical/diagonal), per-segment tracking for mixed-mode drawing
+- **Folder-Based Drawing:** Draw features directly into active folder, auto-assignment on drawend
 
 ### File Operations
-- **Import/Export:** GeoJSON, KML, KMZ with enhanced format handling
+- **Import/Export:** GeoJSON, KML, KMZ with enhanced format handling and folder structure preservation
+- **Folder Structure:** Import/export hierarchical folders in GeoJSON (dsMapTool metadata), KML/KMZ (`<Folder>` elements)
 - **PDF Export:** DragBox area selection, page sizes A0-A5, resolution 72-3600 DPI, real-time progress
 - **Download:** Direct client-side download of all formats
 
 ### Data Management
 - **PGLite Persistence:** PostgreSQL-compatible local database with auto-recovery
 - **Multi-Project Support:** Separate isolated databases per project, CRUD operations, cross-tab sync
+- **Folder Management:** Hierarchical folder organization with CRUD, drag-drop reordering, nested folders
 - **Undo/Redo:** Ctrl+Z/Y keyboard shortcuts, singleton pattern, auto-tracking
 - **Clipboard:** Copy (Ctrl+C), Cut (Ctrl+X), Paste (Ctrl+V) with smart cursor positioning
 - **Properties Panel:** View/edit coordinates, names, custom key-value pairs with auto-open on Point drop
-- **Feature Visibility:** Show/hide any feature type via slide-out panel
+- **Feature Visibility:** Show/hide any feature type via slide-out panel, per-folder visibility toggle
 
 ### Advanced Features
 - **Multi-selection:** Shift-click, drag selection, batch copy/paste/cut
@@ -54,6 +57,8 @@ Use Context7 for up-to-date docs when implementing new libraries/frameworks.
 - **Hover Interaction:** Visual feedback (orange highlight) on feature hover without selection, conflict-free with selected features
 - **Style Editing:** Live preview for line color/width/opacity, shape stroke/fill, point opacity with reset/commit pattern
 - **Map Views:** OSM + satellite view toggle
+- **Panel Switching:** Toggle between Features (folder tree) and Layers (type visibility) panels
+- **Drag-Drop Organization:** Move features between folders, reorder folders, root drop zone
 
 ### Selection & Editing
 - **Universal Selection:** All features selectable
@@ -77,7 +82,9 @@ Use Context7 for up-to-date docs when implementing new libraries/frameworks.
 | PropertiesPanel.tsx | Feature properties CRUD with custom key-value pairs |
 | SearchPanel.tsx | Location search with Nominatim |
 | TogglingObject.tsx | Feature visibility control panel |
-| SeparateFeatures.tsx | Feature list with visibility toggles (eye icon) and delete buttons, bottom-left slide-out panel |
+| SeparateFeatures.tsx | Dual-purpose panel: folder tree + feature list with drag-drop, visibility toggles, delete buttons |
+| FolderItem.tsx | Folder tree node: expand/collapse, rename, delete, visibility toggle, drag handle |
+| DraggableFeatureItem.tsx | Draggable feature item: icon, name, visibility toggle, delete, folder assignment |
 | PdfExportDialog.tsx | PDF config (page size, resolution, progress) |
 | MergePropertiesDialog.tsx | Property conflict resolution for merges |
 | IconPickerDialog.tsx | 400+ Google Earth icon selector |
@@ -132,12 +139,14 @@ Use Context7 for up-to-date docs when implementing new libraries/frameworks.
 | propertyUtils.ts | Protected properties (name, long, lat, label), extractAllProperties(), applyPropertiesToFeature() |
 | routeUtils.ts | URL-safe slug generation, getMapUrl() for project routing |
 | visibilityUtils.ts | Feature visibility management |
+| kmlFolderUtils.ts | KML/GeoJSON folder structure import/export, hierarchy parsing, XML generation |
 
 ### Configuration
 - `src/config/toolConfig.ts` - Tool definitions (includes arc, box, circle, revisionCloud, offset)
 - `src/tools/legendsConfig.ts` - Legend types
 - `src/constants/styleDefaults.ts` - Style constants (colors, dimensions, hover highlight #ff6600)
-- `src/types/` - TypeScript definitions (ol-ext, PDF export)
+- `src/types/` - TypeScript definitions (ol-ext, PDF export, folders)
+- `src/types/folders.ts` - Folder interface and FolderStructure types
 - `src/icons/` - Icon SVG components + click handlers
 
 ### State Management (`src/stores/`)
@@ -149,6 +158,8 @@ Use Context7 for up-to-date docs when implementing new libraries/frameworks.
 | useHiddenFeaturesStore.ts | Feature visibility toggle state |
 | useMapStore.ts | Map view state |
 | useSelectionStore.ts | Feature selection state |
+| useFolderStore.ts | Folder hierarchy CRUD, active folder, expand/collapse, persistence |
+| usePanelStore.ts | Panel switching (features/layers), open/close state |
 | layoutStore.ts | UI layout persistence |
 
 ## Development
@@ -334,10 +345,44 @@ npm run preview   # Preview build
 - Hidden features shown with 50% opacity
 - Bottom-left slide-out panel
 
+**Folder Management:**
+- Store: `useFolderStore.ts` (Zustand) with full CRUD
+- Operations: createFolder, deleteFolder, renameFolder, moveFolder, toggleFolderExpanded, setActiveFolder
+- Hierarchy: nested folders via `parentId`, helpers for descendants and root folders
+- Persistence: `loadFromStorage()`, `exportToStorage()`, `clearAll()` for project switching
+- Active folder: Features drawn while folder is active get auto-assigned via `folderId` property
+- Integration: `interactionUtils.ts` assigns `folderId` on drawend event
+- Components: `FolderItem.tsx` (tree node), `DraggableFeatureItem.tsx` (draggable feature)
+
+**Panel Switching:**
+- Store: `usePanelStore.ts` (Zustand)
+- Panels: 'features' (folder tree + feature list) | 'layers' (type visibility) | null
+- Actions: openFeatures(), openLayers(), closePanel(), toggleToFeatures(), toggleToLayers()
+- Components: `SeparateFeatures.tsx` (features panel), `TogglingObject.tsx` (layers panel)
+- Toggle button in each panel header to switch between views
+
+**Drag-Drop Organization:**
+- Library: @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities
+- Features: drag folders to reorder, drag features between folders
+- Root drop zone: move features out of folders to root level
+- Sensors: PointerSensor (8px activation), KeyboardSensor
+- Visual feedback: 50% opacity during drag, highlight on drop target
+- Cascading: delete folder deletes all features within
+
+**Folder Import/Export:**
+- Utility: `kmlFolderUtils.ts` (334 lines)
+- GeoJSON format: `{ dsMapTool: { version: "1.0", folderStructure: {...} } }`
+- KML/KMZ format: Hierarchical `<Folder>` elements with nested Placemarks
+- Import: `parseKmlFolders()` extracts hierarchy, maps placemarks to folders by index
+- Export: `restructureKmlWithFolders()` injects folder hierarchy into flat KML
+- Helpers: `buildFolderTree()`, `escapeXml()`, `generateKmlFolderXml()`
+- Backward compatible: imports without folders work normally
+
 ## Version History (Latest First)
 
 | Version | Branch | Key Features |
 |---------|--------|--------------|
+| v2.11 | tools | **Folder Management** (hierarchical CRUD, drag-drop), panel switching (features/layers), folder-based drawing, KML/GeoJSON folder import/export, @dnd-kit integration, FolderItem/DraggableFeatureItem components, useFolderStore/usePanelStore |
 | v2.10 | tools | **Ortho Mode** (F8, per-segment tracking), hover interaction (#ff6600 highlight), offset tool (drag-based), style editing hooks (line/shape/point), Zustand migration, SeparateFeatures panel, hover conflict resolution |
 | v2.9.5 | tools | **Shape Tools** (Arc 3-point, Box, Circle, Revision Cloud), arcUtils, revisionCloudUtils, supportsCustomShapeStyle() |
 | v2.9.1 | tools | Hover fixes, separate feature toggling improvements, interaction hooks reorganization |
@@ -355,7 +400,7 @@ npm run preview   # Preview build
 
 ## Current Branch: tools
 
-All features above are included. Use for latest functionality.
+All features above are included. Use for latest functionality (v2.11).
 
 ---
 

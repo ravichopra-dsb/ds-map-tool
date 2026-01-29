@@ -27,10 +27,30 @@ export const isSplittableFeature = (feature: Feature<Geometry>): boolean => {
 
 /**
  * Check if a feature can be offset (parallel copy)
- * Reuses same criteria as splittable: LineString features except Arrow
- * DRY: Alias to isSplittableFeature since criteria is identical
+ * Supports:
+ * - LineString features except Arrow (same as splittable)
+ * - Polygon shapes: Box, Circle
  */
-export const isOffsettableFeature = isSplittableFeature;
+export const isOffsettableFeature = (feature: Feature<Geometry>): boolean => {
+  const geometry = feature.getGeometry();
+  if (!geometry) {
+    return false;
+  }
+
+  const geometryType = geometry.getType();
+
+  // LineString features (except arrows) can be offset
+  if (geometryType === "LineString") {
+    return !feature.get("isArrow");
+  }
+
+  // Polygon shapes (box, circle) can be offset
+  if (geometryType === "Polygon" || geometryType === "Circle") {
+    return feature.get("isBox") || feature.get("isCircle");
+  }
+
+  return false;
+};
 
 /**
  * Copy all properties from original feature to split features

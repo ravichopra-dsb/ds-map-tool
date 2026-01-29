@@ -26,10 +26,11 @@ import {
 } from "@/components/ui/sheet";
 import { useHiddenFeaturesStore } from "@/stores/useHiddenFeaturesStore";
 import { useFolderStore } from "@/stores/useFolderStore";
+import { usePanelStore } from "@/stores/usePanelStore";
 import { Vector as VectorSource } from "ol/source";
 import type { Feature } from "ol";
 import type { Geometry } from "ol/geom";
-import { Plus, Folder, Home } from "lucide-react";
+import { Plus, Folder, Home, Settings2 } from "lucide-react";
 import { FolderItem } from "./FolderItem";
 import { DraggableFeatureItem } from "./DraggableFeatureItem";
 import { Input } from "./ui/input";
@@ -103,7 +104,12 @@ export function SeparateFeatures({
     getRootFolders,
     getChildFolders,
     isDescendantOf,
+    activeFolderId,
+    setActiveFolder,
   } = useFolderStore();
+
+  const { activePanel, openFeatures, closePanel, toggleToLayers } =
+    usePanelStore();
 
   // Sensors for drag and drop
   const sensors = useSensors(
@@ -318,8 +324,10 @@ export function SeparateFeatures({
             allFeatures={features}
             depth={depth}
             isOverTarget={overFolderId === folder.id}
+            isActive={activeFolderId === folder.id}
             onDeleteFolder={handleDeleteFolder}
             onSaveMapState={onSaveMapState}
+            onSelect={setActiveFolder}
           >
             {renderFolderTree(folder.id, depth + 1)}
           </FolderItem>
@@ -365,8 +373,11 @@ export function SeparateFeatures({
   const activeItem = getActiveItem();
 
   return (
-    <Sheet>
-      <SheetTrigger asChild className="absolute left-32 bottom-2">
+    <Sheet
+      open={activePanel === "features"}
+      onOpenChange={(open) => (open ? openFeatures() : closePanel())}
+    >
+      <SheetTrigger asChild className="absolute left-2 bottom-2">
         <Button variant="outline" className="gap-2">
           Features
         </Button>
@@ -377,15 +388,25 @@ export function SeparateFeatures({
             <SheetTitle className="flex items-center gap-2">
               Features ({features.length})
             </SheetTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleCreateFolder}
-              title="Create new folder"
-              className="mr-5"
-            >
-              <Plus className="size-4" />
-            </Button>
+            <div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCreateFolder}
+                title="Create new folder"
+              >
+                <Plus className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Switch to Layers"
+                className="mr-5"
+                onClick={toggleToLayers}
+              >
+                <Settings2 className="size-4" />
+              </Button>
+            </div>
           </div>
         </SheetHeader>
 
@@ -432,7 +453,15 @@ export function SeparateFeatures({
             items={getAllSortableIds()}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-1 max-h-[calc(100vh-120px)] overflow-y-auto p-2 pt-0">
+            <div
+              className="space-y-1 h-screen overflow-y-auto p-2 pt-0 pb-10"
+              onClick={(e) => {
+                // Clear active folder when clicking empty space
+                if (e.target === e.currentTarget) {
+                  setActiveFolder(null);
+                }
+              }}
+            >
               {features.length === 0 && Object.keys(folders).length === 0 ? (
                 <div className="text-sm text-muted-foreground text-center py-8">
                   No features yet. Draw or import features to see them here.
@@ -451,8 +480,10 @@ export function SeparateFeatures({
                       allFeatures={features}
                       depth={0}
                       isOverTarget={overFolderId === folder.id}
+                      isActive={activeFolderId === folder.id}
                       onDeleteFolder={handleDeleteFolder}
                       onSaveMapState={onSaveMapState}
+                      onSelect={setActiveFolder}
                     >
                       {renderFolderTree(folder.id, 1)}
                     </FolderItem>

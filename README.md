@@ -38,13 +38,22 @@ DS Map Tool is an interactive map editor that combines powerful drawing capabili
 
 ## ✨ Current Release Highlights (tools branch)
 
-### 🆕 Latest Features (v2.9)
+### 🆕 Latest Features (v2.11)
+- **Folder Management**: Hierarchical folder organization with full CRUD operations (create, rename, delete, move)
+- **Drag-Drop Organization**: Move features between folders, reorder folders with @dnd-kit integration
+- **Folder-Based Drawing**: Activate a folder and draw features directly into it with auto-assignment
+- **Panel Switching**: Toggle between Features (folder tree) and Layers (type visibility) panels
+- **Enhanced Import/Export**: Folder structure preserved in GeoJSON (dsMapTool metadata) and KML/KMZ (`<Folder>` elements)
+- **Cascading Operations**: Delete folders with all contained features, toggle folder visibility recursively
+
+### Previous Features (v2.9-2.10)
 - **Split Tool**: Split LineString features by clicking on them with property preservation
 - **Merge Tool**: Merge LineString features by dragging endpoints together with conflict resolution
 - **Google Earth Icon Picker**: 400+ icons across 8 categories (Paddle, Pushpin, Shapes, Map Files, etc.)
 - **PDF Export**: High-quality map export with DragBox area selection and configurable resolution (72-3600 DPI)
 - **Search Functionality**: Location search with OpenStreetMap Nominatim API and autocomplete
-- **Toggling Objects**: Show/hide different feature types through a slide-out panel
+- **Ortho Mode**: F8 to constrain drawing to orthogonal directions (horizontal/vertical/diagonal)
+- **Hover Interaction**: Visual feedback (orange highlight) on feature hover
 
 ### 🎯 Core Features
 - **Enhanced Text Tool**: Place text labels with interactive rotation (0-360°) and scale (0.5-3.0) controls
@@ -68,15 +77,16 @@ DS Map Tool is an interactive map editor that combines powerful drawing capabili
 ### Core Capabilities
 - **Interactive Map Display** with OpenStreetMap and satellite view toggle
 - **Advanced Drawing Tools** for creating various geometric features including text labels
+- **Folder Management** with hierarchical organization, drag-drop, and folder-based drawing
 - **Split & Merge Tools** for dividing and combining LineString features with property preservation
 - **Google Earth Icon Library** with 400+ icons for professional map markers
 - **PDF Export System** with DragBox area selection and high-resolution output (up to 3600 DPI)
 - **Location Search** with OpenStreetMap Nominatim API and autocomplete suggestions
-- **Feature Visibility Control** to show/hide different feature types on the map
+- **Feature Visibility Control** to show/hide different feature types and folders on the map
 - **Feature Management** with selection, editing, and transformation capabilities
 - **Multi-Job Project Management** with isolated databases for different projects
 - **Data Persistence** with local PostgreSQL-compatible storage using PGLite
-- **Enhanced File Operations** supporting GeoJSON, KML, and KMZ formats with direct download
+- **Enhanced File Operations** supporting GeoJSON, KML, and KMZ formats with folder structure preservation
 - **Advanced Text Manipulation** with rotate and scale capabilities for precise labeling
 - **Collaborative Features** with clipboard operations, undo/redo, and multi-selection support
 
@@ -102,20 +112,23 @@ DS Map Tool is an interactive map editor that combines powerful drawing capabili
 | **Split** | Split LineString features | Divide lines while preserving properties |
 | **Merge** | Merge LineString features | Combine lines with conflict resolution |
 | **Search** | Location search with autocomplete | Find places using OpenStreetMap Nominatim |
+| **Folders** | Organize features into folders | Create hierarchical organization with drag-drop |
 
 ### Data Management Features
 - **Multi-Job Project Management**: Create, edit, and switch between multiple map projects
+- **Folder Organization**: Create hierarchical folders, drag-drop features between folders, activate folders for drawing
 - **Multi-Selection Support**: Select multiple features with drag selection and shift-click
 - **Copy/Paste Operations**: Cut, copy, and paste features with keyboard shortcuts
 - **Undo/Redo System**: Complete history tracking for all drawing operations
 - **Vertex Editing**: Delete and modify individual points in polylines
 - **Properties Panel**: View and edit feature properties including coordinates and custom properties
 - **Feature Styling**: Customize appearance of all map elements
-- **Enhanced File Operations**: Import/Export and direct download of multiple geospatial formats
+- **Enhanced File Operations**: Import/Export with folder structure preservation in GeoJSON, KML, KMZ
 - **Split & Merge Tools**: Divide and combine LineString features with property preservation
 - **PDF Export**: High-quality map export with DragBox selection and configurable settings
 - **Location Search**: Find places using OpenStreetMap Nominatim API with autocomplete
-- **Feature Visibility**: Toggle visibility of different feature types without deleting data
+- **Feature Visibility**: Toggle visibility of different feature types and folders without deleting data
+- **Panel Switching**: Toggle between Features (folder tree) and Layers (type visibility) views
 - **Icon Library**: Access 400+ Google Earth icons for professional point markers
 
 ## 🎯 Workflow Guide
@@ -242,6 +255,24 @@ DS Map Tool is an interactive map editor that combines powerful drawing capabili
 4. **Changes apply instantly** to the map
 5. **Hidden features preserved** - data not deleted, just visually hidden
 
+#### Folder Management Workflow
+1. **Open Features Panel** - Click panel button at bottom-left, select "Features" tab
+2. **Create Folders** - Click "+" button to create a new folder, type name and press Enter
+3. **Organize Features** - Drag features into folders or drag folders to reorder
+4. **Activate Folder** - Click a folder to activate it (highlighted with border)
+5. **Draw into Folder** - With folder active, all drawn features are auto-assigned to it
+6. **Nested Folders** - Drag folders into other folders to create hierarchy
+7. **Toggle Visibility** - Click eye icon on folder to hide/show all contained features
+8. **Delete Folder** - Click delete button to remove folder and all its features
+9. **Rename Folder** - Double-click folder name to edit inline
+10. **Root Drop Zone** - Drag features to bottom area to move them out of folders
+
+#### Panel Switching
+1. **Features Panel** - Shows folder tree with features, supports drag-drop organization
+2. **Layers Panel** - Shows feature types for global visibility toggles
+3. **Toggle Button** - Click button in panel header to switch between views
+4. **Independent Controls** - Folder visibility and type visibility work together
+
 ## 🏗️ Technical Architecture
 
 ### Frontend Stack
@@ -259,6 +290,8 @@ DS Map Tool is an interactive map editor that combines powerful drawing capabili
 - **JSZip 3.10.1** - KMZ file processing and creation
 - **Lucide React 0.552.0** - Modern icon library with extensive icon collection
 - **Radix UI** - Accessible component library (Dialog, Dropdown, Checkbox, Slider, Sheet, Toggle)
+- **@dnd-kit** - Drag-and-drop toolkit for folder and feature organization
+- **Zustand** - Lightweight state management for stores (tools, folders, panels)
 
 ### Data Persistence
 - **Local Storage**: Basic settings and preferences
@@ -287,7 +320,9 @@ src/
 │   ├── DragBoxInstruction.tsx # PDF export area selection guidance
 │   ├── SearchPanel.tsx # Location search panel
 │   ├── SearchWrapper.tsx # Search functionality wrapper
-│   ├── TogglingObject.tsx # Feature visibility control panel
+│   ├── TogglingObject.tsx # Feature type visibility control (Layers panel)
+│   ├── FolderItem.tsx # Folder tree node with drag-drop support
+│   ├── DraggableFeatureItem.tsx # Draggable feature item component
 │   ├── JobSelection.tsx # Multi-job project management
 │   ├── CreatingJob.tsx # New project creation dialog
 │   ├── ToolBar.tsx     # UI toolbar for tool selection
@@ -315,7 +350,8 @@ src/
 │   ├── splitUtils.ts   # Split and merge utilities
 │   ├── iconUtils.ts    # Google Earth icon management
 │   ├── pdfExportUtils.ts # PDF export with canvas rendering
-│   └── searchUtils.ts  # Location search utilities
+│   ├── searchUtils.ts  # Location search utilities
+│   └── kmlFolderUtils.ts # KML/GeoJSON folder structure import/export
 ├── config/             # Configuration files
 │   └── toolConfig.ts   # Tool definitions and settings (includes Split/Merge)
 ├── tools/              # Tool-specific configurations
@@ -329,9 +365,16 @@ src/
 │   ├── JunctionPoint.ts # Junction Point icon
 │   └── ToolBoxIcon.tsx # Toolbox UI icon
 ├── lib/                # Shared utility functions
+├── stores/             # Zustand state stores
+│   ├── useToolStore.ts # Active tool, line styles, ortho mode
+│   ├── useHiddenFeaturesStore.ts # Feature visibility state
+│   ├── useFolderStore.ts # Folder hierarchy management
+│   ├── usePanelStore.ts # Panel switching state
+│   └── layoutStore.ts  # UI layout persistence
 └── types/              # TypeScript type definitions
     ├── ol-ext.d.ts     # ol-ext library type definitions
-    └── pdf.ts          # PDF export configuration types
+    ├── pdf.ts          # PDF export configuration types
+    └── folders.ts      # Folder interface and structure types
 ```
 
 ## ⌨️ Keyboard Shortcuts
@@ -344,6 +387,8 @@ src/
 | **Ctrl+Z** | Undo last operation |
 | **Ctrl+Y** | Redo last undone operation |
 | **Delete** | Delete selected vertices/points |
+| **F8** | Toggle Ortho Mode (constrain to horizontal/vertical/diagonal) |
+| **Shift+Click** | Add/remove features from selection |
 | **1-12** | Quick tool switching (number keys) |
 
 ## 🔧 Development
@@ -460,6 +505,8 @@ npm run lint     # Run ESLint
 6. **Icons not displaying**: Verify Google Earth icon files are in public/google_earth_icons/
 7. **Search not working**: Check internet connection for Nominatim API access
 8. **Merge not working**: Ensure endpoints are within snap tolerance distance
+9. **Folders not importing**: Ensure KML has proper `<Folder>` elements or GeoJSON has dsMapTool metadata
+10. **Drag-drop not working**: Check that @dnd-kit dependencies are installed
 
 ### Performance Issues
 1. **Slow rendering**: Reduce number of features or simplify geometries
@@ -497,13 +544,17 @@ For support and questions:
 
 ## 🎉 Feature Highlights Summary
 
-**Version 2.9 (tools branch)** brings powerful new capabilities:
+**Version 2.11 (tools branch)** brings powerful new capabilities:
+- 📁 **Folder Management** - Hierarchical organization with drag-drop support
+- 🎯 **Folder-Based Drawing** - Draw features directly into active folders
+- 🔄 **Panel Switching** - Toggle between Features and Layers views
+- 📤 **Enhanced Export** - Folder structure preserved in GeoJSON, KML, KMZ
 - ✂️ **Split & Merge** - Professional line editing with property management
 - 🎨 **Icon Library** - 400+ Google Earth icons for enhanced visualization
 - 📄 **PDF Export** - Publication-ready maps with high DPI output
 - 🔍 **Location Search** - Find places worldwide with Nominatim
-- 👁️ **Feature Toggling** - Control layer visibility without data loss
+- 👁️ **Feature Toggling** - Control layer and folder visibility without data loss
 
 Built with ❤️ using modern web technologies for professional map editing and data management.
 
-**Current Branch**: `tools` | **Main Technologies**: React 19 + TypeScript + OpenLayers 10 + PGLite + jsPDF
+**Current Branch**: `tools` | **Main Technologies**: React 19 + TypeScript + OpenLayers 10 + PGLite + jsPDF + @dnd-kit

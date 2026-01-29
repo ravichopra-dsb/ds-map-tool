@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Draw } from "ol/interaction";
+import { Draw, Snap } from "ol/interaction";
 import { Feature } from "ol";
 import { LineString } from "ol/geom";
 import type Map from "ol/Map";
@@ -49,8 +49,29 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
   onFeatureSelect,
 }) => {
   const drawInteractionRef = useRef<Draw | null>(null);
+  const snapInteractionRef = useRef<Snap | null>(null);
   const { registerClickHandler, removeAllClickHandlers } =
     useClickHandlerManager();
+
+  // Helper to add snap interaction after draw - must be added AFTER draw for proper event ordering
+  const addSnapInteraction = () => {
+    if (!map) return;
+
+    // Remove existing snap interaction
+    if (snapInteractionRef.current) {
+      map.removeInteraction(snapInteractionRef.current);
+      snapInteractionRef.current = null;
+    }
+
+    // Create and add snap interaction AFTER draw
+    snapInteractionRef.current = new Snap({
+      source: vectorSource,
+      pixelTolerance: 15,
+      vertex: true,
+      edge: true,
+    });
+    map.addInteraction(snapInteractionRef.current);
+  };
 
   // Auto-activate legends tool when selectedLegend changes
   useEffect(() => {
@@ -80,10 +101,14 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
   useEffect(() => {
     if (!map) return;
 
-    // Remove existing draw interaction if any
+    // Remove existing draw and snap interactions
     if (drawInteractionRef.current) {
       map.removeInteraction(drawInteractionRef.current);
       drawInteractionRef.current = null;
+    }
+    if (snapInteractionRef.current) {
+      map.removeInteraction(snapInteractionRef.current);
+      snapInteractionRef.current = null;
     }
 
     // Remove all click handlers using the hook
@@ -105,6 +130,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           }
         });
         map.addInteraction(drawInteractionRef.current);
+        addSnapInteraction();
         break;
 
       case "polyline":
@@ -119,6 +145,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           lineWidth
         );
         map.addInteraction(drawInteractionRef.current);
+        addSnapInteraction();
         break;
 
       case "freehand":
@@ -133,6 +160,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           lineWidth
         );
         map.addInteraction(drawInteractionRef.current);
+        addSnapInteraction();
         break;
 
       case "arrow":
@@ -147,6 +175,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           lineWidth
         );
         map.addInteraction(drawInteractionRef.current);
+        addSnapInteraction();
         break;
 
       case "legends":
@@ -191,6 +220,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           }
         );
         map.addInteraction(drawInteractionRef.current);
+        addSnapInteraction();
         break;
 
       case "text":
@@ -259,6 +289,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
             }
           );
           map.addInteraction(drawInteractionRef.current);
+          addSnapInteraction();
         }
         break;
 
@@ -272,6 +303,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           }
         );
         map.addInteraction(drawInteractionRef.current);
+        addSnapInteraction();
         break;
 
       case "circle":
@@ -284,6 +316,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           }
         );
         map.addInteraction(drawInteractionRef.current);
+        addSnapInteraction();
         break;
 
       case "arc":
@@ -298,6 +331,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           lineWidth
         );
         map.addInteraction(drawInteractionRef.current);
+        addSnapInteraction();
         break;
 
       case "revcloud":
@@ -311,6 +345,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           lineColor
         );
         map.addInteraction(drawInteractionRef.current);
+        addSnapInteraction();
         break;
 
       case "split":
@@ -333,10 +368,14 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
     }
 
     return () => {
-      // Cleanup draw interaction on tool change
+      // Cleanup draw and snap interactions on tool change
       if (drawInteractionRef.current) {
         map.removeInteraction(drawInteractionRef.current);
         drawInteractionRef.current = null;
+      }
+      if (snapInteractionRef.current) {
+        map.removeInteraction(snapInteractionRef.current);
+        snapInteractionRef.current = null;
       }
       // Reset cursor to default
       const mapElement = map.getTargetElement();

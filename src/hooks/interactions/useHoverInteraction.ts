@@ -34,8 +34,8 @@ export const useHoverInteraction = ({
         const selectedFeatures = selectInteraction.getFeatures().getArray();
         return !selectedFeatures.includes(feature as Feature<Geometry>);
       },
-      style: (feature) => {
-        return createHoverStyle(feature as Feature<Geometry>);
+      style: (feature, resolution) => {
+        return createHoverStyle(feature as Feature<Geometry>, resolution);
       },
       hitTolerance: STYLE_DEFAULTS.HIT_TOLERANCE,
     });

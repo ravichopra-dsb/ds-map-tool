@@ -26,6 +26,7 @@ interface PdfExportDialogProps {
     onProgress: (progress: ExportProgress) => void,
   ) => Promise<MapImageExportResult>;
   isExporting: boolean;
+  jobName?: string;
 }
 
 export function PdfExportDialog({
@@ -33,6 +34,7 @@ export function PdfExportDialog({
   onClose,
   onExport,
   isExporting,
+  jobName,
 }: PdfExportDialogProps) {
   const navigate = useNavigate();
   const [pageSize, setPageSize] = useState<PageSize>("a4");
@@ -40,6 +42,7 @@ export function PdfExportDialog({
   const [keepVectorLayerConstant, _setKeepVectorLayerConstant] = useState(false);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const [selectedLayoutId, setSelectedLayoutId] = useState<string>("");
+  console.log("JOB NAME", jobName);
 
   const layouts = useLayoutStore((state) => state.layouts);
   const setPendingBackground = useLayoutStore(
@@ -65,8 +68,8 @@ export function PdfExportDialog({
         setProgress,
       );
 
-      // Store the image in Zustand
-      setPendingBackground(result.dataURL, pageSize, selectedLayoutId || null);
+      // Store the image in Zustand with job name
+      setPendingBackground(result.dataURL, pageSize, selectedLayoutId || null, jobName);
 
       // Navigate to layout editor
       const targetPath = selectedLayoutId
