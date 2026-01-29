@@ -102,12 +102,13 @@ export const isLegacySelectableFeature = (feature: FeatureLike): boolean => {
 
 /**
  * Determines if a feature supports custom line styling (width and color)
- * Only Polyline, Freehand, Arrow, Legends, and Arc LineString features support custom styling
+ * Only Polyline, Freehand, Arrow, Legends, and Arc LineString/MultiLineString features support custom styling
  * Excludes: Measure
  */
 export const supportsCustomLineStyle = (feature: FeatureLike): boolean => {
   const geometry = feature.getGeometry();
-  if (!geometry || geometry.getType() !== "LineString") return false;
+  const geomType = geometry?.getType();
+  if (!geometry || (geomType !== "LineString" && geomType !== "MultiLineString")) return false;
 
   // Include: Polyline, Freehand, Arrow, Legends, Arc
   const isPolyline = feature.get("isPolyline");

@@ -200,9 +200,11 @@ const applyStylesToFeature = (feature: Feature<Geometry>, styles: CapturedStyles
         if (styles.strokeDash !== undefined) {
             feature.set('strokeDash', styles.strokeDash);
         }
-        // Apply legendType for text legends (OIL, HW, GAS, etc.) - only to legend features
-        if (feature.get('islegends') && styles.legendType !== undefined) {
+        // Apply legendType for text legends (OIL, HW, GAS, etc.)
+        // Also set islegends:true to enable text rendering on target features
+        if (styles.legendType !== undefined) {
             feature.set('legendType', styles.legendType);
+            feature.set('islegends', true);
         }
     }
 
@@ -227,14 +229,25 @@ const applyStylesToFeature = (feature: Feature<Geometry>, styles: CapturedStyles
         if (styles.strokeDash !== undefined) {
             feature.set('strokeDash', styles.strokeDash);
         }
+        // Apply legendType for text legends (OIL, HW, GAS, etc.) to shapes
+        if (styles.legendType !== undefined) {
+            feature.set('legendType', styles.legendType);
+        }
     }
 
     // Apply to TEXT features
     if (isTextFeature) {
-        if (resolvedColor !== undefined) {
-            feature.set('color', resolvedColor);
+        // Text-specific color properties
+        if (styles.textFillColor !== undefined) {
+            feature.set('textFillColor', styles.textFillColor);
         }
-        // Text-specific properties only transfer from text sources
+        if (styles.textStrokeColor !== undefined) {
+            feature.set('textStrokeColor', styles.textStrokeColor);
+        }
+        if (styles.textOpacity !== undefined) {
+            feature.set('textOpacity', styles.textOpacity);
+        }
+        // Text-specific layout properties
         if (styles.textScale !== undefined) {
             feature.set('textScale', styles.textScale);
         }

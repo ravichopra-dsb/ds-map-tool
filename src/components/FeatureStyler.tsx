@@ -24,6 +24,64 @@ export type FeatureStylerFunction = (
   selectedLegend?: LegendType,
 ) => Style | Style[] | null;
 
+// Helper function to create text-along-edge style for shapes with legendType
+// Extracts the exterior ring of the polygon and renders text along it
+const getShapeTextStyle = (feature: FeatureLike): Style | null => {
+  const legendTypeId = feature.get("legendType");
+  if (!legendTypeId) return null;
+
+  const legendType = getLegendById(legendTypeId);
+  if (!legendType?.text || !legendType.textStyle) return null;
+
+  const geometry = feature.getGeometry();
+  if (!geometry) return null;
+
+  const geomType = geometry.getType();
+  if (geomType !== "Polygon" && geomType !== "MultiPolygon") return null;
+
+  const textStyle = legendType.textStyle;
+
+  return new Style({
+    text: new Text({
+      text: legendType.text,
+      placement: "line",
+      repeat: textStyle.repeat,
+      font: textStyle.font || "bold 10px Arial",
+      fill: new Fill({
+        color: textStyle.fill || "#000000",
+      }),
+      stroke: new Stroke({
+        color: textStyle.stroke || "#ffffff",
+        width: textStyle.strokeWidth || 3,
+      }),
+      textAlign: "center",
+      textBaseline: "middle",
+      maxAngle: textStyle.maxAngle,
+      offsetX: textStyle.offsetX || 0,
+      offsetY: textStyle.offsetY || 0,
+      scale: textStyle.scale || 1,
+    }),
+    geometry: () => {
+      // Extract exterior ring as LineString for text placement along the edge
+      if (geomType === "Polygon") {
+        const coords = (geometry as any).getLinearRing(0)?.getCoordinates();
+        if (coords) return new LineString(coords);
+      } else if (geomType === "MultiPolygon") {
+        // For MultiPolygon, combine all exterior rings
+        const polygons = (geometry as any).getPolygons();
+        const allCoords: number[][] = [];
+        for (const poly of polygons) {
+          const ring = poly.getLinearRing(0);
+          if (ring) allCoords.push(...ring.getCoordinates());
+        }
+        if (allCoords.length > 0) return new LineString(allCoords);
+      }
+      return geometry;
+    },
+    zIndex: 100,
+  });
+};
+
 // ✅ Reusable function for legends with text along line path
 export const getTextAlongLineStyle = (
   feature: FeatureLike,
@@ -365,7 +423,7 @@ export const getFeatureStyle = (
     const fillOpacity =
       feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
     const strokeDash = feature.get("strokeDash") as number[] | undefined;
-    return createPolygonStyle(
+    const baseStyle = createPolygonStyle(
       strokeColor,
       2,
       strokeOpacity,
@@ -373,6 +431,14 @@ export const getFeatureStyle = (
       fillOpacity,
       strokeDash,
     );
+    // Add text label if legendType is set
+    const textStyle = getShapeTextStyle(feature);
+    if (textStyle) {
+      return Array.isArray(baseStyle)
+        ? [...baseStyle, textStyle]
+        : [baseStyle, textStyle];
+    }
+    return baseStyle;
   }
 
   // Handle Circle features
@@ -389,7 +455,7 @@ export const getFeatureStyle = (
     const fillOpacity =
       feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
     const strokeDash = feature.get("strokeDash") as number[] | undefined;
-    return createPolygonStyle(
+    const baseStyle = createPolygonStyle(
       strokeColor,
       2,
       strokeOpacity,
@@ -397,6 +463,14 @@ export const getFeatureStyle = (
       fillOpacity,
       strokeDash,
     );
+    // Add text label if legendType is set
+    const textStyle = getShapeTextStyle(feature);
+    if (textStyle) {
+      return Array.isArray(baseStyle)
+        ? [...baseStyle, textStyle]
+        : [baseStyle, textStyle];
+    }
+    return baseStyle;
   }
 
   // Handle Revision Cloud features
@@ -415,7 +489,7 @@ export const getFeatureStyle = (
     const fillOpacity =
       feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
     const strokeDash = feature.get("strokeDash") as number[] | undefined;
-    return createPolygonStyle(
+    const baseStyle = createPolygonStyle(
       strokeColor,
       strokeWidth,
       strokeOpacity,
@@ -423,6 +497,14 @@ export const getFeatureStyle = (
       fillOpacity,
       strokeDash,
     );
+    // Add text label if legendType is set
+    const textStyle = getShapeTextStyle(feature);
+    if (textStyle) {
+      return Array.isArray(baseStyle)
+        ? [...baseStyle, textStyle]
+        : [baseStyle, textStyle];
+    }
+    return baseStyle;
   }
 
   if (

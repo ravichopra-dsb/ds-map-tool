@@ -409,7 +409,7 @@ export const applyKmlStylesToFeatures = (
     }
 
     // Set type flags for proper rendering
-    if (geomType === "LineString" && !feature.get("isPolyline") && !feature.get("isFreehand") && !feature.get("isArrow")) {
+    if ((geomType === "LineString" || geomType === "MultiLineString") && !feature.get("isPolyline") && !feature.get("isFreehand") && !feature.get("isArrow")) {
       feature.set("isPolyline", true);
     }
     if (geomType === "Point" && !feature.get("isPoint") && !feature.get("isIcon")) {
