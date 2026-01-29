@@ -9,6 +9,51 @@ export interface CustomProperty {
   value: string;
 }
 
+/**
+ * Check if a string contains HTML description content (from KML)
+ */
+export const isHtmlDescription = (value: unknown): boolean => {
+  if (!value || typeof value !== 'string') return false;
+  return value.includes('<b>') && value.includes('</b>') && value.includes('<br');
+};
+
+/**
+ * Parse HTML description from KML into key-value pairs.
+ * Handles patterns like: <b>Label:</b> value<br/>
+ * Returns empty object if description is not HTML format.
+ */
+export const parseHtmlDescription = (htmlDescription: unknown): Record<string, string> => {
+  const result: Record<string, string> = {};
+
+  if (!isHtmlDescription(htmlDescription)) {
+    return result;
+  }
+
+  const html = htmlDescription as string;
+
+  // Pattern to match <b>Key:</b> value<br/> or similar variations
+  const pattern = /<b>([^<:]+):<\/b>\s*([^<]*?)(?:<br\s*\/?>|<img|$)/gi;
+
+  let match;
+  while ((match = pattern.exec(html)) !== null) {
+    const key = match[1].trim();
+    const value = match[2].trim();
+
+    // Skip empty values
+    if (key && value) {
+      result[key] = value;
+    }
+  }
+
+  // Extract image URL if present
+  const imgMatch = html.match(/<img[^>]+src="([^"]+)"/i);
+  if (imgMatch) {
+    result['Image URL'] = imgMatch[1];
+  }
+
+  return result;
+};
+
 /** Properties that cannot have their key changed */
 export const PROTECTED_PROPERTY_KEYS = ["name", "long", "lat", "label"] as const;
 
@@ -104,6 +149,7 @@ const shouldExcludeProperty = (key: string): boolean => {
 /**
  * Extracts all displayable properties from a feature.
  * Includes coordinates (name, long, lat), label property, and custom properties.
+ * Parses HTML description from KML into individual properties.
  */
 export const extractAllProperties = (feature: Feature): CustomProperty[] => {
   const coords = extractCoordinates(feature);
@@ -113,6 +159,11 @@ export const extractAllProperties = (feature: Feature): CustomProperty[] => {
   const allProperties: CustomProperty[] = [];
   const geometry = feature.getGeometry();
   const geometryType = geometry?.getType();
+
+  // Check if description contains HTML and parse it
+  const description = properties.description;
+  const parsedDescription = parseHtmlDescription(description);
+  const hasHtmlDescription = Object.keys(parsedDescription).length > 0;
 
   // Add name first
   allProperties.push({ id: "prop-name", key: "name", value: coords.name });
@@ -142,10 +193,25 @@ export const extractAllProperties = (feature: Feature): CustomProperty[] => {
     );
   }
 
+  // Add parsed description fields as individual properties (if HTML description exists)
+  if (hasHtmlDescription) {
+    Object.entries(parsedDescription).forEach(([key, value], index) => {
+      allProperties.push({
+        id: `prop-desc-${index}-${Date.now()}`,
+        key,
+        value,
+      });
+    });
+  }
+
   // Add custom properties (filtered)
-  const filteredEntries = Object.entries(properties).filter(
-    ([key]) => !shouldExcludeProperty(key)
-  );
+  // If description was parsed as HTML, exclude it from regular properties
+  const filteredEntries = Object.entries(properties).filter(([key]) => {
+    if (shouldExcludeProperty(key)) return false;
+    // Exclude description if it was parsed as HTML
+    if (key === "description" && hasHtmlDescription) return false;
+    return true;
+  });
 
   filteredEntries.forEach(([key, value], index) => {
     allProperties.push({

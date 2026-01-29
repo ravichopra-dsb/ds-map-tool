@@ -410,27 +410,50 @@ const PropertyDisplayList: React.FC<PropertyDisplayListProps> = ({
 
   return (
     <div className="space-y-1">
-      {properties.map((prop) => (
-        <div
-          key={prop.id}
-          className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
-        >
-          <span className="font-medium text-gray-700 dark:text-gray-300 capitalize flex-1">
-            {prop.key}:
-          </span>
-          {prop.key === "length" ? (
-            <LengthValueWithUnit
-              value={prop.value}
-              unit={lengthUnit}
-              onUnitChange={onLengthUnitChange}
-            />
-          ) : (
-            <span className="text-gray-600 dark:text-gray-400 truncate ml-2">
-              {prop.value || <span className="text-gray-400 italic">Empty</span>}
+      {properties.map((prop) => {
+        // Check if this is an image URL property
+        const isImageUrl = prop.key === "Image URL" && prop.value?.startsWith("http");
+
+        if (isImageUrl) {
+          return (
+            <div key={prop.id} className="py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+              <span className="font-medium text-gray-700 dark:text-gray-300 capitalize block mb-2">
+                {prop.key}:
+              </span>
+              <img
+                src={prop.value}
+                alt="Feature image"
+                className="w-full max-h-48 object-contain rounded border border-gray-200 dark:border-slate-600"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            </div>
+          );
+        }
+
+        return (
+          <div
+            key={prop.id}
+            className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+          >
+            <span className="font-medium text-gray-700 dark:text-gray-300 capitalize flex-1">
+              {prop.key}:
             </span>
-          )}
-        </div>
-      ))}
+            {prop.key === "length" ? (
+              <LengthValueWithUnit
+                value={prop.value}
+                unit={lengthUnit}
+                onUnitChange={onLengthUnitChange}
+              />
+            ) : (
+              <span className="text-gray-600 dark:text-gray-400 truncate ml-2">
+                {prop.value || <span className="text-gray-400 italic">Empty</span>}
+              </span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -469,6 +492,47 @@ const PropertyEditList: React.FC<PropertyEditListProps> = ({
       {properties.map((prop) => {
         const isReadOnly = isProtectedProperty(prop.key);
         const isCalculated = isCalculatedProperty(prop.key);
+        const isImageUrl = prop.key === "Image URL" && prop.value?.startsWith("http");
+
+        // Special layout for Image URL - show preview below
+        if (isImageUrl) {
+          return (
+            <div key={prop.id} className="relative">
+              <div className="flex gap-2 items-center">
+                <LabelSelector
+                  propertyKey={prop.key}
+                  currentLabel={currentLabel}
+                  onSelect={onLabelSelect}
+                  disabled={false}
+                />
+                <Input
+                  placeholder="Property name"
+                  value={prop.key}
+                  onChange={(e) => onUpdate(prop.id, "key", e.target.value)}
+                  className="flex-1 text-sm bg-gray-50 dark:bg-slate-700"
+                  disabled={true}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => onDelete(prop.id)}
+                  className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  aria-label="Delete property"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+              <img
+                src={prop.value}
+                alt="Feature image"
+                className="w-full max-h-48 object-contain rounded border border-gray-200 dark:border-slate-600 mt-2"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            </div>
+          );
+        }
 
         return (
           <div key={prop.id} className="flex gap-2 items-center relative">
