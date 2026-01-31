@@ -127,6 +127,10 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           // Select the newly created point feature
           if (onFeatureSelect && event.feature) {
             onFeatureSelect(event.feature);
+            // Dispatch event to sync Select interaction for blue highlight
+            window.dispatchEvent(new CustomEvent('featureDrawn', {
+              detail: { feature: event.feature }
+            }));
           }
         });
         map.addInteraction(drawInteractionRef.current);
@@ -139,6 +143,10 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           (event) => {
             if (onFeatureSelect && event.feature) {
               onFeatureSelect(event.feature);
+              // Dispatch event to sync Select interaction for blue highlight
+              window.dispatchEvent(new CustomEvent('featureDrawn', {
+                detail: { feature: event.feature }
+              }));
             }
           },
           lineColor,
@@ -154,6 +162,10 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           (event) => {
             if (onFeatureSelect && event.feature) {
               onFeatureSelect(event.feature);
+              // Dispatch event to sync Select interaction for blue highlight
+              window.dispatchEvent(new CustomEvent('featureDrawn', {
+                detail: { feature: event.feature }
+              }));
             }
           },
           lineColor,
@@ -169,6 +181,10 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           (event) => {
             if (onFeatureSelect && event.feature) {
               onFeatureSelect(event.feature);
+              // Dispatch event to sync Select interaction for blue highlight
+              window.dispatchEvent(new CustomEvent('featureDrawn', {
+                detail: { feature: event.feature }
+              }));
             }
           },
           lineColor,
@@ -216,6 +232,10 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           (event) => {
             if (onFeatureSelect && event.feature) {
               onFeatureSelect(event.feature);
+              // Dispatch event to sync Select interaction for blue highlight
+              window.dispatchEvent(new CustomEvent('featureDrawn', {
+                detail: { feature: event.feature }
+              }));
             }
           }
         );
@@ -257,6 +277,10 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
                 const feature = handleIconClick(vectorSource, coordinate, selectedIconPath);
                 if (feature && onFeatureSelect) {
                   onFeatureSelect(feature);
+                  // Dispatch event to sync Select interaction for blue highlight
+                  window.dispatchEvent(new CustomEvent('featureDrawn', {
+                    detail: { feature }
+                  }));
                 }
               },
             },
@@ -285,6 +309,10 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
             (event) => {
               if (onFeatureSelect && event.feature) {
                 onFeatureSelect(event.feature);
+                // Dispatch event to sync Select interaction for blue highlight
+                window.dispatchEvent(new CustomEvent('featureDrawn', {
+                  detail: { feature: event.feature }
+                }));
               }
             }
           );
@@ -299,6 +327,10 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           (event) => {
             if (onFeatureSelect && event.feature) {
               onFeatureSelect(event.feature);
+              // Dispatch event to sync Select interaction for blue highlight
+              window.dispatchEvent(new CustomEvent('featureDrawn', {
+                detail: { feature: event.feature }
+              }));
             }
           }
         );
@@ -312,6 +344,10 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           (event) => {
             if (onFeatureSelect && event.feature) {
               onFeatureSelect(event.feature);
+              // Dispatch event to sync Select interaction for blue highlight
+              window.dispatchEvent(new CustomEvent('featureDrawn', {
+                detail: { feature: event.feature }
+              }));
             }
           }
         );
@@ -325,6 +361,10 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           (event) => {
             if (onFeatureSelect && event.feature) {
               onFeatureSelect(event.feature);
+              // Dispatch event to sync Select interaction for blue highlight
+              window.dispatchEvent(new CustomEvent('featureDrawn', {
+                detail: { feature: event.feature }
+              }));
             }
           },
           lineColor,
@@ -340,6 +380,10 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           (event) => {
             if (onFeatureSelect && event.feature) {
               onFeatureSelect(event.feature);
+              // Dispatch event to sync Select interaction for blue highlight
+              window.dispatchEvent(new CustomEvent('featureDrawn', {
+                detail: { feature: event.feature }
+              }));
             }
           },
           lineColor

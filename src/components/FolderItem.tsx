@@ -38,6 +38,7 @@ interface FolderItemProps {
   onDeleteFolder: (folderId: string, featureIds: string[]) => void;
   onSaveMapState?: () => void;
   onSelect?: (folderId: string | null) => void;
+  onDoubleClick?: (folderId: string) => void;
   children?: React.ReactNode;
 }
 
@@ -56,6 +57,7 @@ export function FolderItem({
   onDeleteFolder,
   onSaveMapState,
   onSelect,
+  onDoubleClick,
   children,
 }: FolderItemProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -203,6 +205,10 @@ export function FolderItem({
         }`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         onClick={handleSelectFolder}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          onDoubleClick?.(folder.id);
+        }}
       >
         {/* Drag handle */}
         <div

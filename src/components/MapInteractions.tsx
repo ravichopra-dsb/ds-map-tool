@@ -311,6 +311,27 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     };
   }, [activeTool, map, vectorLayer, selectInteraction, modifyInteraction]);
 
+  // Listen for featureDrawn events to sync Select interaction during continuous drawing
+  // This ensures only the latest drawn feature shows the blue selection highlight
+  useEffect(() => {
+    if (!selectInteraction) return;
+
+    const handleFeatureDrawn = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const feature = customEvent.detail?.feature;
+      if (feature) {
+        // Clear previous selection and add new feature for blue highlight
+        selectInteraction.getFeatures().clear();
+        selectInteraction.getFeatures().push(feature);
+      }
+    };
+
+    window.addEventListener('featureDrawn', handleFeatureDrawn);
+    return () => {
+      window.removeEventListener('featureDrawn', handleFeatureDrawn);
+    };
+  }, [selectInteraction]);
+
   // Handle select interaction activation/deactivation based on active tool
   useEffect(() => {
     if (!map || !selectInteraction) return;
