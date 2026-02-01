@@ -472,8 +472,9 @@ const PropertyDisplayList: React.FC<PropertyDisplayListProps> = ({
                 </div>
               </ExpandableScreenTrigger>
               <ExpandableScreenContent
-              showCloseButton
-              className="z-100 bg-white">
+                showCloseButton
+                className="z-100 bg-white"
+              >
                 <div
                   key={prop.id}
                   className="rounded-lg bg-yellow-300 mt-24 transition-colors size-[calc(100vh-150px)] mx-auto"
@@ -1595,7 +1596,6 @@ interface TextStyleSectionProps {
     textOpacity: number;
     textFillColor: string;
     textStrokeColor: string;
-    label: string;
     longitude: string;
     latitude: string;
     handleTextChange: (text: string) => void;
@@ -1604,7 +1604,6 @@ interface TextStyleSectionProps {
     handleOpacityChange: (opacity: number) => void;
     handleFillColorChange: (color: string) => void;
     handleStrokeColorChange: (color: string) => void;
-    handleLabelChange: (label: string) => void;
     handleLongitudeChange: (lon: string) => void;
     handleLatitudeChange: (lat: string) => void;
   };
@@ -1629,7 +1628,6 @@ const TextStyleSection: React.FC<TextStyleSectionProps> = ({
           textOpacity={textStyle.textOpacity}
           textFillColor={textStyle.textFillColor}
           textStrokeColor={textStyle.textStrokeColor}
-          label={textStyle.label}
           longitude={textStyle.longitude}
           latitude={textStyle.latitude}
         />
@@ -1647,7 +1645,6 @@ interface TextStyleDisplayProps {
   textOpacity: number;
   textFillColor: string;
   textStrokeColor: string;
-  label: string;
   longitude: string;
   latitude: string;
 }
@@ -1659,43 +1656,59 @@ const TextStyleDisplay: React.FC<TextStyleDisplayProps> = ({
   textOpacity,
   textFillColor,
   textStrokeColor,
-  label,
   longitude,
   latitude,
 }) => (
   <div className="space-y-2">
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">Label:</span>
-      <span className="text-gray-600 dark:text-gray-400">{label}</span>
-    </div>
-    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">Longitude:</span>
-      <span className="text-gray-600 dark:text-gray-400">{longitude}</span>
-    </div>
-    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">Latitude:</span>
-      <span className="text-gray-600 dark:text-gray-400">{latitude}</span>
-    </div>
-    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">Text:</span>
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Text:
+      </span>
       <span className="text-gray-600 dark:text-gray-400 truncate max-w-[150px]">
         {text || <span className="italic text-gray-400">Empty</span>}
       </span>
     </div>
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">Scale:</span>
-      <span className="text-gray-600 dark:text-gray-400">{textScale.toFixed(1)}x</span>
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Longitude:
+      </span>
+      <span className="text-gray-600 dark:text-gray-400">{longitude}</span>
     </div>
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">Rotation:</span>
-      <span className="text-gray-600 dark:text-gray-400">{Math.round(textRotation)}°</span>
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Latitude:
+      </span>
+      <span className="text-gray-600 dark:text-gray-400">{latitude}</span>
+    </div>
+
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Scale:
+      </span>
+      <span className="text-gray-600 dark:text-gray-400">
+        {textScale.toFixed(1)}x
+      </span>
     </div>
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">Opacity:</span>
-      <span className="text-gray-600 dark:text-gray-400">{Math.round(textOpacity * 100)}%</span>
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Rotation:
+      </span>
+      <span className="text-gray-600 dark:text-gray-400">
+        {Math.round(textRotation)}°
+      </span>
     </div>
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">Fill Color:</span>
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Opacity:
+      </span>
+      <span className="text-gray-600 dark:text-gray-400">
+        {Math.round(textOpacity * 100)}%
+      </span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Fill Color:
+      </span>
       <div className="flex items-center gap-2">
         <div
           className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
@@ -1707,7 +1720,9 @@ const TextStyleDisplay: React.FC<TextStyleDisplayProps> = ({
       </div>
     </div>
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">Stroke Color:</span>
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Stroke Color:
+      </span>
       <div className="flex items-center gap-2">
         <div
           className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
@@ -1729,7 +1744,6 @@ interface TextStyleEditorProps {
     textOpacity: number;
     textFillColor: string;
     textStrokeColor: string;
-    label: string;
     longitude: string;
     latitude: string;
     handleTextChange: (text: string) => void;
@@ -1738,7 +1752,6 @@ interface TextStyleEditorProps {
     handleOpacityChange: (opacity: number) => void;
     handleFillColorChange: (color: string) => void;
     handleStrokeColorChange: (color: string) => void;
-    handleLabelChange: (label: string) => void;
     handleLongitudeChange: (lon: string) => void;
     handleLatitudeChange: (lat: string) => void;
   };
@@ -1746,15 +1759,15 @@ interface TextStyleEditorProps {
 
 const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle }) => (
   <div className="space-y-4">
-    {/* Label Input */}
+    {/* Text Content Input */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Label
+        Text
       </Label>
       <Input
-        value={textStyle.label}
-        onChange={(e) => textStyle.handleLabelChange(e.target.value)}
-        placeholder="Text"
+        value={textStyle.text}
+        onChange={(e) => textStyle.handleTextChange(e.target.value)}
+        placeholder="Enter text..."
         className="mt-1"
       />
     </div>
@@ -1771,6 +1784,7 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle }) => (
         onChange={(e) => textStyle.handleLongitudeChange(e.target.value)}
         placeholder="0.000000"
         className="mt-1"
+        disabled
       />
     </div>
 
@@ -1786,19 +1800,7 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle }) => (
         onChange={(e) => textStyle.handleLatitudeChange(e.target.value)}
         placeholder="0.000000"
         className="mt-1"
-      />
-    </div>
-
-    {/* Text Content Input */}
-    <div>
-      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Text Content
-      </Label>
-      <Input
-        value={textStyle.text}
-        onChange={(e) => textStyle.handleTextChange(e.target.value)}
-        placeholder="Enter text..."
-        className="mt-1"
+        disabled
       />
     </div>
 
@@ -1954,7 +1956,9 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle }) => (
             <DropdownMenuSeparator />
             <DropdownMenuRadioGroup
               value={textStyle.textStrokeColor}
-              onValueChange={(value) => textStyle.handleStrokeColorChange(value)}
+              onValueChange={(value) =>
+                textStyle.handleStrokeColorChange(value)
+              }
             >
               {COLOR_OPTIONS.map((colorOption) => (
                 <DropdownMenuRadioItem
