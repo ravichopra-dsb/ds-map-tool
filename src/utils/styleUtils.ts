@@ -464,6 +464,42 @@ export const createSelectStyle = (feature: Feature<Geometry>, resolution?: numbe
       ];
     }
 
+    // Text feature with resolution-based scaling (same as hover style)
+    if (feature.get("isText")) {
+      const textContent = feature.get("text") || "Text";
+      const textScale = feature.get("textScale") || 1;
+      const textRotation = feature.get("textRotation") || 0;
+      const textAlign = feature.get("textAlign") || "center";
+
+      // Apply resolution-based scaling when resolution is available
+      let finalTextScale = textScale;
+      if (resolution) {
+        const desiredPxSize = 16;
+        const referenceResolution = 1.0;
+        const TEXT_FONT_SIZE = 14;
+        const baseScaleFactor = (desiredPxSize / TEXT_FONT_SIZE) * (referenceResolution / resolution);
+        finalTextScale = baseScaleFactor * textScale;
+      }
+
+      return new Style({
+        text: new Text({
+          text: textContent,
+          font: `14px Arial, sans-serif`,
+          scale: finalTextScale,
+          rotation: (textRotation * Math.PI) / 180,
+          fill: new Fill({ color: "#0099ff" }),
+          stroke: new Stroke({
+            color: "#ffffff",
+            width: 4,
+          }),
+          padding: [4, 6, 4, 6],
+          textAlign: textAlign,
+          textBaseline: "middle",
+        }),
+        zIndex: 100,
+      });
+    }
+
     // Regular point - apply resolution-based scaling for CircleStyle
     let pointRadius = 9; // Base radius
     if (resolution) {
