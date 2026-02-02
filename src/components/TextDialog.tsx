@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { X, Edit2, Save } from "lucide-react";
@@ -70,7 +70,7 @@ export function TextDialog({
   const [originalOpacity, setOriginalOpacity] = useState(1);
   const [originalFillColor, setOriginalFillColor] = useState<string>(DEFAULT_TEXT_STYLE.fillColor);
   const [originalStrokeColor, setOriginalStrokeColor] = useState<string>(DEFAULT_TEXT_STYLE.strokeColor);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const handleCancelRef = useRef<() => void>(() => {});
 
@@ -236,8 +236,23 @@ export function TextDialog({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && e.altKey) {
+      // Alt+Enter: insert newline
+      e.preventDefault();
+      console.log("Alt+Enter key pressed");
+      const textarea = e.currentTarget;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newText = text.substring(0, start) + "\n" + text.substring(end);
+      handleTextChange(newText);
+      // Set cursor position after the newline
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + 1;
+      }, 0);
+    } else if (e.key === "Enter" && !e.altKey) {
+      e.preventDefault();
+      console.log("only Enter key pressed");
       handleSubmit();
     }
     if (e.key === "Escape") {
@@ -324,15 +339,15 @@ export function TextDialog({
                     {/* Text Content Input */}
                     <div>
                       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Text Content
+                        Text
                       </Label>
-                      <Input
+                      <Textarea
                         ref={inputRef}
                         value={text}
                         onChange={(e) => handleTextChange(e.target.value)}
-                        placeholder="Enter your text here..."
+                        placeholder="Enter your text here... (Alt+Enter for new line)"
                         onKeyDown={handleKeyDown}
-                        className="mt-1"
+                        className="mt-1 min-h-[60px]"
                       />
                     </div>
 
