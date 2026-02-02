@@ -5,6 +5,7 @@ import type { Select } from "ol/interaction";
 import { X, Edit2, Save, Plus, Trash2, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { DEFAULT_LINE_STYLE } from "@/utils/featureTypeUtils";
@@ -198,6 +199,8 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
             <TextStyleSection
               textStyle={textStyle}
               isEditing={properties.isEditing}
+              onSave={handleSave}
+              onCancel={handleCancel}
             />
           ) : (
             <>
@@ -1608,11 +1611,15 @@ interface TextStyleSectionProps {
     handleLatitudeChange: (lat: string) => void;
   };
   isEditing: boolean;
+  onSave?: () => void;
+  onCancel?: () => void;
 }
 
 const TextStyleSection: React.FC<TextStyleSectionProps> = ({
   textStyle,
   isEditing,
+  onSave,
+  onCancel,
 }) => {
   return (
     <div>
@@ -1632,7 +1639,7 @@ const TextStyleSection: React.FC<TextStyleSectionProps> = ({
           latitude={textStyle.latitude}
         />
       ) : (
-        <TextStyleEditor textStyle={textStyle} />
+        <TextStyleEditor textStyle={textStyle} onSave={onSave} onCancel={onCancel} />
       )}
     </div>
   );
@@ -1755,20 +1762,47 @@ interface TextStyleEditorProps {
     handleLongitudeChange: (lon: string) => void;
     handleLatitudeChange: (lat: string) => void;
   };
+  onSave?: () => void;
+  onCancel?: () => void;
 }
 
-const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle }) => (
+const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, onCancel }) => {
+  const handleTextKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && e.altKey) {
+      // Alt+Enter: insert newline
+      e.preventDefault();
+      const textarea = e.currentTarget;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const currentText = textStyle.text;
+      const newText = currentText.substring(0, start) + "\n" + currentText.substring(end);
+      textStyle.handleTextChange(newText);
+      // Set cursor position after the newline
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + 1;
+      }, 0);
+    } else if (e.key === "Enter" && !e.altKey) {
+      e.preventDefault();
+      onSave?.();
+    }
+    if (e.key === "Escape") {
+      onCancel?.();
+    }
+  };
+
+  return (
   <div className="space-y-4">
     {/* Text Content Input */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
         Text
       </Label>
-      <Input
+      <Textarea
         value={textStyle.text}
         onChange={(e) => textStyle.handleTextChange(e.target.value)}
-        placeholder="Enter text..."
-        className="mt-1"
+        onKeyDown={handleTextKeyDown}
+        placeholder="Enter text... (Alt+Enter for new line)"
+        className="mt-1 min-h-[60px]"
       />
     </div>
 
@@ -1979,6 +2013,7 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle }) => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export default PropertiesPanel;
