@@ -143,7 +143,7 @@ const MapEditor: React.FC = () => {
     clearClipboard,
   } = useFeatureState();
 
-  const { setUndoRedoInteraction, toggleOrthoMode } = useToolStore();
+  const { setUndoRedoInteraction, toggleOrthoMode, isDrawingPaused } = useToolStore();
 
   const selectInteractionRef = useRef<Select | null>(null);
   const undoRedoInteractionRef = useRef<any>(null);
@@ -861,14 +861,15 @@ const MapEditor: React.FC = () => {
     };
   }, [interactionReady, currentProjectId, currentDb, currentMapView]);
 
-  // Auto-close Properties Panel when switching tools (except select tool)
+  // Auto-close Properties Panel when switching tools (except select tool or paused drawing)
   useEffect(() => {
-    // Only keep selection when switching TO select tool
-    // Clear selection when switching to other tools to auto-close Properties Panel
-    if (activeTool !== "select") {
+    // Keep selection when:
+    // 1. Switching TO select tool
+    // 2. Drawing is paused (hand tool with properties panel open)
+    if (activeTool !== "select" && !(activeTool === "hand" && isDrawingPaused)) {
       setSelectedFeature(null);
     }
-  }, [activeTool, setSelectedFeature]);
+  }, [activeTool, isDrawingPaused, setSelectedFeature]);
 
   // Text tool event listener
   useEffect(() => {
@@ -1155,6 +1156,13 @@ const MapEditor: React.FC = () => {
 
   // Global Escape handler - closes all dialogs/panels, deselects features, activates select tool
   const handleEscapePress = useCallback(() => {
+    // Resume drawing if paused (this will restore the original tool)
+    const { isDrawingPaused, resumeDrawing } = useToolStore.getState();
+    const wasDrawingPaused = isDrawingPaused;
+    if (isDrawingPaused) {
+      resumeDrawing();
+    }
+
     // Close all dialogs
     setTextDialogOpen(false);
     setIconPickerOpen(false);
@@ -1182,8 +1190,10 @@ const MapEditor: React.FC = () => {
     setPendingMerge(null);
     setPendingCoordinate(null);
 
-    // Activate select tool
-    setActiveTool('select');
+    // Activate select tool only if we weren't resuming from a paused drawing state
+    if (!wasDrawingPaused) {
+      setActiveTool('select');
+    }
   }, [isDragBoxActive, setSelectedFeature, setActiveTool]);
 
   // Subscribe to global escape events
@@ -1238,6 +1248,11 @@ const MapEditor: React.FC = () => {
         map={mapRef.current}
         selectedFeature={selectedFeature}
         onClose={() => {
+          // Resume drawing if paused
+          const { isDrawingPaused, resumeDrawing } = useToolStore.getState();
+          if (isDrawingPaused) {
+            resumeDrawing();
+          }
           setSelectedFeature(null);
           selectInteractionRef.current?.getFeatures().clear();
         }}

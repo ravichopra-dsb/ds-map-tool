@@ -11,6 +11,7 @@ import type { Geometry } from 'ol/geom';
 import { isSelectableFeature, isEditableFeature } from '@/utils/featureTypeUtils';
 import { recalculateMeasureDistances, createContinuationDraw } from '@/utils/interactionUtils';
 import { createSelectStyle } from '@/utils/styleUtils';
+import { useToolStore } from '@/stores/useToolStore';
 import {
   isContinuableFeature,
   detectEndpointClick,
@@ -223,6 +224,9 @@ export const useSelectModify = ({
 
     // Select event handler (fired when user clicks to select/deselect)
     newSelectInteraction.on('select', () => {
+      // Clear "newly created" flag when selecting via click (existing feature)
+      useToolStore.getState().setIsNewlyCreatedFeature(false);
+
       const allSelectedFeatures = updateSelectionState();
 
       onMultiSelectChange?.(allSelectedFeatures);

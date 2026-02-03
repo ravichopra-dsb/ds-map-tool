@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { type LegendType } from "@/tools/legendsConfig";
 import { DEFAULT_LINE_STYLE } from "@/utils/featureTypeUtils";
+import { useToolStore } from "@/stores/useToolStore";
 
 export interface UseToolStateReturn {
   activeTool: string;
@@ -18,7 +19,10 @@ export interface UseToolStateReturn {
 }
 
 export const useToolState = (): UseToolStateReturn => {
-  const [activeTool, setActiveTool] = useState<string>("select");
+  // Use Zustand store for activeTool to sync with pauseDrawing/resumeDrawing
+  const activeTool = useToolStore((state) => state.activeTool);
+  const setActiveToolStore = useToolStore((state) => state.setActiveTool);
+
   const [selectedLegend, setSelectedLegend] = useState<LegendType | undefined>(
     undefined
   );
@@ -27,6 +31,11 @@ export const useToolState = (): UseToolStateReturn => {
   );
   const [lineColor, setLineColor] = useState<string>(DEFAULT_LINE_STYLE.color);
   const [lineWidth, setLineWidth] = useState<number>(DEFAULT_LINE_STYLE.width);
+
+  // Wrapper to maintain same interface
+  const setActiveTool = (tool: string) => {
+    setActiveToolStore(tool);
+  };
 
   const handleLegendSelect = (legend: LegendType) => {
     setSelectedLegend(legend);

@@ -18,6 +18,10 @@ interface ToolState {
   lineWidth: number;
   orthoMode: boolean;
   resolutionScalingEnabled: boolean;
+  // Drawing pause state
+  isDrawingPaused: boolean;
+  pausedTool: string | null;
+  isNewlyCreatedFeature: boolean;
 
   // Actions
   setActiveTool: (tool: string) => void;
@@ -33,6 +37,10 @@ interface ToolState {
   toggleResolutionScaling: () => void;
   undo: () => void;
   redo: () => void;
+  // Drawing pause actions
+  pauseDrawing: (tool: string) => void;
+  resumeDrawing: () => void;
+  setIsNewlyCreatedFeature: (isNew: boolean) => void;
 }
 
 export const useToolStore = create<ToolState>((set, get) => ({
@@ -46,11 +54,17 @@ export const useToolStore = create<ToolState>((set, get) => ({
   lineWidth: DEFAULT_LINE_WIDTH,
   orthoMode: false,
   resolutionScalingEnabled: true,
+  isDrawingPaused: false,
+  pausedTool: null,
+  isNewlyCreatedFeature: false,
 
   setActiveTool: (tool) =>
     set((state) => ({
       activeTool: tool,
       previousTool: state.activeTool,
+      // Clear pause state when manually switching tools
+      isDrawingPaused: false,
+      pausedTool: null,
     })),
 
   setSelectedLegend: (legend) => set({ selectedLegend: legend }),
@@ -74,4 +88,21 @@ export const useToolStore = create<ToolState>((set, get) => ({
 
   undo: () => get().undoRedoInteraction?.undo(),
   redo: () => get().undoRedoInteraction?.redo(),
+
+  pauseDrawing: (tool) =>
+    set({
+      isDrawingPaused: true,
+      pausedTool: tool,
+      activeTool: 'hand',
+    }),
+
+  resumeDrawing: () =>
+    set((state) => ({
+      isDrawingPaused: false,
+      activeTool: state.pausedTool || 'select',
+      pausedTool: null,
+      isNewlyCreatedFeature: false,
+    })),
+
+  setIsNewlyCreatedFeature: (isNew) => set({ isNewlyCreatedFeature: isNew }),
 }));

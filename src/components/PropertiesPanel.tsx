@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import type Map from "ol/Map";
 import type Feature from "ol/Feature";
 import type { Select } from "ol/interaction";
-import { X, Edit2, Save, Plus, Trash2, ChevronDown } from "lucide-react";
+import { X, Edit2, Save, Plus, Trash2, ChevronDown, AlertCircle } from "lucide-react";
+import { useToolStore } from "@/stores/useToolStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -95,6 +96,22 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     properties.isEditing,
   );
 
+  // Validation error state
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  // Auto-enable edit mode when it's a newly created feature
+  useEffect(() => {
+    const { isNewlyCreatedFeature } = useToolStore.getState();
+    if (isNewlyCreatedFeature && selectedFeature) {
+      properties.setIsEditing(true);
+    }
+  }, [selectedFeature, properties]);
+
+  // Clear error when feature changes or editing starts
+  useEffect(() => {
+    setNameError(null);
+  }, [selectedFeature, properties.isEditing]);
+
   // Local state for length unit (syncs with feature)
   const [lengthUnit, setLengthUnit] = React.useState<LengthUnit>(
     (selectedFeature?.get("lengthUnit") as LengthUnit) || "km",
@@ -153,12 +170,30 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
   };
 
   const handleSave = () => {
+    // Validate name field for newly created features
+    const { isNewlyCreatedFeature } = useToolStore.getState();
+    const nameProp = properties.customProperties.find((p) => p.key === "name");
+    const nameValue = nameProp?.value?.trim() || "";
+
+    if (isNewlyCreatedFeature && !nameValue) {
+      setNameError("Name is required");
+      return;
+    }
+
+    setNameError(null);
     properties.save();
     lineStyle.commitLineStyle();
     shapeStyle.commitShapeStyle();
     pointOpacity.commitOpacity();
     iconProperties.commitIconProperties();
     textStyle.commitTextStyle();
+
+    // Resume drawing if paused and close the panel
+    const { isDrawingPaused, resumeDrawing } = useToolStore.getState();
+    if (isDrawingPaused) {
+      resumeDrawing();
+    }
+    onClose();
   };
 
   const handleCancel = () => {
@@ -168,6 +203,13 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     pointOpacity.resetToOriginal();
     iconProperties.resetToOriginal();
     textStyle.resetToOriginal();
+
+    // Resume drawing if paused and close the panel
+    const { isDrawingPaused, resumeDrawing } = useToolStore.getState();
+    if (isDrawingPaused) {
+      resumeDrawing();
+    }
+    onClose();
   };
 
   if (!selectedFeature) {
@@ -222,6 +264,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     onLabelSelect={handleLabelSelect}
                     lengthUnit={lengthUnit}
                     onLengthUnitChange={handleLengthUnitChange}
+                    nameError={nameError}
                   />
                 )}
               </div>
@@ -533,6 +576,7 @@ interface PropertyEditListProps {
   onLabelSelect: (key: string) => void;
   lengthUnit: LengthUnit;
   onLengthUnitChange: (unit: LengthUnit) => void;
+  nameError?: string | null;
 }
 
 const PropertyEditList: React.FC<PropertyEditListProps> = ({
@@ -543,6 +587,7 @@ const PropertyEditList: React.FC<PropertyEditListProps> = ({
   onLabelSelect,
   lengthUnit,
   onLengthUnitChange,
+  nameError,
 }) => {
   if (properties.length === 0) {
     return (
@@ -604,58 +649,69 @@ const PropertyEditList: React.FC<PropertyEditListProps> = ({
           );
         }
 
+        const isNameField = prop.key === "name";
+        const hasNameError = isNameField && nameError;
+
         return (
-          <div key={prop.id} className="flex gap-2 items-center relative">
-            <LabelSelector
-              propertyKey={prop.key}
-              currentLabel={currentLabel}
-              onSelect={onLabelSelect}
-              disabled={false}
-            />
-            <Input
-              placeholder="Property name"
-              value={prop.key}
-              onChange={(e) => onUpdate(prop.id, "key", e.target.value)}
-              className={`flex-1 text-sm ${
-                isReadOnly || isCalculated ? "bg-gray-50 dark:bg-slate-700" : ""
-              }`}
-              disabled={isReadOnly || isCalculated}
-            />
-            {prop.key === "length" ? (
-              <div className="flex-1 flex items-center">
-                <LengthValueWithUnit
-                  value={prop.value}
-                  unit={lengthUnit}
-                  onUnitChange={onLengthUnitChange}
-                />
-              </div>
-            ) : (
-              <Input
-                placeholder="Value"
-                value={prop.value}
-                onChange={(e) => onUpdate(prop.id, "value", e.target.value)}
-                className={`flex-1 text-sm ${
-                  isCalculated ? "bg-gray-50 dark:bg-slate-700" : ""
-                }`}
-                disabled={isCalculated}
-                type={
-                  prop.key === "long" || prop.key === "lat" ? "number" : "text"
-                }
-                step={
-                  prop.key === "long" || prop.key === "lat" ? "any" : undefined
-                }
+          <div key={prop.id} className="relative">
+            <div className="flex gap-2 items-center relative">
+              <LabelSelector
+                propertyKey={prop.key}
+                currentLabel={currentLabel}
+                onSelect={onLabelSelect}
+                disabled={false}
               />
-            )}
-            {!isReadOnly && !isCalculated && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => onDelete(prop.id)}
-                className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                aria-label="Delete property"
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
+              <Input
+                placeholder="Property name"
+                value={prop.key}
+                onChange={(e) => onUpdate(prop.id, "key", e.target.value)}
+                className={`flex-1 text-sm ${
+                  isReadOnly || isCalculated ? "bg-gray-50 dark:bg-slate-700" : ""
+                }`}
+                disabled={isReadOnly || isCalculated}
+              />
+              {prop.key === "length" ? (
+                <div className="flex-1 flex items-center">
+                  <LengthValueWithUnit
+                    value={prop.value}
+                    unit={lengthUnit}
+                    onUnitChange={onLengthUnitChange}
+                  />
+                </div>
+              ) : (
+                <Input
+                  placeholder="Value"
+                  value={prop.value}
+                  onChange={(e) => onUpdate(prop.id, "value", e.target.value)}
+                  className={`flex-1 text-sm ${
+                    isCalculated ? "bg-gray-50 dark:bg-slate-700" : ""
+                  } ${hasNameError ? "border-red-500 focus:ring-red-500" : ""}`}
+                  disabled={isCalculated}
+                  type={
+                    prop.key === "long" || prop.key === "lat" ? "number" : "text"
+                  }
+                  step={
+                    prop.key === "long" || prop.key === "lat" ? "any" : undefined
+                  }
+                />
+              )}
+              {!isReadOnly && !isCalculated && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => onDelete(prop.id)}
+                  className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  aria-label="Delete property"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+            {hasNameError && (
+              <div className="flex items-center gap-1 mt-1 text-red-500 text-xs">
+                <AlertCircle className="h-3 w-3" />
+                <span>{nameError}</span>
+              </div>
             )}
           </div>
         );

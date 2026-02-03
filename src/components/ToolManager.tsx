@@ -7,6 +7,7 @@ import { Vector as VectorSource } from "ol/source";
 import type { Geometry } from "ol/geom";
 import type { LegendType } from "@/tools/legendsConfig";
 import { getLegendById } from "@/tools/legendsConfig";
+import { useToolStore } from "@/stores/useToolStore";
 import {
   createPointDraw,
   createPolylineDraw,
@@ -126,6 +127,9 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         drawInteractionRef.current = createPointDraw(vectorSource, (event) => {
           // Select the newly created point feature
           if (onFeatureSelect && event.feature) {
+            // Pause drawing and open properties panel in edit mode
+            useToolStore.getState().setIsNewlyCreatedFeature(true);
+            useToolStore.getState().pauseDrawing('point');
             onFeatureSelect(event.feature);
             // Dispatch event to sync Select interaction for blue highlight
             window.dispatchEvent(new CustomEvent('featureDrawn', {
@@ -142,6 +146,9 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           vectorSource,
           (event) => {
             if (onFeatureSelect && event.feature) {
+              // Pause drawing and open properties panel in edit mode
+              useToolStore.getState().setIsNewlyCreatedFeature(true);
+              useToolStore.getState().pauseDrawing('polyline');
               onFeatureSelect(event.feature);
               // Dispatch event to sync Select interaction for blue highlight
               window.dispatchEvent(new CustomEvent('featureDrawn', {
@@ -161,6 +168,9 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           vectorSource,
           (event) => {
             if (onFeatureSelect && event.feature) {
+              // Pause drawing and open properties panel in edit mode
+              useToolStore.getState().setIsNewlyCreatedFeature(true);
+              useToolStore.getState().pauseDrawing('freehand');
               onFeatureSelect(event.feature);
               // Dispatch event to sync Select interaction for blue highlight
               window.dispatchEvent(new CustomEvent('featureDrawn', {
@@ -180,6 +190,9 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           vectorSource,
           (event) => {
             if (onFeatureSelect && event.feature) {
+              // Pause drawing and open properties panel in edit mode
+              useToolStore.getState().setIsNewlyCreatedFeature(true);
+              useToolStore.getState().pauseDrawing('arrow');
               onFeatureSelect(event.feature);
               // Dispatch event to sync Select interaction for blue highlight
               window.dispatchEvent(new CustomEvent('featureDrawn', {
@@ -231,6 +244,9 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           selectedLegend.id,
           (event) => {
             if (onFeatureSelect && event.feature) {
+              // Pause drawing and open properties panel in edit mode
+              useToolStore.getState().setIsNewlyCreatedFeature(true);
+              useToolStore.getState().pauseDrawing('legends');
               onFeatureSelect(event.feature);
               // Dispatch event to sync Select interaction for blue highlight
               window.dispatchEvent(new CustomEvent('featureDrawn', {
@@ -276,6 +292,9 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
               onClick: (coordinate) => {
                 const feature = handleIconClick(vectorSource, coordinate, selectedIconPath);
                 if (feature && onFeatureSelect) {
+                  // Pause drawing and open properties panel in edit mode
+                  useToolStore.getState().setIsNewlyCreatedFeature(true);
+                  useToolStore.getState().pauseDrawing('icons');
                   onFeatureSelect(feature);
                   // Dispatch event to sync Select interaction for blue highlight
                   window.dispatchEvent(new CustomEvent('featureDrawn', {
@@ -308,6 +327,9 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
             measureDrawStyle,
             (event) => {
               if (onFeatureSelect && event.feature) {
+                // Pause drawing and open properties panel in edit mode
+                useToolStore.getState().setIsNewlyCreatedFeature(true);
+                useToolStore.getState().pauseDrawing('measure');
                 onFeatureSelect(event.feature);
                 // Dispatch event to sync Select interaction for blue highlight
                 window.dispatchEvent(new CustomEvent('featureDrawn', {
@@ -326,6 +348,9 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           vectorSource,
           (event) => {
             if (onFeatureSelect && event.feature) {
+              // Pause drawing and open properties panel in edit mode
+              useToolStore.getState().setIsNewlyCreatedFeature(true);
+              useToolStore.getState().pauseDrawing('box');
               onFeatureSelect(event.feature);
               // Dispatch event to sync Select interaction for blue highlight
               window.dispatchEvent(new CustomEvent('featureDrawn', {
@@ -343,6 +368,9 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           vectorSource,
           (event) => {
             if (onFeatureSelect && event.feature) {
+              // Pause drawing and open properties panel in edit mode
+              useToolStore.getState().setIsNewlyCreatedFeature(true);
+              useToolStore.getState().pauseDrawing('circle');
               onFeatureSelect(event.feature);
               // Dispatch event to sync Select interaction for blue highlight
               window.dispatchEvent(new CustomEvent('featureDrawn', {
@@ -360,6 +388,9 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           vectorSource,
           (event) => {
             if (onFeatureSelect && event.feature) {
+              // Pause drawing and open properties panel in edit mode
+              useToolStore.getState().setIsNewlyCreatedFeature(true);
+              useToolStore.getState().pauseDrawing('arc');
               onFeatureSelect(event.feature);
               // Dispatch event to sync Select interaction for blue highlight
               window.dispatchEvent(new CustomEvent('featureDrawn', {
@@ -379,6 +410,9 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           vectorSource,
           (event) => {
             if (onFeatureSelect && event.feature) {
+              // Pause drawing and open properties panel in edit mode
+              useToolStore.getState().setIsNewlyCreatedFeature(true);
+              useToolStore.getState().pauseDrawing('revcloud');
               onFeatureSelect(event.feature);
               // Dispatch event to sync Select interaction for blue highlight
               window.dispatchEvent(new CustomEvent('featureDrawn', {
