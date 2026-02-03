@@ -1,7 +1,7 @@
 import { Feature } from "ol";
 import type { Geometry } from "ol/geom";
 import type { Folder } from "@/types/folders";
-import { restructureKmlWithFolders } from "./kmlFolderUtils";
+import { restructureKmlWithFolders, escapeXml } from "./kmlFolderUtils";
 
 // ============================================================================
 // COLOR CONVERSION UTILITIES
@@ -179,18 +179,44 @@ export const injectKmlStyles = (
   // Insert styles after <Document>
   let result = kmlString.slice(0, insertPos) + "\n" + stylesXml + kmlString.slice(insertPos);
 
-  // Add styleUrl references to each Placemark
+  // Add styleUrl references to each Placemark and update names for text features
   // Match Placemarks and their ExtendedData to correlate with features
   let featureIndex = 0;
-  result = result.replace(/<Placemark>/g, () => {
+  result = result.replace(/<Placemark>([\s\S]*?)<\/Placemark>/g, (match) => {
     const feature = features[featureIndex];
     const styleUrl = styleUrls.get(feature);
     featureIndex++;
 
+    let placemarkContent = match;
+
+    // Add styleUrl after <Placemark>
     if (styleUrl) {
-      return `<Placemark>\n    <styleUrl>${styleUrl}</styleUrl>`;
+      placemarkContent = placemarkContent.replace(
+        /<Placemark>/,
+        `<Placemark>\n    <styleUrl>${styleUrl}</styleUrl>`
+      );
     }
-    return "<Placemark>";
+
+    // For text features, update the <name> element with the text content
+    if (feature.get("isText")) {
+      const textContent = feature.get("text");
+      if (textContent) {
+        // Replace existing <name> element or add one
+        if (placemarkContent.includes("<name>")) {
+          placemarkContent = placemarkContent.replace(
+            /<name>[\s\S]*?<\/name>/,
+            `<name>${escapeXml(textContent)}</name>`
+          );
+        } else {
+          placemarkContent = placemarkContent.replace(
+            /<Placemark>/,
+            `<Placemark>\n    <name>${escapeXml(textContent)}</name>`
+          );
+        }
+      }
+    }
+
+    return placemarkContent;
   });
 
   // If folders provided, restructure KML with folder hierarchy

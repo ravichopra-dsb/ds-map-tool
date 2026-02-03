@@ -11,6 +11,7 @@ export interface UseIconPropertiesEditorReturn {
   textOffsetX: number;
   textOffsetY: number;
   rotation: number;
+  showLabel: boolean;
   supportsIconProperties: boolean;
   isEditingIconProperties: boolean;
 
@@ -21,6 +22,7 @@ export interface UseIconPropertiesEditorReturn {
   handleTextOffsetXChange: (offset: number) => void;
   handleTextOffsetYChange: (offset: number) => void;
   handleRotationChange: (rotation: number) => void;
+  handleShowLabelChange: (show: boolean) => void;
   resetToOriginal: () => void;
   commitIconProperties: () => void;
 }
@@ -31,6 +33,7 @@ const DEFAULT_LABEL_SCALE = 1;
 const DEFAULT_TEXT_OFFSET_X = 0;
 const DEFAULT_TEXT_OFFSET_Y = 0;
 const DEFAULT_ROTATION = 0;
+const DEFAULT_SHOW_LABEL = true;
 
 /**
  * Check if a feature supports icon properties editing
@@ -56,6 +59,7 @@ export const useIconPropertiesEditor = (
   const [textOffsetX, setTextOffsetX] = useState<number>(DEFAULT_TEXT_OFFSET_X);
   const [textOffsetY, setTextOffsetY] = useState<number>(DEFAULT_TEXT_OFFSET_Y);
   const [rotation, setRotation] = useState<number>(DEFAULT_ROTATION);
+  const [showLabel, setShowLabel] = useState<boolean>(DEFAULT_SHOW_LABEL);
 
   // Original values for reset
   const [originalOpacity, setOriginalOpacity] = useState<number>(DEFAULT_OPACITY);
@@ -64,6 +68,7 @@ export const useIconPropertiesEditor = (
   const [originalTextOffsetX, setOriginalTextOffsetX] = useState<number>(DEFAULT_TEXT_OFFSET_X);
   const [originalTextOffsetY, setOriginalTextOffsetY] = useState<number>(DEFAULT_TEXT_OFFSET_Y);
   const [originalRotation, setOriginalRotation] = useState<number>(DEFAULT_ROTATION);
+  const [originalShowLabel, setOriginalShowLabel] = useState<boolean>(DEFAULT_SHOW_LABEL);
 
   const [isEditingIconProperties, setIsEditingIconProperties] = useState(false);
 
@@ -81,6 +86,7 @@ export const useIconPropertiesEditor = (
       const featureTextOffsetX = selectedFeature.get("textOffsetX") ?? DEFAULT_TEXT_OFFSET_X;
       const featureTextOffsetY = selectedFeature.get("textOffsetY") ?? DEFAULT_TEXT_OFFSET_Y;
       const featureRotation = selectedFeature.get("iconRotation") ?? DEFAULT_ROTATION;
+      const featureShowLabel = selectedFeature.get("showLabel") ?? DEFAULT_SHOW_LABEL;
 
       setOpacity(featureOpacity);
       setIconScale(featureIconScale);
@@ -88,6 +94,7 @@ export const useIconPropertiesEditor = (
       setTextOffsetX(featureTextOffsetX);
       setTextOffsetY(featureTextOffsetY);
       setRotation(featureRotation);
+      setShowLabel(featureShowLabel);
 
       setOriginalOpacity(featureOpacity);
       setOriginalIconScale(featureIconScale);
@@ -95,6 +102,7 @@ export const useIconPropertiesEditor = (
       setOriginalTextOffsetX(featureTextOffsetX);
       setOriginalTextOffsetY(featureTextOffsetY);
       setOriginalRotation(featureRotation);
+      setOriginalShowLabel(featureShowLabel);
     } else {
       setOpacity(DEFAULT_OPACITY);
       setIconScale(DEFAULT_ICON_SCALE);
@@ -102,6 +110,7 @@ export const useIconPropertiesEditor = (
       setTextOffsetX(DEFAULT_TEXT_OFFSET_X);
       setTextOffsetY(DEFAULT_TEXT_OFFSET_Y);
       setRotation(DEFAULT_ROTATION);
+      setShowLabel(DEFAULT_SHOW_LABEL);
 
       setOriginalOpacity(DEFAULT_OPACITY);
       setOriginalIconScale(DEFAULT_ICON_SCALE);
@@ -109,6 +118,7 @@ export const useIconPropertiesEditor = (
       setOriginalTextOffsetX(DEFAULT_TEXT_OFFSET_X);
       setOriginalTextOffsetY(DEFAULT_TEXT_OFFSET_Y);
       setOriginalRotation(DEFAULT_ROTATION);
+      setOriginalShowLabel(DEFAULT_SHOW_LABEL);
     }
     setIsEditingIconProperties(false);
   }, [selectedFeature]);
@@ -218,6 +228,19 @@ export const useIconPropertiesEditor = (
     [selectedFeature, map]
   );
 
+  // Handle show label toggle with live preview
+  const handleShowLabelChange = useCallback(
+    (show: boolean) => {
+      setShowLabel(show);
+      if (selectedFeature) {
+        selectedFeature.set("showLabel", show);
+        selectedFeature.changed();
+        map?.render();
+      }
+    },
+    [selectedFeature, map]
+  );
+
   // Reset all values to original
   const resetToOriginal = useCallback(() => {
     setOpacity(originalOpacity);
@@ -226,6 +249,7 @@ export const useIconPropertiesEditor = (
     setTextOffsetX(originalTextOffsetX);
     setTextOffsetY(originalTextOffsetY);
     setRotation(originalRotation);
+    setShowLabel(originalShowLabel);
 
     if (selectedFeature) {
       selectedFeature.set("opacity", originalOpacity);
@@ -234,10 +258,11 @@ export const useIconPropertiesEditor = (
       selectedFeature.set("textOffsetX", originalTextOffsetX);
       selectedFeature.set("textOffsetY", originalTextOffsetY);
       selectedFeature.set("iconRotation", originalRotation);
+      selectedFeature.set("showLabel", originalShowLabel);
       selectedFeature.changed();
       map?.render();
     }
-  }, [selectedFeature, map, originalOpacity, originalIconScale, originalLabelScale, originalTextOffsetX, originalTextOffsetY, originalRotation]);
+  }, [selectedFeature, map, originalOpacity, originalIconScale, originalLabelScale, originalTextOffsetX, originalTextOffsetY, originalRotation, originalShowLabel]);
 
   // Commit current values as new originals (call on save)
   const commitIconProperties = useCallback(() => {
@@ -247,7 +272,8 @@ export const useIconPropertiesEditor = (
     setOriginalTextOffsetX(textOffsetX);
     setOriginalTextOffsetY(textOffsetY);
     setOriginalRotation(rotation);
-  }, [opacity, iconScale, labelScale, textOffsetX, textOffsetY, rotation]);
+    setOriginalShowLabel(showLabel);
+  }, [opacity, iconScale, labelScale, textOffsetX, textOffsetY, rotation, showLabel]);
 
   return {
     opacity,
@@ -256,6 +282,7 @@ export const useIconPropertiesEditor = (
     textOffsetX,
     textOffsetY,
     rotation,
+    showLabel,
     supportsIconProperties,
     isEditingIconProperties,
     handleOpacityChange,
@@ -264,6 +291,7 @@ export const useIconPropertiesEditor = (
     handleTextOffsetXChange,
     handleTextOffsetYChange,
     handleRotationChange,
+    handleShowLabelChange,
     resetToOriginal,
     commitIconProperties,
   };

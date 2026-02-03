@@ -269,25 +269,51 @@ export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number
   // For Point features (including icons)
   if (geometryType === "Point") {
     const iconSrc = feature.get("iconSrc");
+    const iconPath = feature.get("iconPath"); // Icon picker features use iconPath
+    const isIconFeature = feature.get("isIcon");
 
-    if (iconSrc) {
+    if (iconSrc || iconPath || isIconFeature) {
       // Icon point - return icon with a highlight circle behind it
+      const iconSource = iconSrc || iconPath;
+      const userIconScale = feature.get("iconScale") ?? 1;
+      const opacity = feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
+      const iconRotation = feature.get("iconRotation") ?? 0;
+
+      // Apply resolution-based scaling (same as MapInstance.tsx)
+      let finalIconScale = userIconScale;
+      let highlightRadius = 10; // Base highlight circle radius
+      if (resolution) {
+        const desiredPxSize = 16;
+        const referenceResolution = 1.0;
+        const iconWidth = feature.get("iconWidth") || 32;
+        const baseScaleFactor = (desiredPxSize / iconWidth) * (referenceResolution / resolution);
+        finalIconScale = baseScaleFactor * userIconScale;
+        // Scale the highlight circle proportionally
+        highlightRadius = Math.max(10, 16 * baseScaleFactor * userIconScale);
+      }
+
       return [
         new Style({
           image: new CircleStyle({
-            radius: 18,
-            fill: new Fill({ color: "rgba(0, 191, 255, 0.3)" }),
+            radius: highlightRadius,
+            fill: new Fill({ color: "rgba(245, 89, 39, 0.5)" }),
             stroke: new Stroke({
               color: HOVER_HIGHLIGHT_COLOR,
-              width: 2,
             }),
           }),
+          zIndex: 1, // Circle behind icon
         }),
         new Style({
           image: new Icon({
-            src: iconSrc,
-            scale: feature.get("iconScale") || 1,
+            src: iconSource,
+            scale: finalIconScale,
+            anchor: [0.5, 0.5],
+            anchorXUnits: "fraction",
+            anchorYUnits: "fraction",
+            opacity: opacity,
+            rotation: (iconRotation * Math.PI) / 180,
           }),
+          zIndex: 0, // Icon on top
         }),
       ];
     }
@@ -297,6 +323,7 @@ export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number
       const textContent = feature.get("text") || "Text";
       const textScale = feature.get("textScale") || 1;
       const textRotation = feature.get("textRotation") || 0;
+      const textAlign = feature.get("textAlign") || "center";
 
       // Apply resolution-based scaling when resolution is available
       let finalTextScale = textScale;
@@ -320,7 +347,7 @@ export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number
             width: 4,
           }),
           padding: [4, 6, 4, 6],
-          textAlign: "center",
+          textAlign: textAlign,
           textBaseline: "middle",
         }),
         zIndex: 100,
@@ -371,9 +398,10 @@ export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number
  * Used by the Select interaction to highlight selected features
  * Includes vertex highlighting for LineStrings
  * @param feature - The feature to create selection style for
+ * @param resolution - Optional map resolution for resolution-based scaling
  * @returns OpenLayers Style object or array of styles
  */
-export const createSelectStyle = (feature: Feature<Geometry>): Style | Style[] => {
+export const createSelectStyle = (feature: Feature<Geometry>, resolution?: number): Style | Style[] => {
   const geometry = feature.getGeometry();
   if (!geometry) return new Style();
 
@@ -388,32 +416,102 @@ export const createSelectStyle = (feature: Feature<Geometry>): Style | Style[] =
   // For Point features
   if (geometryType === "Point") {
     const iconSrc = feature.get("iconSrc");
+    const iconPath = feature.get("iconPath"); // Icon picker features use iconPath
+    const isIconFeature = feature.get("isIcon");
 
-    if (iconSrc) {
+    if (iconSrc || iconPath || isIconFeature) {
+      const iconSource = iconSrc || iconPath;
+      const userIconScale = feature.get("iconScale") ?? 1;
+      const opacity = feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
+      const iconRotation = feature.get("iconRotation") ?? 0;
+
+      // Apply resolution-based scaling (same as MapInstance.tsx)
+      let finalIconScale = userIconScale;
+      let highlightRadius = 10; // Base highlight circle radius
+      if (resolution) {
+        const desiredPxSize = 16;
+        const referenceResolution = 1.0;
+        const iconWidth = feature.get("iconWidth") || 32;
+        const baseScaleFactor = (desiredPxSize / iconWidth) * (referenceResolution / resolution);
+        finalIconScale = baseScaleFactor * userIconScale;
+        // Scale the highlight circle proportionally
+        highlightRadius = Math.max(10, 16 * baseScaleFactor * userIconScale);
+      }
+
       return [
         new Style({
           image: new CircleStyle({
-            radius: 20,
-            fill: new Fill({ color: "rgba(0, 153, 255, 0.3)" }),
+            radius: highlightRadius,
+            fill: new Fill({ color: "rgba(0, 153, 255, 0.5)" }),
             stroke: new Stroke({
               color: "#0099ff",
-              width: 2,
             }),
           }),
+          zIndex: 1, // Circle behind icon
         }),
         new Style({
           image: new Icon({
-            src: iconSrc,
-            scale: feature.get("iconScale") || 1,
+            src: iconSource,
+            scale: finalIconScale,
+            anchor: [0.5, 0.5],
+            anchorXUnits: "fraction",
+            anchorYUnits: "fraction",
+            opacity: opacity,
+            rotation: (iconRotation * Math.PI) / 180,
           }),
+          zIndex: 0, // Icon on top
         }),
       ];
     }
 
-    // Regular point
+    // Text feature with resolution-based scaling (same as hover style)
+    if (feature.get("isText")) {
+      const textContent = feature.get("text") || "Text";
+      const textScale = feature.get("textScale") || 1;
+      const textRotation = feature.get("textRotation") || 0;
+      const textAlign = feature.get("textAlign") || "center";
+
+      // Apply resolution-based scaling when resolution is available
+      let finalTextScale = textScale;
+      if (resolution) {
+        const desiredPxSize = 16;
+        const referenceResolution = 1.0;
+        const TEXT_FONT_SIZE = 14;
+        const baseScaleFactor = (desiredPxSize / TEXT_FONT_SIZE) * (referenceResolution / resolution);
+        finalTextScale = baseScaleFactor * textScale;
+      }
+
+      return new Style({
+        text: new Text({
+          text: textContent,
+          font: `14px Arial, sans-serif`,
+          scale: finalTextScale,
+          rotation: (textRotation * Math.PI) / 180,
+          fill: new Fill({ color: "#0099ff" }),
+          stroke: new Stroke({
+            color: "#ffffff",
+            width: 4,
+          }),
+          padding: [4, 6, 4, 6],
+          textAlign: textAlign,
+          textBaseline: "middle",
+        }),
+        zIndex: 100,
+      });
+    }
+
+    // Regular point - apply resolution-based scaling for CircleStyle
+    let pointRadius = 9; // Base radius
+    if (resolution) {
+      const desiredPxSize = 16;
+      const referenceResolution = 1.0;
+      const baseScaleFactor = (desiredPxSize / 16) * (referenceResolution / resolution);
+      pointRadius = Math.max(6, 9 * baseScaleFactor);
+    }
+
     return new Style({
       image: new CircleStyle({
-        radius: 9,
+        radius: pointRadius,
         fill: new Fill({ color: "#0099ff" }),
         stroke: new Stroke({
           color: "#ffffff",
@@ -430,6 +528,14 @@ export const createSelectStyle = (feature: Feature<Geometry>): Style | Style[] =
       fill: new Fill({
         color: "rgba(0, 153, 255, 0.1)",
       }),
+    });
+  }
+
+  // For Arc features - show only stroke highlight, no vertex markers
+  // Arc vertices are handled by useArcModify with 3 colored control points
+  if (feature.get('isArc')) {
+    return new Style({
+      stroke: selectStroke,
     });
   }
 

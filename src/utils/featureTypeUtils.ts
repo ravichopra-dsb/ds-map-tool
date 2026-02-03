@@ -40,10 +40,11 @@ export const isEditableFeature = (feature: FeatureLike): boolean => {
     return true;
   }
 
-  // Editable: Arc features
+  // Arc features: NOT editable via standard Modify interaction
+  // Arc editing is handled by useArcModify hook with 3 control points
   const isArc = feature.get("isArc");
   if (isArc) {
-    return true;
+    return false;
   }
 
   // NOT editable: Box, Circle, and Revision Cloud shapes (no vertex editing)

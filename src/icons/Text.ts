@@ -14,6 +14,8 @@ const hexToRgba = (hex: string, opacity: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
+export type TextAlign = 'left' | 'center' | 'right';
+
 /**
  * Create text style for map labels
  * @param textContent - The text content to display
@@ -22,6 +24,7 @@ const hexToRgba = (hex: string, opacity: number): string => {
  * @param opacity - Optional opacity 0-1 (default: 1)
  * @param customFillColor - Optional custom fill color (default: #000000)
  * @param customStrokeColor - Optional custom stroke color (default: #ffffff)
+ * @param textAlign - Optional text alignment (default: 'center')
  * @returns OpenLayers Style object for text
  */
 export const getTextStyle = (
@@ -30,7 +33,8 @@ export const getTextStyle = (
   rotation: number = 0,
   opacity: number = 1,
   customFillColor: string = '#000000',
-  customStrokeColor: string = '#ffffff'
+  customStrokeColor: string = '#ffffff',
+  textAlign: TextAlign = 'center'
 ): Style => {
   // Convert rotation from degrees to radians
   const rotationRadians = (rotation * Math.PI) / 180;
@@ -49,7 +53,7 @@ export const getTextStyle = (
         width: 3
       }),
       padding: [4, 6, 4, 6],
-      textAlign: 'center',
+      textAlign: textAlign,
       textBaseline: 'middle',
       scale: scale,
       rotation: rotationRadians,
@@ -68,6 +72,7 @@ export const getTextStyle = (
  * @param opacity - Optional opacity 0-1 (default: 1)
  * @param fillColor - Optional fill color (default: #000000)
  * @param strokeColor - Optional stroke color (default: #ffffff)
+ * @param textAlign - Optional text alignment (default: 'center')
  */
 export const handleTextClick = (
   vectorSource: VectorSource,
@@ -77,7 +82,8 @@ export const handleTextClick = (
   rotation?: number,
   opacity?: number,
   fillColor?: string,
-  strokeColor?: string
+  strokeColor?: string,
+  textAlign?: TextAlign
 ): void => {
   try {
     // Create point geometry for text
@@ -99,6 +105,7 @@ export const handleTextClick = (
     textFeature.set("textOpacity", opacity ?? 1);
     textFeature.set("textFillColor", fillColor || "#000000");
     textFeature.set("textStrokeColor", strokeColor || "#ffffff");
+    textFeature.set("textAlign", textAlign || "center");
 
     // Set active folder ID if one is selected
     const activeFolderId = useFolderStore.getState().activeFolderId;

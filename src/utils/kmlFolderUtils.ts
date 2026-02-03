@@ -25,6 +25,36 @@ export interface ParsedFolderStructure {
 // ============================================================================
 
 /**
+ * Pre-process KML text to assign unique IDs to each Placemark.
+ * OpenLayers KML parser merges Placemarks with the same id attribute,
+ * so we need to ensure each Placemark has a unique ID before parsing.
+ */
+export function assignUniquePlacemarkIds(kmlText: string): string {
+  let placemarkIndex = 0;
+
+  // Replace each <Placemark ...> or <Placemark> with a unique ID
+  return kmlText.replace(/<Placemark(\s[^>]*)?>/gi, (_match, attributes) => {
+    const uniqueId = `pm_${Date.now()}_${placemarkIndex++}`;
+
+    // Check if there's already an id attribute
+    if (attributes && /\sid=["'][^"']*["']/i.test(attributes)) {
+      // Replace existing id with unique one
+      const newAttributes = attributes.replace(
+        /\sid=["'][^"']*["']/i,
+        ` id="${uniqueId}"`
+      );
+      return `<Placemark${newAttributes}>`;
+    } else if (attributes) {
+      // Add id to existing attributes
+      return `<Placemark${attributes} id="${uniqueId}">`;
+    } else {
+      // No attributes, add id
+      return `<Placemark id="${uniqueId}">`;
+    }
+  });
+}
+
+/**
  * Escape special XML characters
  */
 export const escapeXml = (str: string): string => {

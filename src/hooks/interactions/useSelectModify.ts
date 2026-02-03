@@ -84,6 +84,7 @@ export const useSelectModify = ({
     const newModifyInteraction = new Modify({
       features: editableFeatures,
       deleteCondition: altKeyOnly,
+      pixelTolerance: STYLE_DEFAULTS.MODIFY_PIXEL_TOLERANCE,
     });
 
     newModifyInteraction.on('modifyend', (event) => {

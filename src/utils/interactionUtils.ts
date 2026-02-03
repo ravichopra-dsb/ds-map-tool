@@ -810,6 +810,9 @@ export const createArcDraw = (
   const customColor = color || "#00ff00";
   const customWidth = width || 4;
 
+  // Track original control points during drawing for later editing
+  let originalControlPoints: Coordinate[] = [];
+
   const drawInteraction = new Draw({
     source: source,
     type: "LineString",
@@ -820,6 +823,16 @@ export const createArcDraw = (
 
       if (!geom) {
         geom = new LineString([]);
+      }
+
+      // Capture the raw 3 control points before arc interpolation
+      // These are the actual clicked coordinates (start, through, end)
+      if (coordArray.length === 3) {
+        originalControlPoints = [
+          [...coordArray[0]] as Coordinate,
+          [...coordArray[1]] as Coordinate,
+          [...coordArray[2]] as Coordinate,
+        ];
       }
 
       // Generate arc preview based on number of points
@@ -833,31 +846,30 @@ export const createArcDraw = (
   // Setup keyboard handlers when drawing starts
   drawInteraction.on("drawstart", () => {
     setupDrawKeyboardHandlers(drawInteraction);
+    // Reset control points for new drawing
+    originalControlPoints = [];
   });
 
   drawInteraction.on("drawend", (event) => {
     removeDrawKeyboardHandlers(drawInteraction);
 
-    // Get the 3 clicked points from the sketch
-    const sketchCoords = (event.feature.getGeometry() as LineString).getCoordinates();
-
-    // If we have the full arc preview, use it; otherwise regenerate
-    if (sketchCoords.length >= 3) {
-      // The geometryFunction already generated the arc, but we need to ensure
-      // we have the full resolution arc from the original 3 points
-      // Extract the original 3 control points and regenerate with higher resolution
-      const p1 = sketchCoords[0];
-      const p2 = sketchCoords[Math.floor(sketchCoords.length / 2)];
-      const p3 = sketchCoords[sketchCoords.length - 1];
-
+    // Use the captured original control points to regenerate arc with higher resolution
+    if (originalControlPoints.length === 3) {
+      const [p1, p2, p3] = originalControlPoints;
       const finalGeom = createArcGeometry(p1, p2, p3, 64);
       event.feature.setGeometry(finalGeom);
+
+      // Store the original 3 control points for later editing
+      event.feature.set("arcControlPoints", [...originalControlPoints]);
     }
 
     // Set feature properties
     event.feature.set("isArc", true);
     event.feature.set("lineColor", customColor);
     event.feature.set("lineWidth", customWidth);
+
+    // Reset for next drawing
+    originalControlPoints = [];
 
     if (onDrawEnd) {
       onDrawEnd(event);
@@ -866,6 +878,8 @@ export const createArcDraw = (
 
   drawInteraction.on("drawabort", () => {
     removeDrawKeyboardHandlers(drawInteraction);
+    // Reset control points on abort
+    originalControlPoints = [];
   });
 
   return drawInteraction;

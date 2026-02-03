@@ -94,6 +94,12 @@ function getFeatureTypeName(feature: Feature<Geometry>): string {
 
 // Get display name for feature
 function getFeatureName(feature: Feature<Geometry>): string {
+  // Text features show the actual text content
+  if (feature.get("isText")) {
+    const textContent = feature.get("text");
+    return textContent.length > 30 ? textContent.substring(0, 30) + "..." : textContent;
+  }
+
   const name = feature.get("name");
   if (name) return name;
 

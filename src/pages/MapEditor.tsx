@@ -62,6 +62,7 @@ import {
   createExportedGeoJSON,
   extractFolderStructureFromGeoJSON,
   parseKmlFolders,
+  assignUniquePlacemarkIds,
 } from "@/utils/kmlFolderUtils";
 import type { PdfExportConfig } from "@/types/pdf";
 import { HelpModal } from "@/components/HelpModal";
@@ -158,6 +159,7 @@ const MapEditor: React.FC = () => {
     useState<Feature<Geometry> | null>(null);
   const [editingTextScale, setEditingTextScale] = useState(1);
   const [editingTextRotation, setEditingTextRotation] = useState(0);
+  const [isEditingExistingText, setIsEditingExistingText] = useState(false);
 
   // Icon picker dialog state
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
@@ -219,18 +221,23 @@ const MapEditor: React.FC = () => {
           try {
             console.log("kml : ", data);
 
-            // Step 0: Parse folder structure from KML
+            // Step 0: Pre-process KML to assign unique IDs to each Placemark
+            // OpenLayers merges Placemarks with same id, so we need unique IDs
+            const processedKml = assignUniquePlacemarkIds(data as string);
+
+            // Step 0.5: Parse folder structure from KML (use original to preserve hierarchy)
             const { folders: importedFolders, featureFolderMap } = parseKmlFolders(data as string);
             console.log("Parsed KML folders:", Object.keys(importedFolders).length, "folders found");
 
-            // Step 0.5: Parse standard KML styles (for Google Earth compatibility)
+            // Step 0.6: Parse standard KML styles (for Google Earth compatibility)
             const kmlStyleMap = parseKmlStyles(data as string);
             const placemarkStyles = parsePlacemarkStyles(data as string);
             console.log("Parsed KML styles:", kmlStyleMap.size, "styles found");
 
             // Step 1: Parse KML to OpenLayers Features with correct projections
+            // Use processed KML with unique IDs to prevent merging
             const kmlFeatures = new KML({ extractStyles: false }).readFeatures(
-              data,
+              processedKml,
               {
                 featureProjection: "EPSG:3857",
                 dataProjection: "EPSG:4326", // CRITICAL: KML is always in WGS84
@@ -292,18 +299,23 @@ const MapEditor: React.FC = () => {
               return;
             }
 
-            // Step 0: Parse folder structure from KML
+            // Step 0: Pre-process KML to assign unique IDs to each Placemark
+            // OpenLayers merges Placemarks with same id, so we need unique IDs
+            const processedKml = assignUniquePlacemarkIds(kmlText);
+
+            // Step 0.5: Parse folder structure from KML (use original to preserve hierarchy)
             const { folders: importedFolders, featureFolderMap } = parseKmlFolders(kmlText);
             console.log("Parsed KMZ folders:", Object.keys(importedFolders).length, "folders found");
 
-            // Step 0.5: Parse standard KML styles (for Google Earth compatibility)
+            // Step 0.6: Parse standard KML styles (for Google Earth compatibility)
             const kmlStyleMap = parseKmlStyles(kmlText);
             const placemarkStyles = parsePlacemarkStyles(kmlText);
             console.log("Parsed KMZ styles:", kmlStyleMap.size, "styles found");
 
             // Step 1: Parse KML to OpenLayers Features with correct projections
+            // Use processed KML with unique IDs to prevent merging
             const kmlFeatures = new KML({ extractStyles: false }).readFeatures(
-              kmlText,
+              processedKml,
               {
                 featureProjection: "EPSG:3857",
                 dataProjection: "EPSG:4326", // CRITICAL: KML is always in WGS84
@@ -878,6 +890,8 @@ const MapEditor: React.FC = () => {
         setEditingTextFeature(tempFeature);
       }
 
+      // This is NEW text creation, not editing existing
+      setIsEditingExistingText(false);
       setTextDialogOpen(true);
     };
 
@@ -975,61 +989,6 @@ const MapEditor: React.FC = () => {
     };
   }, [saveMapState]);
 
-  // Track previous selected text feature for double-click-to-edit detection
-  const previousSelectedTextRef = useRef<Feature<Geometry> | null>(null);
-
-  // Handle text feature selection for editing
-  // Only open edit dialog on double-click (clicking same text twice)
-  // Single click just selects for dragging
-  useEffect(() => {
-    // Only handle when select tool is active and a text feature is selected
-    if (
-      activeTool === "select" &&
-      selectedFeature &&
-      selectedFeature.get("isText")
-    ) {
-      // Check if this is a "double-click" (clicking same text that's already selected)
-      const isSameTextClicked = previousSelectedTextRef.current === selectedFeature;
-
-      if (isSameTextClicked && !textDialogOpen) {
-        // Second click on same text - open edit dialog
-        const geometry = selectedFeature.getGeometry();
-        if (geometry && geometry.getType() === "Point") {
-          const point = geometry as any;
-          const coordinate = point.getCoordinates();
-
-          const currentScale = selectedFeature.get("textScale") || 1;
-          const currentRotation = selectedFeature.get("textRotation") || 0;
-
-          setEditingTextFeature(selectedFeature);
-          setEditingTextScale(currentScale);
-          setEditingTextRotation(currentRotation);
-          setPendingCoordinate(coordinate);
-
-          // Clear selection styling before opening dialog
-          selectInteractionRef.current?.getFeatures().clear();
-
-          setTextDialogOpen(true);
-        }
-      }
-
-      // Update previous reference for next click detection
-      previousSelectedTextRef.current = selectedFeature;
-    } else if (
-      activeTool !== "select" ||
-      !selectedFeature ||
-      !selectedFeature.get("isText")
-    ) {
-      // Clear editing state when not editing a text feature
-      setEditingTextFeature(null);
-      setEditingTextScale(1);
-      setEditingTextRotation(0);
-      // Clear previous text reference when deselected or different feature selected
-      if (!selectedFeature?.get("isText")) {
-        previousSelectedTextRef.current = null;
-      }
-    }
-  }, [activeTool, selectedFeature, textDialogOpen]);
 
   // Text dialog handlers
   const handleTextSubmit = (
@@ -1061,6 +1020,8 @@ const MapEditor: React.FC = () => {
       }
       // Clear selection after editing
       setSelectedFeature(null);
+      // Save to database
+      saveMapState();
     } else if (pendingCoordinate && vectorSourceRef.current) {
       // Create new text feature with scale/rotation/opacity/colors
       handleTextClick(
@@ -1073,6 +1034,8 @@ const MapEditor: React.FC = () => {
         fillColor,
         strokeColor
       );
+      // Save to database
+      saveMapState();
     }
   };
 
@@ -1098,6 +1061,7 @@ const MapEditor: React.FC = () => {
     setEditingTextFeature(null);
     setEditingTextScale(1);
     setEditingTextRotation(0);
+    setIsEditingExistingText(false);
   };
 
   const handleIconSelect = (iconPath: string) => {
@@ -1286,13 +1250,13 @@ const MapEditor: React.FC = () => {
         onClose={handleTextDialogClose}
         onSubmit={handleTextSubmit}
         coordinate={pendingCoordinate || [0, 0]}
-        initialText={editingTextFeature?.get("text") || ""}
+        initialText={isEditingExistingText ? editingTextFeature?.get("text") || "" : ""}
         initialScale={editingTextScale}
         initialRotation={editingTextRotation}
         initialOpacity={editingTextFeature?.get("textOpacity")}
         initialFillColor={editingTextFeature?.get("textFillColor")}
         initialStrokeColor={editingTextFeature?.get("textStrokeColor")}
-        isEditing={!!editingTextFeature}
+        isEditing={isEditingExistingText}
         editingTextFeature={editingTextFeature}
       />
 

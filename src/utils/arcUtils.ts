@@ -194,3 +194,26 @@ export const generateArcPreview = (
     numSegments
   );
 };
+
+/**
+ * Extract approximate control points from an existing arc LineString
+ * Used for legacy arcs that don't have stored control points
+ * @param arcCoordinates - The interpolated arc coordinates
+ * @returns Approximate [start, through, end] control points
+ */
+export const extractControlPointsFromArc = (
+  arcCoordinates: Coordinate[]
+): Coordinate[] => {
+  if (arcCoordinates.length < 3) {
+    return arcCoordinates;
+  }
+
+  const start = arcCoordinates[0];
+  const end = arcCoordinates[arcCoordinates.length - 1];
+
+  // Use the midpoint of the arc as the through-point
+  const midIndex = Math.floor(arcCoordinates.length / 2);
+  const through = arcCoordinates[midIndex];
+
+  return [start, through, end];
+};

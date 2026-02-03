@@ -392,7 +392,8 @@ export const getFeatureStyle = (
     const textOpacity = feature.get("textOpacity") ?? 1;
     const textFillColor = feature.get("textFillColor") || "#000000";
     const textStrokeColor = feature.get("textStrokeColor") || "#ffffff";
-    return getTextStyle(textContent, textScale, textRotation, textOpacity, textFillColor, textStrokeColor);
+    const textAlign = feature.get("textAlign") || "center";
+    return getTextStyle(textContent, textScale, textRotation, textOpacity, textFillColor, textStrokeColor, textAlign);
   }
 
   // Handle icon features using utility

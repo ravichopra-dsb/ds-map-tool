@@ -142,10 +142,11 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
               }),
             ];
 
-            // Add label text style if feature has a name/label
+            // Add label text style if feature has a name/label and showLabel is enabled
+            const showLabel = feature.get("showLabel") ?? true;
             const labelProperty = feature.get("label") || "name";
             const labelValue = feature.get(labelProperty);
-            if (labelValue) {
+            if (labelValue && showLabel) {
               // Calculate label scale factor (base scale * user label scale)
               const finalLabelScale = baseScaleFactor * labelScale;
               // Scale the offset proportionally with the icon
@@ -185,6 +186,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           const textOpacity = feature.get("textOpacity") ?? 1;
           const textFillColor = feature.get("textFillColor") || "#000000";
           const textStrokeColor = feature.get("textStrokeColor") || "#ffffff";
+          const textAlign = feature.get("textAlign") || "center";
 
           // Hide text when toggled off
           if (isTextFeatureHidden(typedFeature, hiddenTypes)) {
@@ -224,7 +226,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
                 width: STYLE_DEFAULTS.TEXT_STROKE_WIDTH,
               }),
               padding: [4, 6, 4, 6],
-              textAlign: "center",
+              textAlign: textAlign,
               textBaseline: "middle",
             }),
             zIndex: STYLE_DEFAULTS.Z_INDEX_TEXT,

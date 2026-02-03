@@ -130,6 +130,11 @@ export const extractStyleMetadata = (feature: Feature<Geometry>): any => {
   if (feature.get("isRevisionCloud")) properties.isRevisionCloud = true;
   if (feature.get("scallopRadius")) properties.scallopRadius = feature.get("scallopRadius");
 
+  // Store arc control points for editing (start, through, end)
+  if (feature.get("arcControlPoints")) {
+    properties.arcControlPoints = feature.get("arcControlPoints");
+  }
+
   // Store line style properties
   if (feature.get("lineColor")) properties.lineColor = feature.get("lineColor");
   if (feature.get("lineWidth")) properties.lineWidth = feature.get("lineWidth");
@@ -151,6 +156,7 @@ export const extractStyleMetadata = (feature: Feature<Geometry>): any => {
   if (feature.get("textOffsetX") !== undefined) properties.textOffsetX = feature.get("textOffsetX");
   if (feature.get("textOffsetY") !== undefined) properties.textOffsetY = feature.get("textOffsetY");
   if (feature.get("iconRotation") !== undefined) properties.iconRotation = feature.get("iconRotation");
+  if (feature.get("showLabel") !== undefined) properties.showLabel = feature.get("showLabel");
 
   return properties;
 };

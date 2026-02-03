@@ -5,8 +5,10 @@ import type { Select } from "ol/interaction";
 import { X, Edit2, Save, Plus, Trash2, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DEFAULT_LINE_STYLE } from "@/utils/featureTypeUtils";
 import {
   isProtectedProperty,
@@ -20,6 +22,7 @@ import { useLineStyleEditor } from "@/hooks/useLineStyleEditor";
 import { useShapeStyleEditor } from "@/hooks/useShapeStyleEditor";
 import { useIconPropertiesEditor } from "@/hooks/useIconPropertiesEditor";
 import { usePointOpacityEditor } from "@/hooks/usePointOpacityEditor";
+import { useTextStyleEditor } from "@/hooks/useTextStyleEditor";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,6 +83,12 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     properties.isEditing,
   );
   const iconProperties = useIconPropertiesEditor(
+    selectedFeature,
+    map,
+    selectInteraction ?? null,
+    properties.isEditing,
+  );
+  const textStyle = useTextStyleEditor(
     selectedFeature,
     map,
     selectInteraction ?? null,
@@ -149,6 +158,7 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     shapeStyle.commitShapeStyle();
     pointOpacity.commitOpacity();
     iconProperties.commitIconProperties();
+    textStyle.commitTextStyle();
   };
 
   const handleCancel = () => {
@@ -157,14 +167,10 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     shapeStyle.resetToOriginal();
     pointOpacity.resetToOriginal();
     iconProperties.resetToOriginal();
+    textStyle.resetToOriginal();
   };
 
   if (!selectedFeature) {
-    return null;
-  }
-
-  // Don't show properties panel for text features
-  if (selectedFeature.get("isText")) {
     return null;
   }
 
@@ -189,59 +195,71 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
-          <div className="space-y-2">
-            {!properties.isEditing ? (
-              <PropertyDisplayList
-                properties={properties.customProperties}
-                currentLabel={currentLabel}
-                lengthUnit={lengthUnit}
-                onLengthUnitChange={handleLengthUnitChange}
-              />
-            ) : (
-              <PropertyEditList
-                properties={properties.customProperties}
-                onUpdate={properties.updateProperty}
-                onDelete={properties.deleteProperty}
-                currentLabel={currentLabel}
-                onLabelSelect={handleLabelSelect}
-                lengthUnit={lengthUnit}
-                onLengthUnitChange={handleLengthUnitChange}
-              />
-            )}
-          </div>
-
-          {/* Line Style Controls */}
-          {lineStyle.supportsLineStyle && (
-            <LineStyleSection
-              lineStyle={lineStyle}
+          {/* For text features, show only Text Style section */}
+          {textStyle.supportsTextStyle ? (
+            <TextStyleSection
+              textStyle={textStyle}
               isEditing={properties.isEditing}
+              onSave={handleSave}
+              onCancel={handleCancel}
             />
-          )}
+          ) : (
+            <>
+              <div className="space-y-2">
+                {!properties.isEditing ? (
+                  <PropertyDisplayList
+                    properties={properties.customProperties}
+                    currentLabel={currentLabel}
+                    lengthUnit={lengthUnit}
+                    onLengthUnitChange={handleLengthUnitChange}
+                  />
+                ) : (
+                  <PropertyEditList
+                    properties={properties.customProperties}
+                    onUpdate={properties.updateProperty}
+                    onDelete={properties.deleteProperty}
+                    currentLabel={currentLabel}
+                    onLabelSelect={handleLabelSelect}
+                    lengthUnit={lengthUnit}
+                    onLengthUnitChange={handleLengthUnitChange}
+                  />
+                )}
+              </div>
 
-          {/* Shape Style Controls (Box and Circle) */}
-          {shapeStyle.supportsShapeStyle && (
-            <ShapeStyleSection
-              shapeStyle={shapeStyle}
-              isEditing={properties.isEditing}
-            />
-          )}
+              {/* Line Style Controls */}
+              {lineStyle.supportsLineStyle && (
+                <LineStyleSection
+                  lineStyle={lineStyle}
+                  isEditing={properties.isEditing}
+                />
+              )}
 
-          {/* Icon Style Controls (Google Earth icons) */}
-          {iconProperties.supportsIconProperties && (
-            <IconStyleSection
-              iconProperties={iconProperties}
-              isEditing={properties.isEditing}
-            />
-          )}
+              {/* Shape Style Controls (Box and Circle) */}
+              {shapeStyle.supportsShapeStyle && (
+                <ShapeStyleSection
+                  shapeStyle={shapeStyle}
+                  isEditing={properties.isEditing}
+                />
+              )}
 
-          {/* Point/Icon Opacity Controls (non-icon point features) */}
-          {pointOpacity.supportsPointOpacity &&
-            !iconProperties.supportsIconProperties && (
-              <PointOpacitySection
-                pointOpacity={pointOpacity}
-                isEditing={properties.isEditing}
-              />
-            )}
+              {/* Icon Style Controls (Google Earth icons) */}
+              {iconProperties.supportsIconProperties && (
+                <IconStyleSection
+                  iconProperties={iconProperties}
+                  isEditing={properties.isEditing}
+                />
+              )}
+
+              {/* Point/Icon Opacity Controls (non-icon point features) */}
+              {pointOpacity.supportsPointOpacity &&
+                !iconProperties.supportsIconProperties && (
+                  <PointOpacitySection
+                    pointOpacity={pointOpacity}
+                    isEditing={properties.isEditing}
+                  />
+                )}
+            </>
+          )}
         </div>
 
         {/* Footer */}
@@ -458,8 +476,9 @@ const PropertyDisplayList: React.FC<PropertyDisplayListProps> = ({
                 </div>
               </ExpandableScreenTrigger>
               <ExpandableScreenContent
-              showCloseButton
-              className="z-100 bg-white">
+                showCloseButton
+                className="z-100 bg-white"
+              >
                 <div
                   key={prop.id}
                   className="rounded-lg bg-yellow-300 mt-24 transition-colors size-[calc(100vh-150px)] mx-auto"
@@ -1262,12 +1281,14 @@ interface IconStyleSectionProps {
     textOffsetX: number;
     textOffsetY: number;
     rotation: number;
+    showLabel: boolean;
     handleOpacityChange: (opacity: number) => void;
     handleIconScaleChange: (scale: number) => void;
     handleLabelScaleChange: (scale: number) => void;
     handleTextOffsetXChange: (offset: number) => void;
     handleTextOffsetYChange: (offset: number) => void;
     handleRotationChange: (rotation: number) => void;
+    handleShowLabelChange: (show: boolean) => void;
   };
   isEditing: boolean;
 }
@@ -1290,6 +1311,7 @@ const IconStyleSection: React.FC<IconStyleSectionProps> = ({
           textOffsetX={iconProperties.textOffsetX}
           textOffsetY={iconProperties.textOffsetY}
           rotation={iconProperties.rotation}
+          showLabel={iconProperties.showLabel}
         />
       ) : (
         <IconStyleEditor iconProperties={iconProperties} />
@@ -1305,6 +1327,7 @@ interface IconStyleDisplayProps {
   textOffsetX: number;
   textOffsetY: number;
   rotation: number;
+  showLabel: boolean;
 }
 
 const IconStyleDisplay: React.FC<IconStyleDisplayProps> = ({
@@ -1314,6 +1337,7 @@ const IconStyleDisplay: React.FC<IconStyleDisplayProps> = ({
   textOffsetX,
   textOffsetY,
   rotation,
+  showLabel,
 }) => (
   <div className="space-y-2">
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
@@ -1330,6 +1354,14 @@ const IconStyleDisplay: React.FC<IconStyleDisplayProps> = ({
       </span>
       <span className="text-gray-600 dark:text-gray-400">
         {iconScale.toFixed(1)}x
+      </span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Show Label:
+      </span>
+      <span className="text-gray-600 dark:text-gray-400">
+        {showLabel ? "On" : "Off"}
       </span>
     </div>
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
@@ -1371,12 +1403,14 @@ interface IconStyleEditorProps {
     textOffsetX: number;
     textOffsetY: number;
     rotation: number;
+    showLabel: boolean;
     handleOpacityChange: (opacity: number) => void;
     handleIconScaleChange: (scale: number) => void;
     handleLabelScaleChange: (scale: number) => void;
     handleTextOffsetXChange: (offset: number) => void;
     handleTextOffsetYChange: (offset: number) => void;
     handleRotationChange: (rotation: number) => void;
+    handleShowLabelChange: (show: boolean) => void;
   };
 }
 
@@ -1444,6 +1478,19 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
         <span>0.1x</span>
         <span>5x</span>
       </div>
+    </div>
+
+    {/* Show Label Toggle */}
+    <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50 dark:bg-slate-700/50">
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+        Show Label
+      </Label>
+      <Checkbox
+        checked={iconProperties.showLabel}
+        onCheckedChange={(checked) =>
+          iconProperties.handleShowLabelChange(checked === true)
+        }
+      />
     </div>
 
     {/* Label Scale Slider */}
@@ -1571,5 +1618,457 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
     </div>
   </div>
 );
+
+// Text Style Section
+interface TextStyleSectionProps {
+  textStyle: {
+    text: string;
+    textScale: number;
+    textRotation: number;
+    textOpacity: number;
+    textFillColor: string;
+    textStrokeColor: string;
+    textAlign: TextAlign;
+    longitude: string;
+    latitude: string;
+    handleTextChange: (text: string) => void;
+    handleScaleChange: (scale: number) => void;
+    handleRotationChange: (rotation: number) => void;
+    handleOpacityChange: (opacity: number) => void;
+    handleFillColorChange: (color: string) => void;
+    handleStrokeColorChange: (color: string) => void;
+    handleTextAlignChange: (align: TextAlign) => void;
+    handleLongitudeChange: (lon: string) => void;
+    handleLatitudeChange: (lat: string) => void;
+  };
+  isEditing: boolean;
+  onSave?: () => void;
+  onCancel?: () => void;
+}
+
+const TextStyleSection: React.FC<TextStyleSectionProps> = ({
+  textStyle,
+  isEditing,
+  onSave,
+  onCancel,
+}) => {
+  return (
+    <div>
+      <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wide">
+        Text Properties
+      </h4>
+
+      {!isEditing ? (
+        <TextStyleDisplay
+          text={textStyle.text}
+          textScale={textStyle.textScale}
+          textRotation={textStyle.textRotation}
+          textOpacity={textStyle.textOpacity}
+          textFillColor={textStyle.textFillColor}
+          textStrokeColor={textStyle.textStrokeColor}
+          longitude={textStyle.longitude}
+          latitude={textStyle.latitude}
+        />
+      ) : (
+        <TextStyleEditor textStyle={textStyle} onSave={onSave} onCancel={onCancel} />
+      )}
+    </div>
+  );
+};
+
+interface TextStyleDisplayProps {
+  text: string;
+  textScale: number;
+  textRotation: number;
+  textOpacity: number;
+  textFillColor: string;
+  textStrokeColor: string;
+  longitude: string;
+  latitude: string;
+}
+
+const TextStyleDisplay: React.FC<TextStyleDisplayProps> = ({
+  text,
+  textScale,
+  textRotation,
+  textOpacity,
+  textFillColor,
+  textStrokeColor,
+  longitude,
+  latitude,
+}) => (
+  <div className="space-y-2">
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Text:
+      </span>
+      <span className="text-gray-600 dark:text-gray-400 truncate max-w-[150px]">
+        {text || <span className="italic text-gray-400">Empty</span>}
+      </span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Longitude:
+      </span>
+      <span className="text-gray-600 dark:text-gray-400">{longitude}</span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Latitude:
+      </span>
+      <span className="text-gray-600 dark:text-gray-400">{latitude}</span>
+    </div>
+
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Scale:
+      </span>
+      <span className="text-gray-600 dark:text-gray-400">
+        {textScale.toFixed(1)}x
+      </span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Rotation:
+      </span>
+      <span className="text-gray-600 dark:text-gray-400">
+        {Math.round(textRotation)}°
+      </span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Opacity:
+      </span>
+      <span className="text-gray-600 dark:text-gray-400">
+        {Math.round(textOpacity * 100)}%
+      </span>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Fill Color:
+      </span>
+      <div className="flex items-center gap-2">
+        <div
+          className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
+          style={{ backgroundColor: textFillColor }}
+        />
+        <span className="text-gray-600 dark:text-gray-400 font-mono text-xs">
+          {textFillColor.toUpperCase()}
+        </span>
+      </div>
+    </div>
+    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+      <span className="font-medium text-gray-700 dark:text-gray-300">
+        Stroke Color:
+      </span>
+      <div className="flex items-center gap-2">
+        <div
+          className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
+          style={{ backgroundColor: textStrokeColor }}
+        />
+        <span className="text-gray-600 dark:text-gray-400 font-mono text-xs">
+          {textStrokeColor.toUpperCase()}
+        </span>
+      </div>
+    </div>
+  </div>
+);
+
+type TextAlign = 'left' | 'center' | 'right';
+
+interface TextStyleEditorProps {
+  textStyle: {
+    text: string;
+    textScale: number;
+    textRotation: number;
+    textOpacity: number;
+    textFillColor: string;
+    textStrokeColor: string;
+    textAlign: TextAlign;
+    longitude: string;
+    latitude: string;
+    handleTextChange: (text: string) => void;
+    handleScaleChange: (scale: number) => void;
+    handleRotationChange: (rotation: number) => void;
+    handleOpacityChange: (opacity: number) => void;
+    handleFillColorChange: (color: string) => void;
+    handleStrokeColorChange: (color: string) => void;
+    handleTextAlignChange: (align: TextAlign) => void;
+    handleLongitudeChange: (lon: string) => void;
+    handleLatitudeChange: (lat: string) => void;
+  };
+  onSave?: () => void;
+  onCancel?: () => void;
+}
+
+const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, onCancel }) => {
+  const handleTextKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && e.altKey) {
+      // Alt+Enter: insert newline
+      e.preventDefault();
+      const textarea = e.currentTarget;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const currentText = textStyle.text;
+      const newText = currentText.substring(0, start) + "\n" + currentText.substring(end);
+      textStyle.handleTextChange(newText);
+      // Set cursor position after the newline
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = start + 1;
+      }, 0);
+    } else if (e.key === "Enter" && !e.altKey) {
+      e.preventDefault();
+      onSave?.();
+    }
+    if (e.key === "Escape") {
+      onCancel?.();
+    }
+  };
+
+  return (
+  <div className="space-y-4">
+    {/* Text Content Input */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Text
+      </Label>
+      <Textarea
+        value={textStyle.text}
+        onChange={(e) => textStyle.handleTextChange(e.target.value)}
+        onKeyDown={handleTextKeyDown}
+        placeholder="Enter text... (Alt+Enter for new line)"
+        className="mt-1 min-h-[60px]"
+      />
+    </div>
+
+    {/* Text Align */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Text Align
+      </Label>
+      <div className="flex gap-1 mt-1">
+        {(['left', 'center', 'right'] as const).map((align) => (
+          <Button
+            key={align}
+            variant={textStyle.textAlign === align ? "default" : "outline"}
+            size="sm"
+            onClick={() => textStyle.handleTextAlignChange(align)}
+            className="flex-1 capitalize"
+          >
+            {align}
+          </Button>
+        ))}
+      </div>
+    </div>
+
+    {/* Longitude Input */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Longitude
+      </Label>
+      <Input
+        type="number"
+        step="any"
+        value={textStyle.longitude}
+        onChange={(e) => textStyle.handleLongitudeChange(e.target.value)}
+        placeholder="0.000000"
+        className="mt-1"
+        disabled
+      />
+    </div>
+
+    {/* Latitude Input */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Latitude
+      </Label>
+      <Input
+        type="number"
+        step="any"
+        value={textStyle.latitude}
+        onChange={(e) => textStyle.handleLatitudeChange(e.target.value)}
+        placeholder="0.000000"
+        className="mt-1"
+        disabled
+      />
+    </div>
+
+    {/* Scale Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Scale: {textStyle.textScale.toFixed(1)}x
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[textStyle.textScale]}
+          onValueChange={(value) => textStyle.handleScaleChange(value[0])}
+          min={0.1}
+          max={3.0}
+          step={0.1}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => textStyle.handleScaleChange(1)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0.1x</span>
+        <span>3.0x</span>
+      </div>
+    </div>
+
+    {/* Rotation Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Rotation: {Math.round(textStyle.textRotation)}°
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[textStyle.textRotation]}
+          onValueChange={(value) => textStyle.handleRotationChange(value[0])}
+          min={0}
+          max={360}
+          step={1}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => textStyle.handleRotationChange(0)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0°</span>
+        <span>360°</span>
+      </div>
+    </div>
+
+    {/* Opacity Slider */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Opacity: {Math.round(textStyle.textOpacity * 100)}%
+      </Label>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={[textStyle.textOpacity]}
+          onValueChange={(value) => textStyle.handleOpacityChange(value[0])}
+          min={0}
+          max={1}
+          step={0.01}
+          className="flex-1"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => textStyle.handleOpacityChange(1)}
+          className="px-2 py-1 text-xs shrink-0"
+        >
+          Reset
+        </Button>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <span>0%</span>
+        <span>100%</span>
+      </div>
+    </div>
+
+    {/* Fill Color Picker */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Fill Color
+      </Label>
+      <div className="flex items-center gap-3">
+        <input
+          type="color"
+          value={textStyle.textFillColor}
+          onChange={(e) => textStyle.handleFillColorChange(e.target.value)}
+          className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-10 px-3">
+              Choose Color
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-48 p-1 bg-white rounded-sm shadow-lg z-10">
+            <DropdownMenuSeparator />
+            <DropdownMenuRadioGroup
+              value={textStyle.textFillColor}
+              onValueChange={(value) => textStyle.handleFillColorChange(value)}
+            >
+              {COLOR_OPTIONS.map((colorOption) => (
+                <DropdownMenuRadioItem
+                  key={colorOption.color}
+                  value={colorOption.color}
+                  className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
+                >
+                  <div
+                    className="w-4 h-4 rounded"
+                    style={{ backgroundColor: colorOption.color }}
+                  />
+                  <span>{colorOption.name}</span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+
+    {/* Stroke Color Picker */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Stroke Color
+      </Label>
+      <div className="flex items-center gap-3">
+        <input
+          type="color"
+          value={textStyle.textStrokeColor}
+          onChange={(e) => textStyle.handleStrokeColorChange(e.target.value)}
+          className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-10 px-3">
+              Choose Color
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-48 p-1 bg-white rounded-sm shadow-lg z-10">
+            <DropdownMenuSeparator />
+            <DropdownMenuRadioGroup
+              value={textStyle.textStrokeColor}
+              onValueChange={(value) =>
+                textStyle.handleStrokeColorChange(value)
+              }
+            >
+              {COLOR_OPTIONS.map((colorOption) => (
+                <DropdownMenuRadioItem
+                  key={colorOption.color}
+                  value={colorOption.color}
+                  className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
+                >
+                  <div
+                    className="w-4 h-4 rounded"
+                    style={{ backgroundColor: colorOption.color }}
+                  />
+                  <span>{colorOption.name}</span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  </div>
+  );
+};
 
 export default PropertiesPanel;
