@@ -22,6 +22,7 @@ import {
   useTransformTool,
   useSplitTool,
   useMergeTool,
+  useArcModify,
   type MultiSelectMode,
 } from "@/hooks/interactions";
 
@@ -84,6 +85,15 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
       onMultiSelectChange,
       onReady: onSelectInteractionReady,
     });
+
+  // Initialize arc-specific editing with 3 control points
+  // Must be after useSelectModify to access selectInteraction and modifyInteraction
+  useArcModify({
+    map,
+    vectorLayer,
+    selectInteraction,
+    modifyInteraction,
+  });
 
   // Initialize hover interaction for feature highlighting
   // Must be after useSelectModify to access selectInteraction for disabling hover on selected features

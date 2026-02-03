@@ -130,6 +130,11 @@ export const extractStyleMetadata = (feature: Feature<Geometry>): any => {
   if (feature.get("isRevisionCloud")) properties.isRevisionCloud = true;
   if (feature.get("scallopRadius")) properties.scallopRadius = feature.get("scallopRadius");
 
+  // Store arc control points for editing (start, through, end)
+  if (feature.get("arcControlPoints")) {
+    properties.arcControlPoints = feature.get("arcControlPoints");
+  }
+
   // Store line style properties
   if (feature.get("lineColor")) properties.lineColor = feature.get("lineColor");
   if (feature.get("lineWidth")) properties.lineWidth = feature.get("lineWidth");

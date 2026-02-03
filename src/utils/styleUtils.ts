@@ -433,6 +433,14 @@ export const createSelectStyle = (feature: Feature<Geometry>): Style | Style[] =
     });
   }
 
+  // For Arc features - show only stroke highlight, no vertex markers
+  // Arc vertices are handled by useArcModify with 3 colored control points
+  if (feature.get('isArc')) {
+    return new Style({
+      stroke: selectStroke,
+    });
+  }
+
   // For LineString, MultiLineString, GeometryCollection
   const styles: Style[] = [
     new Style({
