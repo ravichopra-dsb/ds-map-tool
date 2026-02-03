@@ -5,6 +5,13 @@ import { Feature } from "ol";
 import type { Geometry } from "ol/geom";
 import { Point, LineString, MultiLineString } from "ol/geom";
 import { applyOpacityToColor } from "./colorUtils";
+import {
+  calculateIconScale,
+  calculateTextScale,
+  calculateIconHighlightRadius,
+  calculatePointRadius,
+  RESOLUTION_SCALE_DEFAULTS,
+} from "./resolutionScaleUtils";
 
 /**
  * Basic style configuration interface
@@ -280,16 +287,12 @@ export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number
       const iconRotation = feature.get("iconRotation") ?? 0;
 
       // Apply resolution-based scaling (same as MapInstance.tsx)
+      const iconWidth = feature.get("iconWidth") || RESOLUTION_SCALE_DEFAULTS.DEFAULT_ICON_WIDTH;
       let finalIconScale = userIconScale;
       let highlightRadius = 10; // Base highlight circle radius
       if (resolution) {
-        const desiredPxSize = 16;
-        const referenceResolution = 1.0;
-        const iconWidth = feature.get("iconWidth") || 32;
-        const baseScaleFactor = (desiredPxSize / iconWidth) * (referenceResolution / resolution);
-        finalIconScale = baseScaleFactor * userIconScale;
-        // Scale the highlight circle proportionally
-        highlightRadius = Math.max(10, 16 * baseScaleFactor * userIconScale);
+        finalIconScale = calculateIconScale(resolution, iconWidth, userIconScale);
+        highlightRadius = calculateIconHighlightRadius(resolution, iconWidth, userIconScale);
       }
 
       return [
@@ -328,11 +331,7 @@ export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number
       // Apply resolution-based scaling when resolution is available
       let finalTextScale = textScale;
       if (resolution) {
-        const desiredPxSize = 16;
-        const referenceResolution = 1.0;
-        const TEXT_FONT_SIZE = 14;
-        const baseScaleFactor = (desiredPxSize / TEXT_FONT_SIZE) * (referenceResolution / resolution);
-        finalTextScale = baseScaleFactor * textScale;
+        finalTextScale = calculateTextScale(resolution, RESOLUTION_SCALE_DEFAULTS.TEXT_FONT_SIZE, textScale);
       }
 
       return new Style({
@@ -426,16 +425,12 @@ export const createSelectStyle = (feature: Feature<Geometry>, resolution?: numbe
       const iconRotation = feature.get("iconRotation") ?? 0;
 
       // Apply resolution-based scaling (same as MapInstance.tsx)
+      const iconWidth = feature.get("iconWidth") || RESOLUTION_SCALE_DEFAULTS.DEFAULT_ICON_WIDTH;
       let finalIconScale = userIconScale;
       let highlightRadius = 10; // Base highlight circle radius
       if (resolution) {
-        const desiredPxSize = 16;
-        const referenceResolution = 1.0;
-        const iconWidth = feature.get("iconWidth") || 32;
-        const baseScaleFactor = (desiredPxSize / iconWidth) * (referenceResolution / resolution);
-        finalIconScale = baseScaleFactor * userIconScale;
-        // Scale the highlight circle proportionally
-        highlightRadius = Math.max(10, 16 * baseScaleFactor * userIconScale);
+        finalIconScale = calculateIconScale(resolution, iconWidth, userIconScale);
+        highlightRadius = calculateIconHighlightRadius(resolution, iconWidth, userIconScale);
       }
 
       return [
@@ -474,11 +469,7 @@ export const createSelectStyle = (feature: Feature<Geometry>, resolution?: numbe
       // Apply resolution-based scaling when resolution is available
       let finalTextScale = textScale;
       if (resolution) {
-        const desiredPxSize = 16;
-        const referenceResolution = 1.0;
-        const TEXT_FONT_SIZE = 14;
-        const baseScaleFactor = (desiredPxSize / TEXT_FONT_SIZE) * (referenceResolution / resolution);
-        finalTextScale = baseScaleFactor * textScale;
+        finalTextScale = calculateTextScale(resolution, RESOLUTION_SCALE_DEFAULTS.TEXT_FONT_SIZE, textScale);
       }
 
       return new Style({
@@ -501,13 +492,7 @@ export const createSelectStyle = (feature: Feature<Geometry>, resolution?: numbe
     }
 
     // Regular point - apply resolution-based scaling for CircleStyle
-    let pointRadius = 9; // Base radius
-    if (resolution) {
-      const desiredPxSize = 16;
-      const referenceResolution = 1.0;
-      const baseScaleFactor = (desiredPxSize / 16) * (referenceResolution / resolution);
-      pointRadius = Math.max(6, 9 * baseScaleFactor);
-    }
+    const pointRadius = resolution ? calculatePointRadius(resolution) : 9;
 
     return new Style({
       image: new CircleStyle({

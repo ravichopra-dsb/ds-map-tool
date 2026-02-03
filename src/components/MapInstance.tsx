@@ -15,6 +15,12 @@ import {
   isTextFeatureHidden,
 } from "@/utils/features/visibilityUtils";
 import { STYLE_DEFAULTS } from "@/constants/styleDefaults";
+import {
+  calculateIconScale,
+  calculateTextScale,
+  calculateStrokeScale,
+  shouldApplyResolutionScaling,
+} from "@/utils/resolutionScaleUtils";
 import type { Geometry } from "ol/geom";
 
 export interface MapInstanceProps {
@@ -112,8 +118,6 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
 
         // Apply world-scaling for icon features based on resolution
         if (feature.get("isIcon") && resolution) {
-          const desiredPxSize = 16;
-          const referenceResolution = 1.0;
           const iconWidth = feature.get("iconWidth") || 32;
           const iconPath = feature.get("iconPath");
 
@@ -126,10 +130,8 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           const iconRotation = feature.get("iconRotation") ?? 0;
 
           if (iconPath) {
-            // Calculate base scale factor from resolution
-            const baseScaleFactor = (desiredPxSize / iconWidth) * (referenceResolution / resolution);
-            // Apply user-defined icon scale
-            const finalIconScale = baseScaleFactor * iconScale;
+            // Calculate final icon scale using resolution-based scaling
+            const finalIconScale = calculateIconScale(resolution, iconWidth, iconScale);
 
             const styles: Style[] = [
               new Style({
@@ -147,8 +149,8 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
             const labelProperty = feature.get("label") || "name";
             const labelValue = feature.get(labelProperty);
             if (labelValue && showLabel) {
-              // Calculate label scale factor (base scale * user label scale)
-              const finalLabelScale = baseScaleFactor * labelScale;
+              // Calculate label scale factor using same icon-based scaling with label scale
+              const finalLabelScale = calculateIconScale(resolution, iconWidth, labelScale);
               // Scale the offset proportionally with the icon
               // User offsets must also be scaled to remain constant relative to icon size
               const baseOffsetY = -40;
@@ -196,10 +198,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           }
 
           // Apply world-scaling for text based on resolution (same as icon labels)
-          const desiredPxSize = 16;
-          const referenceResolution = 1.0;
-          const baseScaleFactor = (desiredPxSize / STYLE_DEFAULTS.TEXT_FONT_SIZE) * (referenceResolution / resolution);
-          const finalTextScale = baseScaleFactor * textScale;
+          const finalTextScale = calculateTextScale(resolution, STYLE_DEFAULTS.TEXT_FONT_SIZE, textScale);
 
           // Convert hex color to rgba with opacity
           const hexToRgba = (hex: string, opacity: number): string => {
@@ -239,10 +238,8 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
         }
 
         // Apply world-scaling for all LineString/MultiLineString features based on resolution
-        if (resolution>=0.8 && (type === "LineString" || type === "MultiLineString")) {
-          const desiredPxSize = 16;
-          const referenceResolution = 1.0;
-          const baseScaleFactor = (desiredPxSize / 16) * (referenceResolution / resolution);
+        if (shouldApplyResolutionScaling(resolution!) && (type === "LineString" || type === "MultiLineString")) {
+          const baseScaleFactor = calculateStrokeScale(resolution!);
 
           // Get base style from FeatureStyler first
           const baseStyle = getFeatureStyle(feature);
