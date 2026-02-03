@@ -468,7 +468,7 @@ export function TextDialog({
                         <Slider
                           value={[scale]}
                           onValueChange={(value) => handleScaleChange(value[0])}
-                          min={0.5}
+                          min={0.1}
                           max={3.0}
                           step={0.1}
                           className="flex-1"

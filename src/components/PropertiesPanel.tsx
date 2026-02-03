@@ -1902,7 +1902,7 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, on
         <Slider
           value={[textStyle.textScale]}
           onValueChange={(value) => textStyle.handleScaleChange(value[0])}
-          min={0.5}
+          min={0.1}
           max={3.0}
           step={0.1}
           className="flex-1"
@@ -1917,7 +1917,7 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, on
         </Button>
       </div>
       <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
-        <span>0.5x</span>
+        <span>0.1x</span>
         <span>3.0x</span>
       </div>
     </div>
