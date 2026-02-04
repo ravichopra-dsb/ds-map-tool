@@ -378,19 +378,10 @@ export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number
   }
 
   // For LineString, MultiLineString, GeometryCollection (most common)
-  const styles: Style[] = [
-    new Style({
-      stroke: hoverStroke,
-    }),
-  ];
-
-  // Add vertex highlighting for LineStrings and MultiLineStrings
-  if (geometryType === "LineString" || geometryType === "MultiLineString") {
-    const vertexStyles = createVertexStylesForGeometry(geometry);
-    styles.push(...vertexStyles);
-  }
-
-  return styles;
+  // Only show stroke highlight on hover - vertices are shown only on selection
+  return new Style({
+    stroke: hoverStroke,
+  });
 };
 
 /**
