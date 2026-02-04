@@ -45,10 +45,15 @@ export const parseHtmlDescription = (htmlDescription: unknown): Record<string, s
     }
   }
 
-  // Extract image URL if present
-  const imgMatch = html.match(/<img[^>]+src="([^"]+)"/i);
-  if (imgMatch) {
-    result['Image URL'] = imgMatch[1];
+  // Extract all image URLs if present
+  const imgPattern = /<img[^>]+src="([^"]+)"/gi;
+  const imgMatches = [...html.matchAll(imgPattern)];
+  if (imgMatches.length === 1) {
+    result['Image URL'] = imgMatches[0][1];
+  } else if (imgMatches.length > 1) {
+    imgMatches.forEach((match, index) => {
+      result[`Image URL ${index + 1}`] = match[1];
+    });
   }
 
   return result;

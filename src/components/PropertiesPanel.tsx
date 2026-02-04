@@ -481,6 +481,7 @@ const PropertyDisplayList: React.FC<PropertyDisplayListProps> = ({
   lengthUnit,
   onLengthUnitChange,
 }) => {
+  console.log("properties", properties);
   if (properties.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -494,9 +495,9 @@ const PropertyDisplayList: React.FC<PropertyDisplayListProps> = ({
   return (
     <div className="space-y-1">
       {properties.map((prop) => {
-        // Check if this is an image URL property
+        // Check if this is an image URL property (supports "Image URL" and "Image URL 1", "Image URL 2", etc.)
         const isImageUrl =
-          prop.key === "Image URL" && prop.value?.startsWith("http");
+          prop.key.startsWith("Image URL") && prop.value?.startsWith("http");
 
         if (isImageUrl) {
           return (
@@ -607,8 +608,9 @@ const PropertyEditList: React.FC<PropertyEditListProps> = ({
       {properties.map((prop) => {
         const isReadOnly = isProtectedProperty(prop.key);
         const isCalculated = isCalculatedProperty(prop.key);
+        // Check if this is an image URL property (supports "Image URL" and "Image URL 1", "Image URL 2", etc.)
         const isImageUrl =
-          prop.key === "Image URL" && prop.value?.startsWith("http");
+          prop.key.startsWith("Image URL") && prop.value?.startsWith("http");
 
         // Special layout for Image URL - show preview below
         if (isImageUrl) {
