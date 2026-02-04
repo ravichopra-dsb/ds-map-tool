@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EditableSliderValue } from "@/components/ui/editable-slider-value";
 import { DEFAULT_LINE_STYLE } from "@/utils/featureTypeUtils";
 import {
   isProtectedProperty,
@@ -859,7 +860,15 @@ const LineStyleEditor: React.FC<LineStyleEditorProps> = ({ lineStyle }) => (
     {/* Width Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Line Width: {lineStyle.lineWidth}px
+        Line Width:{" "}
+        <EditableSliderValue
+          value={lineStyle.lineWidth}
+          onChange={lineStyle.handleWidthChange}
+          min={1}
+          max={20}
+          step={1}
+          format="px"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -888,7 +897,15 @@ const LineStyleEditor: React.FC<LineStyleEditorProps> = ({ lineStyle }) => (
     {/* Opacity Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Opacity: {Math.round(lineStyle.opacity * 100)}%
+        Opacity:{" "}
+        <EditableSliderValue
+          value={lineStyle.opacity}
+          onChange={lineStyle.handleOpacityChange}
+          min={0}
+          max={1}
+          step={0.01}
+          format="percent"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1108,7 +1125,14 @@ const ShapeStyleEditor: React.FC<ShapeStyleEditorProps> = ({ shapeStyle }) => (
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
         {shapeStyle.isRevisionCloud ? "Width" : "Stroke Width"}:{" "}
-        {shapeStyle.strokeWidth}px
+        <EditableSliderValue
+          value={shapeStyle.strokeWidth}
+          onChange={shapeStyle.handleStrokeWidthChange}
+          min={1}
+          max={20}
+          step={1}
+          format="px"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1140,7 +1164,14 @@ const ShapeStyleEditor: React.FC<ShapeStyleEditorProps> = ({ shapeStyle }) => (
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
         {shapeStyle.isRevisionCloud ? "Opacity" : "Stroke Opacity"}:{" "}
-        {Math.round(shapeStyle.strokeOpacity * 100)}%
+        <EditableSliderValue
+          value={shapeStyle.strokeOpacity}
+          onChange={shapeStyle.handleStrokeOpacityChange}
+          min={0}
+          max={1}
+          step={0.01}
+          format="percent"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1217,7 +1248,15 @@ const ShapeStyleEditor: React.FC<ShapeStyleEditorProps> = ({ shapeStyle }) => (
     {!shapeStyle.isRevisionCloud && (
       <div>
         <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Fill Opacity: {Math.round(shapeStyle.fillOpacity * 100)}%
+          Fill Opacity:{" "}
+          <EditableSliderValue
+            value={shapeStyle.fillOpacity}
+            onChange={shapeStyle.handleFillOpacityChange}
+            min={0}
+            max={1}
+            step={0.01}
+            format="percent"
+          />
         </Label>
         <Slider
           value={[shapeStyle.fillOpacity]}
@@ -1300,7 +1339,15 @@ const PointOpacityEditor: React.FC<PointOpacityEditorProps> = ({
   <div className="space-y-4">
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Opacity: {Math.round(pointOpacity.opacity * 100)}%
+        Opacity:{" "}
+        <EditableSliderValue
+          value={pointOpacity.opacity}
+          onChange={pointOpacity.handleOpacityChange}
+          min={0}
+          max={1}
+          step={0.01}
+          format="percent"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1477,7 +1524,15 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
     {/* Opacity Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Opacity: {Math.round(iconProperties.opacity * 100)}%
+        Opacity:{" "}
+        <EditableSliderValue
+          value={iconProperties.opacity}
+          onChange={iconProperties.handleOpacityChange}
+          min={0}
+          max={1}
+          step={0.01}
+          format="percent"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1508,7 +1563,16 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
     {/* Icon Scale Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Icon Scale: {iconProperties.iconScale.toFixed(1)}x
+        Icon Scale:{" "}
+        <EditableSliderValue
+          value={iconProperties.iconScale}
+          onChange={iconProperties.handleIconScaleChange}
+          min={0.1}
+          max={5}
+          step={0.1}
+          format="decimal"
+          suffix="x"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1552,7 +1616,16 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
     {/* Label Scale Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Label Scale: {iconProperties.labelScale.toFixed(1)}x
+        Label Scale:{" "}
+        <EditableSliderValue
+          value={iconProperties.labelScale}
+          onChange={iconProperties.handleLabelScaleChange}
+          min={0.1}
+          max={5}
+          step={0.1}
+          format="decimal"
+          suffix="x"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1583,7 +1656,15 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
     {/* Text Offset X Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Label Offset X: {iconProperties.textOffsetX}px
+        Label Offset X:{" "}
+        <EditableSliderValue
+          value={iconProperties.textOffsetX}
+          onChange={iconProperties.handleTextOffsetXChange}
+          min={-100}
+          max={100}
+          step={1}
+          format="px"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1614,7 +1695,15 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
     {/* Text Offset Y Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Label Offset Y: {iconProperties.textOffsetY}px
+        Label Offset Y:{" "}
+        <EditableSliderValue
+          value={iconProperties.textOffsetY}
+          onChange={iconProperties.handleTextOffsetYChange}
+          min={-100}
+          max={100}
+          step={1}
+          format="px"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1645,7 +1734,15 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
     {/* Rotation Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Rotation: {Math.round(iconProperties.rotation)}°
+        Rotation:{" "}
+        <EditableSliderValue
+          value={iconProperties.rotation}
+          onChange={iconProperties.handleRotationChange}
+          min={0}
+          max={360}
+          step={1}
+          format="degrees"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1952,7 +2049,16 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, on
     {/* Scale Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Scale: {textStyle.textScale.toFixed(1)}x
+        Scale:{" "}
+        <EditableSliderValue
+          value={textStyle.textScale}
+          onChange={textStyle.handleScaleChange}
+          min={0.1}
+          max={3.0}
+          step={0.1}
+          format="decimal"
+          suffix="x"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -1981,7 +2087,15 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, on
     {/* Rotation Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Rotation: {Math.round(textStyle.textRotation)}°
+        Rotation:{" "}
+        <EditableSliderValue
+          value={textStyle.textRotation}
+          onChange={textStyle.handleRotationChange}
+          min={0}
+          max={360}
+          step={1}
+          format="degrees"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider
@@ -2010,7 +2124,15 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, on
     {/* Opacity Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Opacity: {Math.round(textStyle.textOpacity * 100)}%
+        Opacity:{" "}
+        <EditableSliderValue
+          value={textStyle.textOpacity}
+          onChange={textStyle.handleOpacityChange}
+          min={0}
+          max={1}
+          step={0.01}
+          format="percent"
+        />
       </Label>
       <div className="flex items-center gap-3">
         <Slider

@@ -1,7 +1,9 @@
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { EditableSliderValue } from "@/components/ui/editable-slider-value";
 import { X, Edit2, Save } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useRef, useState, useEffect, useCallback } from "react";
@@ -301,7 +303,6 @@ export function TextDialog({
     if (e.key === "Enter" && e.altKey) {
       // Alt+Enter: insert newline
       e.preventDefault();
-      console.log("Alt+Enter key pressed");
       const textarea = e.currentTarget;
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
@@ -313,7 +314,6 @@ export function TextDialog({
       }, 0);
     } else if (e.key === "Enter" && !e.altKey) {
       e.preventDefault();
-      console.log("only Enter key pressed");
       handleSubmit();
     }
     if (e.key === "Escape") {
@@ -352,76 +352,7 @@ export function TextDialog({
           <Card className="border-none shadow-none rounded-none">
             <CardContent className="space-y-3 p-0">
               {/* Style Section */}
-              <div>
-                {!isEditMode ? (
-                  /* Display Mode */
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-                      <span className="font-medium text-gray-700 dark:text-gray-300 flex-1">
-                        Text:
-                      </span>
-                      <span className="text-gray-600 dark:text-gray-400 truncate max-w-[150px]">
-                        {text || (
-                          <span className="italic text-gray-400">Empty</span>
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-                      <span className="font-medium text-gray-700 dark:text-gray-300 flex-1">
-                        Scale:
-                      </span>
-                      <span className="text-gray-600 dark:text-gray-400">
-                        {scale.toFixed(1)}x
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-                      <span className="font-medium text-gray-700 dark:text-gray-300 flex-1">
-                        Rotation:
-                      </span>
-                      <span className="text-gray-600 dark:text-gray-400">
-                        {rotation}°
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-                      <span className="font-medium text-gray-700 dark:text-gray-300 flex-1">
-                        Opacity:
-                      </span>
-                      <span className="text-gray-600 dark:text-gray-400">
-                        {Math.round(opacity * 100)}%
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-                      <span className="font-medium text-gray-700 dark:text-gray-300 flex-1">
-                        Fill Color:
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
-                          style={{ backgroundColor: fillColor }}
-                        />
-                        <span className="text-gray-600 dark:text-gray-400 font-mono text-xs">
-                          {fillColor.toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-                      <span className="font-medium text-gray-700 dark:text-gray-300 flex-1">
-                        Stroke Color:
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
-                          style={{ backgroundColor: strokeColor }}
-                        />
-                        <span className="text-gray-600 dark:text-gray-400 font-mono text-xs">
-                          {strokeColor.toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  /* Edit Mode */
-                  <div className="space-y-4">
+              <div className="space-y-4">
                     {/* Text Content Input */}
                     <div>
                       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -462,7 +393,15 @@ export function TextDialog({
 
                     <div>
                       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Scale: {scale.toFixed(1)}
+                        Scale:{" "}
+                        <EditableSliderValue
+                          value={scale}
+                          onChange={handleScaleChange}
+                          min={0.1}
+                          max={3.0}
+                          step={0.1}
+                          format="decimal"
+                        />
                       </Label>
                       <div className="flex items-center space-x-2">
                         <Slider
@@ -486,7 +425,15 @@ export function TextDialog({
 
                     <div>
                       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Rotation: {rotation}°
+                        Rotation:{" "}
+                        <EditableSliderValue
+                          value={rotation}
+                          onChange={handleRotationChange}
+                          min={0}
+                          max={360}
+                          step={1}
+                          format="degrees"
+                        />
                       </Label>
                       <div className="flex items-center space-x-2">
                         <Slider
@@ -512,7 +459,15 @@ export function TextDialog({
 
                     <div>
                       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Opacity: {Math.round(opacity * 100)}%
+                        Opacity:{" "}
+                        <EditableSliderValue
+                          value={opacity}
+                          onChange={handleOpacityChange}
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          format="percent"
+                        />
                       </Label>
                       <div className="flex items-center space-x-2">
                         <Slider
@@ -664,8 +619,6 @@ export function TextDialog({
                       </div>
                     </div>
                   </div>
-                )}
-              </div>
 
               <div className="text-sm text-gray-500 dark:text-gray-400 pt-2">
                 Position: {coordinate[0].toFixed(2)}, {coordinate[1].toFixed(2)}
