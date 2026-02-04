@@ -4,7 +4,8 @@ import { Collection, Feature } from 'ol';
 import { Point, LineString, Geometry } from 'ol/geom';
 import type Map from 'ol/Map';
 import type VectorLayer from 'ol/layer/Vector';
-import type { Vector as VectorSource } from 'ol/source';
+import { Vector as VectorSource } from 'ol/source';
+import VectorLayerOL from 'ol/layer/Vector';
 import { Style, Circle as CircleStyle, Fill, Stroke } from 'ol/style';
 import type { Coordinate } from 'ol/coordinate';
 import { createArcGeometry, extractControlPointsFromArc } from '@/utils/arcUtils';
@@ -16,7 +17,7 @@ const CONTROL_POINT_COLORS = {
   end: '#fb2c36',      // Red - end point
 };
 
-const CONTROL_POINT_RADIUS = 8;
+const CONTROL_POINT_RADIUS = 5;
 
 interface UseArcModifyOptions {
   map: Map | null;
@@ -33,7 +34,7 @@ const isArcFeature = (feature: Feature<Geometry> | null): boolean => {
 };
 
 /**
- * Create a styled point feature for a control handle
+ * Create a styled point feature for a control handle (overlay only)
  */
 const createControlPointFeature = (
   coordinate: Coordinate,
@@ -61,7 +62,8 @@ const createControlPointFeature = (
 
 /**
  * Hook to handle arc-specific editing with 3 control points
- * When an arc is selected, shows 3 draggable control points (start, through, end)
+ * When an arc is selected, shows 3 draggable control points (start, through, end) in an OVERLAY layer
+ * These control points do NOT appear in the main feature list
  * Dragging any control point recalculates the entire arc in real-time
  */
 export const useArcModify = ({
@@ -78,11 +80,27 @@ export const useArcModify = ({
   const isActiveRef = useRef<boolean>(false);
   const geometryListenersRef = useRef<(() => void)[]>([]);
 
+  // Overlay layer refs - control points will ONLY exist here, not in main source
+  const overlaySourceRef = useRef<VectorSource<Feature<Point>> | null>(null);
+  const overlayLayerRef = useRef<VectorLayerOL<VectorSource<Feature<Point>>> | null>(null);
+
   useEffect(() => {
     if (!map || !vectorLayer || !selectInteraction) return;
 
-    const vectorSource = vectorLayer.getSource();
-    if (!vectorSource) return;
+    // Create a SEPARATE overlay source and layer for control points
+    // This ensures control points don't appear in the main feature list
+    const overlaySource = new VectorSource<Feature<Point>>();
+    overlaySourceRef.current = overlaySource;
+
+    const overlayLayer = new VectorLayerOL({
+      source: overlaySource,
+      zIndex: 1000, // Above all other layers
+      properties: {
+        isArcControlOverlay: true, // Mark this as special overlay
+      },
+    });
+    overlayLayerRef.current = overlayLayer;
+    map.addLayer(overlayLayer);
 
     // Create a collection to hold control point features for modification
     controlPointCollectionRef.current = new Collection<Feature<Point>>();
@@ -154,12 +172,14 @@ export const useArcModify = ({
     };
 
     /**
-     * Remove existing control point handles from the map
+     * Remove existing control point handles from the overlay
      */
     const clearControlPoints = () => {
       cleanupGeometryListeners();
+
+      // Clear from overlay source (NOT main vectorSource)
       controlPointsRef.current.forEach(point => {
-        vectorSource.removeFeature(point as unknown as Feature<Geometry>);
+        overlaySource.removeFeature(point);
       });
       controlPointsRef.current = [];
       controlPointCollectionRef.current?.clear();
@@ -168,7 +188,7 @@ export const useArcModify = ({
     };
 
     /**
-     * Create control point handles for an arc feature
+     * Create control point handles for an arc feature in the overlay layer
      */
     const showControlPoints = (arcFeature: Feature<Geometry>) => {
       clearControlPoints();
@@ -194,12 +214,14 @@ export const useArcModify = ({
       currentArcRef.current = arcFeature;
       isActiveRef.current = true;
 
-      // Create the 3 control point handles
+      // Create the 3 control point handles in OVERLAY source only
       const types: ('start' | 'through' | 'end')[] = ['start', 'through', 'end'];
       types.forEach((type, index) => {
         const handle = createControlPointFeature(controlPoints![index], type, arcId);
         controlPointsRef.current.push(handle);
-        vectorSource.addFeature(handle as unknown as Feature<Geometry>);
+
+        // Add to OVERLAY source, NOT main vectorSource
+        overlaySource.addFeature(handle);
         controlPointCollectionRef.current?.push(handle);
       });
 
@@ -259,6 +281,13 @@ export const useArcModify = ({
         map.removeInteraction(arcModifyRef.current);
         arcModifyRef.current = null;
       }
+
+      // Remove overlay layer from map
+      if (overlayLayerRef.current) {
+        map.removeLayer(overlayLayerRef.current);
+        overlayLayerRef.current = null;
+      }
+      overlaySourceRef.current = null;
       controlPointCollectionRef.current = null;
     };
   }, [map, vectorLayer, selectInteraction, modifyInteraction]);
