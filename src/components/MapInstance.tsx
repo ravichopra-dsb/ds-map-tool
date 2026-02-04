@@ -21,6 +21,7 @@ import {
   calculateTextScale,
   calculateStrokeScale,
   shouldApplyResolutionScaling,
+  RESOLUTION_SCALE_DEFAULTS,
 } from "@/utils/resolutionScaleUtils";
 import type { Geometry } from "ol/geom";
 
@@ -251,9 +252,35 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           const baseStyle = getFeatureStyle(feature);
           if (!baseStyle) return baseStyle;
 
-          // Apply resolution scaling to stroke widths
+          // Apply resolution scaling to stroke widths and text
           const applyScalingToStyle = (style: Style): Style => {
             const stroke = style.getStroke();
+            const text = style.getText();
+
+            // Calculate text scale for legends with text using resolution scale utilities
+            let scaledText: Text | undefined = text ?? undefined;
+            if (text && resolutionScalingEnabled) {
+              const originalTextScale = text.getScale();
+              const baseTextScale = typeof originalTextScale === 'number' ? originalTextScale : 1;
+              const finalTextScale = calculateTextScale(resolution!, RESOLUTION_SCALE_DEFAULTS.TEXT_FONT_SIZE, baseTextScale);
+
+              scaledText = new Text({
+                text: text.getText() as string,
+                font: text.getFont(),
+                fill: text.getFill() ?? undefined,
+                stroke: text.getStroke() ?? undefined,
+                scale: finalTextScale,
+                placement: text.getPlacement(),
+                repeat: text.getRepeat() ?? undefined,
+                textAlign: text.getTextAlign() ?? undefined,
+                textBaseline: text.getTextBaseline() ?? undefined,
+                maxAngle: text.getMaxAngle(),
+                offsetX: text.getOffsetX(),
+                offsetY: text.getOffsetY(),
+                rotation: text.getRotation(),
+              });
+            }
+
             if (stroke) {
               const originalWidth = stroke.getWidth() || 2;
               const scaledWidth = originalWidth * baseScaleFactor;
@@ -264,13 +291,25 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
                   lineDash: stroke.getLineDash() || undefined,
                   lineCap: stroke.getLineCap() as CanvasLineCap || "butt",
                 }),
-                text: style.getText() ?? undefined,
+                text: scaledText,
                 image: style.getImage() ?? undefined,
                 fill: style.getFill() ?? undefined,
                 geometry: style.getGeometry() as any,
                 zIndex: style.getZIndex(),
               });
             }
+
+            // If no stroke but has text that was scaled, return new style with scaled text
+            if (scaledText !== text) {
+              return new Style({
+                text: scaledText,
+                image: style.getImage() ?? undefined,
+                fill: style.getFill() ?? undefined,
+                geometry: style.getGeometry() as any,
+                zIndex: style.getZIndex(),
+              });
+            }
+
             return style;
           };
 
