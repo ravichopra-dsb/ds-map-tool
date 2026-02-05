@@ -22,9 +22,13 @@ const shortcuts = [
   { title: "Ortho Mode", value: "F8", symbol: null },
   { title: "Cancel", value: "Escape", symbol: null },
   { title: "Pan Map", value: "Arrow Keys", symbol: null },
-  { title: "Multi-select (drag)", value: "ctrl Right-Click", symbol: "+" },
-  { title: "Multi-select (click)", value: "shift Click", symbol: "+" },
+  { title: "Multi-select (drag)", value: "ctrl Left-Click", symbol: "+" },
+  { title: "Multi-select (click)", value: "shift Left-Click", symbol: "+" },
   { title: "Delete", value: "backspace delete", symbol: "or" },
+  { title: "Line-Continuation", value: "e Left-Click", symbol: "+" },
+  { title: "Deleting-Vertex", value: "Alt Left-Click", symbol: "+" },
+  { title: "Add-Vertex", value: "Right-Click", symbol: null },
+  { title: "New Text-Line", value: "Alt Enter", symbol: "+" },
 ];
 
 const toolCategories = [
