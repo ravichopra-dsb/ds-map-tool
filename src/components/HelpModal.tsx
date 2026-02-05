@@ -24,6 +24,8 @@ const shortcuts = [
   { title: "Pan Map", value: "Arrow Keys", symbol: null },
   { title: "Multi-select (drag)", value: "ctrl Left-Click", symbol: "+" },
   { title: "Multi-select (click)", value: "shift Left-Click", symbol: "+" },
+  { title: "Multi-select (drag)", value: "ctrl Left-Click", symbol: "+" },
+  { title: "Multi-select (click)", value: "shift Left-Click", symbol: "+" },
   { title: "Delete", value: "backspace delete", symbol: "or" },
   { title: "Line-Continuation", value: "e Left-Click", symbol: "+" },
   { title: "Deleting-Vertex", value: "Alt Left-Click", symbol: "+" },
