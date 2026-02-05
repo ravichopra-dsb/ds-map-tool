@@ -91,12 +91,13 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     });
 
   // Initialize arc-specific editing with 3 control points
-  // Must be after useSelectModify to access selectInteraction and modifyInteraction
+  // Must be after useSelectModify to access selectInteraction, modifyInteraction, and translateInteraction
   useArcModify({
     map,
     vectorLayer,
     selectInteraction,
     modifyInteraction,
+    translateInteraction,
   });
 
   // Initialize hover interaction for feature highlighting

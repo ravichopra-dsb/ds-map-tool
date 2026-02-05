@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Modify, Select } from 'ol/interaction';
+import { Modify, Select, Translate } from 'ol/interaction';
 import { Collection, Feature } from 'ol';
 import { Point, LineString, Geometry } from 'ol/geom';
 import type Map from 'ol/Map';
@@ -24,6 +24,7 @@ interface UseArcModifyOptions {
   vectorLayer: VectorLayer<VectorSource<Feature<Geometry>>> | null;
   selectInteraction: Select | null;
   modifyInteraction: Modify | null;
+  translateInteraction: Translate | null;
 }
 
 /**
@@ -71,6 +72,7 @@ export const useArcModify = ({
   vectorLayer,
   selectInteraction,
   modifyInteraction,
+  translateInteraction,
 }: UseArcModifyOptions): void => {
   // Refs for managing control point overlay
   const controlPointsRef = useRef<Feature<Point>[]>([]);
@@ -79,6 +81,10 @@ export const useArcModify = ({
   const controlPointCollectionRef = useRef<Collection<Feature<Point>> | null>(null);
   const isActiveRef = useRef<boolean>(false);
   const geometryListenersRef = useRef<(() => void)[]>([]);
+  // Flag to prevent infinite loops when updating from external sources
+  const isUpdatingFromExternalRef = useRef<boolean>(false);
+  // Store last known arc control points to detect external changes
+  const lastKnownControlPointsRef = useRef<Coordinate[] | null>(null);
 
   // Overlay layer refs - control points will ONLY exist here, not in main source
   const overlaySourceRef = useRef<VectorSource<Feature<Point>> | null>(null);
@@ -122,6 +128,9 @@ export const useArcModify = ({
       const arcFeature = currentArcRef.current;
       if (!arcFeature || controlPointsRef.current.length !== 3) return;
 
+      // Skip if we're updating from an external source (to prevent infinite loops)
+      if (isUpdatingFromExternalRef.current) return;
+
       // Extract current positions from control point handles
       const newControlPoints: Coordinate[] = controlPointsRef.current.map(handle => {
         const geom = handle.getGeometry();
@@ -141,6 +150,40 @@ export const useArcModify = ({
 
       // Update stored control points
       arcFeature.set('arcControlPoints', newControlPoints);
+
+      // Update last known control points
+      lastKnownControlPointsRef.current = newControlPoints;
+    };
+
+    /**
+     * Sync overlay control points from arc feature's stored control points
+     * Used when arc is modified externally (translate, undo/redo)
+     */
+    const syncControlPointsFromArc = () => {
+      const arcFeature = currentArcRef.current;
+      if (!arcFeature || controlPointsRef.current.length !== 3) return;
+
+      const storedPoints = arcFeature.get('arcControlPoints') as Coordinate[] | undefined;
+      if (!storedPoints || storedPoints.length !== 3) return;
+
+      // Set flag to prevent updateArcGeometry from being triggered
+      isUpdatingFromExternalRef.current = true;
+
+      // Update each control point's geometry to match stored position
+      controlPointsRef.current.forEach((handle, index) => {
+        const geom = handle.getGeometry();
+        if (geom) {
+          geom.setCoordinates(storedPoints[index]);
+        }
+      });
+
+      // Update last known control points
+      lastKnownControlPointsRef.current = [...storedPoints];
+
+      // Reset flag after a microtask to ensure all change events have fired
+      Promise.resolve().then(() => {
+        isUpdatingFromExternalRef.current = false;
+      });
     };
 
     /**
@@ -150,6 +193,9 @@ export const useArcModify = ({
       geometryListenersRef.current.forEach(cleanup => cleanup());
       geometryListenersRef.current = [];
     };
+
+    // Variable to store arc geometry listener cleanup (declared early for use in clearControlPoints)
+    let arcGeometryListenerCleanup: (() => void) | null = null;
 
     /**
      * Setup geometry change listeners for real-time arc updates
@@ -177,6 +223,12 @@ export const useArcModify = ({
     const clearControlPoints = () => {
       cleanupGeometryListeners();
 
+      // Clean up arc geometry listener
+      if (arcGeometryListenerCleanup) {
+        arcGeometryListenerCleanup();
+        arcGeometryListenerCleanup = null;
+      }
+
       // Clear from overlay source (NOT main vectorSource)
       controlPointsRef.current.forEach(point => {
         overlaySource.removeFeature(point);
@@ -185,6 +237,7 @@ export const useArcModify = ({
       controlPointCollectionRef.current?.clear();
       currentArcRef.current = null;
       isActiveRef.current = false;
+      lastKnownControlPointsRef.current = null;
     };
 
     /**
@@ -227,12 +280,109 @@ export const useArcModify = ({
 
       // Setup geometry change listeners for real-time updates
       setupGeometryListeners();
+
+      // Setup listener on arc feature geometry for external changes (undo/redo)
+      setupArcGeometryListener(arcFeature);
+
+      // Store initial control points
+      lastKnownControlPointsRef.current = [...controlPoints];
     };
 
     // Update arc geometry when modification ends (backup for real-time)
     arcModify.on('modifyend', () => {
       updateArcGeometry();
     });
+
+    /**
+     * Setup listener on the arc feature's geometry to detect external changes
+     * (translate, undo/redo, etc.)
+     */
+    const setupArcGeometryListener = (arcFeature: Feature<Geometry>) => {
+      // Clean up previous listener
+      if (arcGeometryListenerCleanup) {
+        arcGeometryListenerCleanup();
+        arcGeometryListenerCleanup = null;
+      }
+
+      const geometry = arcFeature.getGeometry();
+      if (!geometry) return;
+
+      const handler = () => {
+        // Skip if we're updating from control point drag (not external)
+        if (isUpdatingFromExternalRef.current) return;
+
+        // Check if the change came from translate or undo/redo by comparing
+        // the arc's stored control points with our last known values
+        const storedPoints = arcFeature.get('arcControlPoints') as Coordinate[] | undefined;
+        if (!storedPoints || storedPoints.length !== 3) return;
+
+        // If we have control points active, check if they need syncing
+        if (controlPointsRef.current.length === 3) {
+          const currentOverlayPoints = controlPointsRef.current.map(handle => {
+            const geom = handle.getGeometry();
+            return geom ? geom.getCoordinates() : [0, 0];
+          });
+
+          // Check if overlay points differ from stored points (indicating external change)
+          const needsSync = storedPoints.some((stored, idx) => {
+            const overlay = currentOverlayPoints[idx];
+            return Math.abs(stored[0] - overlay[0]) > 0.001 ||
+                   Math.abs(stored[1] - overlay[1]) > 0.001;
+          });
+
+          if (needsSync) {
+            syncControlPointsFromArc();
+          }
+        }
+      };
+
+      geometry.on('change', handler);
+      arcGeometryListenerCleanup = () => geometry.un('change', handler);
+    };
+
+    // Handle translate events to sync control points when arc is dragged
+    const handleTranslating = () => {
+      const arcFeature = currentArcRef.current;
+      if (!arcFeature || !isActiveRef.current) return;
+
+      // Get the arc's current geometry and extract updated control point positions
+      // The arc geometry has been translated, so we need to recalculate control points
+      const geometry = arcFeature.getGeometry() as LineString | null;
+      if (!geometry) return;
+
+      const coords = geometry.getCoordinates();
+      if (coords.length < 3) return;
+
+      // Update arcControlPoints based on translated geometry
+      // Use first, middle, and last points as approximation
+      const newControlPoints = extractControlPointsFromArc(coords);
+      arcFeature.set('arcControlPoints', newControlPoints);
+
+      // Sync overlay control points
+      syncControlPointsFromArc();
+    };
+
+    const handleTranslateEnd = () => {
+      const arcFeature = currentArcRef.current;
+      if (!arcFeature || !isActiveRef.current) return;
+
+      // Final sync after translate completes
+      const geometry = arcFeature.getGeometry() as LineString | null;
+      if (!geometry) return;
+
+      const coords = geometry.getCoordinates();
+      if (coords.length < 3) return;
+
+      const newControlPoints = extractControlPointsFromArc(coords);
+      arcFeature.set('arcControlPoints', newControlPoints);
+      syncControlPointsFromArc();
+    };
+
+    // Attach translate listeners if available
+    if (translateInteraction) {
+      translateInteraction.on('translating', handleTranslating);
+      translateInteraction.on('translateend', handleTranslateEnd);
+    }
 
     /**
      * Handle selection changes
@@ -277,6 +427,12 @@ export const useArcModify = ({
       selectInteraction.un('select', handleSelect);
       selectedFeatures.un('remove', handleFeaturesChange);
 
+      // Remove translate listeners
+      if (translateInteraction) {
+        translateInteraction.un('translating', handleTranslating);
+        translateInteraction.un('translateend', handleTranslateEnd);
+      }
+
       if (arcModifyRef.current) {
         map.removeInteraction(arcModifyRef.current);
         arcModifyRef.current = null;
@@ -290,5 +446,5 @@ export const useArcModify = ({
       overlaySourceRef.current = null;
       controlPointCollectionRef.current = null;
     };
-  }, [map, vectorLayer, selectInteraction, modifyInteraction]);
+  }, [map, vectorLayer, selectInteraction, modifyInteraction, translateInteraction]);
 };
