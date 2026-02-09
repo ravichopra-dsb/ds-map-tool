@@ -19,7 +19,6 @@ import {
   detectMidVertexClick,
   getLineStringType,
   extendLineStringCoordinates,
-  insertVerticesAtIndex,
 } from '@/utils/splitUtils';
 import { STYLE_DEFAULTS } from '@/constants/styleDefaults';
 
@@ -58,6 +57,13 @@ export const useSelectModify = ({
   const currentSelectedFeatureRef = useRef<Feature<Geometry> | null>(null);
   const isEKeyPressedRef = useRef<boolean>(false);
   const continuationSnapRef = useRef<Snap | null>(null);
+
+  // Mid-vertex continuation state (manual approach - no Draw interaction)
+  const midContinuationFeatureRef = useRef<Feature<Geometry> | null>(null);
+  const midContinuationStartIndexRef = useRef<number>(-1);
+  const midContinuationInsertCountRef = useRef<number>(0);
+  const midContinuationOriginalCoordsRef = useRef<number[][] | null>(null);
+  const midContinuationHasPreviewRef = useRef<boolean>(false);
 
   // Sequential vertex deletion state
   const sequentialDeleteModeRef = useRef<boolean>(false);
@@ -215,32 +221,26 @@ export const useSelectModify = ({
       map.addInteraction(continuationSnapRef.current);
     };
 
-    // Helper function to start continuation from a mid vertex
+    // Helper function to start continuation from a mid vertex (manual click-based approach)
     const startMidContinuation = (feature: Feature<Geometry>, vertexIndex: number) => {
       const vectorSource = vectorLayer.getSource();
       if (!vectorSource) return;
 
       isContinuingRef.current = true;
       newModifyInteraction.setActive(false);
+      newSelectInteraction.setActive(false);
 
-      const featureType = getLineStringType(feature);
+      // Store state for manual mid-continuation
+      midContinuationFeatureRef.current = feature;
+      midContinuationStartIndexRef.current = vertexIndex;
+      midContinuationInsertCountRef.current = 0;
+      midContinuationHasPreviewRef.current = false;
 
-      continuationDrawRef.current = createContinuationDraw(vectorSource, {
-        feature,
-        endpoint: 'mid',
-        midVertexIndex: vertexIndex,
-        featureType: featureType || 'polyline',
-        onComplete: (newCoords) => {
-          insertVerticesAtIndex(feature, newCoords, vertexIndex);
-          endContinuation(true);
-        },
-        onCancel: () => {
-          endContinuation(false);
-        },
-      });
+      // Backup original coordinates for cancel
+      const geometry = feature.getGeometry() as LineString;
+      midContinuationOriginalCoordsRef.current = geometry.getCoordinates().map(c => [...c]);
 
-      map.addInteraction(continuationDrawRef.current);
-
+      // Add snap interaction
       continuationSnapRef.current = new Snap({
         source: vectorSource,
         pixelTolerance: 15,
@@ -248,6 +248,107 @@ export const useSelectModify = ({
         edge: true,
       });
       map.addInteraction(continuationSnapRef.current);
+    };
+
+    // End mid-vertex continuation
+    const endMidContinuation = (save: boolean) => {
+      if (midContinuationFeatureRef.current) {
+        // Remove preview coordinate if active
+        if (midContinuationHasPreviewRef.current) {
+          const feature = midContinuationFeatureRef.current;
+          const geometry = feature.getGeometry() as LineString;
+          const coords = geometry.getCoordinates();
+          const previewPos = midContinuationStartIndexRef.current + midContinuationInsertCountRef.current + 1;
+          const newCoords = [...coords.slice(0, previewPos), ...coords.slice(previewPos + 1)];
+          geometry.setCoordinates(newCoords);
+          midContinuationHasPreviewRef.current = false;
+        }
+
+        if (!save && midContinuationOriginalCoordsRef.current) {
+          // Restore original coordinates on cancel
+          const feature = midContinuationFeatureRef.current;
+          const geometry = feature.getGeometry() as LineString;
+          geometry.setCoordinates(midContinuationOriginalCoordsRef.current);
+        }
+
+        // Recalculate measure if needed
+        if (save && midContinuationFeatureRef.current.get('isMeasure')) {
+          recalculateMeasureDistances([midContinuationFeatureRef.current]);
+        }
+      }
+
+      // Clean up snap
+      if (continuationSnapRef.current) {
+        map.removeInteraction(continuationSnapRef.current);
+        continuationSnapRef.current = null;
+      }
+
+      isContinuingRef.current = false;
+      newModifyInteraction.setActive(true);
+      newSelectInteraction.setActive(true);
+
+      // Reset mid-continuation state
+      midContinuationFeatureRef.current = null;
+      midContinuationStartIndexRef.current = -1;
+      midContinuationInsertCountRef.current = 0;
+      midContinuationOriginalCoordsRef.current = null;
+      midContinuationHasPreviewRef.current = false;
+
+      if (save) {
+        window.dispatchEvent(new CustomEvent('continuationComplete'));
+      }
+    };
+
+    // Click handler for mid-vertex continuation: inserts vertex on each click
+    const handleMidContinuationClick = (evt: any) => {
+      if (!isContinuingRef.current || !midContinuationFeatureRef.current) return;
+
+      const feature = midContinuationFeatureRef.current;
+      const geometry = feature.getGeometry() as LineString;
+      const coords = geometry.getCoordinates();
+      const insertPos = midContinuationStartIndexRef.current + midContinuationInsertCountRef.current + 1;
+
+      if (midContinuationHasPreviewRef.current) {
+        // Replace the preview coord with the final click coord
+        coords[insertPos] = evt.coordinate;
+        geometry.setCoordinates(coords);
+      } else {
+        // Insert new coord (no preview was active)
+        const newCoords = [
+          ...coords.slice(0, insertPos),
+          evt.coordinate,
+          ...coords.slice(insertPos),
+        ];
+        geometry.setCoordinates(newCoords);
+      }
+
+      midContinuationInsertCountRef.current++;
+      midContinuationHasPreviewRef.current = false;
+    };
+
+    // Pointer move handler for mid-vertex continuation: shows rubber band preview
+    const handleMidContinuationPointerMove = (evt: any) => {
+      if (!isContinuingRef.current || !midContinuationFeatureRef.current) return;
+
+      const feature = midContinuationFeatureRef.current;
+      const geometry = feature.getGeometry() as LineString;
+      const coords = geometry.getCoordinates();
+      const insertPos = midContinuationStartIndexRef.current + midContinuationInsertCountRef.current + 1;
+
+      if (midContinuationHasPreviewRef.current) {
+        // Update existing preview coord
+        coords[insertPos] = evt.coordinate;
+        geometry.setCoordinates(coords);
+      } else {
+        // Insert preview coord
+        const newCoords = [
+          ...coords.slice(0, insertPos),
+          evt.coordinate,
+          ...coords.slice(insertPos),
+        ];
+        geometry.setCoordinates(newCoords);
+        midContinuationHasPreviewRef.current = true;
+      }
     };
 
     // Programmatically delete the next vertex in sequential mode
@@ -325,7 +426,15 @@ export const useSelectModify = ({
         isEKeyPressedRef.current = true;
       }
 
-      // Handle Escape to finish continuation (keep drawn coordinates, like normal mode)
+      // Handle Escape during mid-continuation: finish and save if vertices were added
+      if (evt.key === 'Escape' && isContinuingRef.current && midContinuationFeatureRef.current) {
+        evt.preventDefault();
+        evt.stopImmediatePropagation();
+        endMidContinuation(midContinuationInsertCountRef.current > 0);
+        return;
+      }
+
+      // Handle Escape to finish endpoint continuation (keep drawn coordinates, like normal mode)
       if (evt.key === 'Escape' && isContinuingRef.current) {
         evt.preventDefault();
         evt.stopImmediatePropagation();
@@ -379,6 +488,8 @@ export const useSelectModify = ({
     window.addEventListener('keyup', handleKeyUp);
     mapTarget?.addEventListener('contextmenu', handleContextMenu);
     map.on('singleclick', handleContinuationClick);
+    map.on('click', handleMidContinuationClick);
+    map.on('pointermove', handleMidContinuationPointerMove);
 
     // Helper function to update panning and translate based on selection state
     const updateSelectionState = () => {
@@ -490,11 +601,18 @@ export const useSelectModify = ({
       lastDeletedVertexIndexRef.current = -1;
       sequentialDeleteFeatureRef.current = null;
       preModifyCoordsRef.current = null;
+      midContinuationFeatureRef.current = null;
+      midContinuationStartIndexRef.current = -1;
+      midContinuationInsertCountRef.current = 0;
+      midContinuationOriginalCoordsRef.current = null;
+      midContinuationHasPreviewRef.current = false;
 
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       mapTarget?.removeEventListener('contextmenu', handleContextMenu);
       map.un('singleclick', handleContinuationClick);
+      map.un('click', handleMidContinuationClick);
+      map.un('pointermove', handleMidContinuationPointerMove);
 
       // Remove features collection listener
       selectedFeatures.un('remove', handleFeaturesChange);

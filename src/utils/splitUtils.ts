@@ -400,33 +400,3 @@ export const extendLineStringCoordinates = (
     feature.set("distance", length);
   }
 };
-
-/**
- * Insert new vertices into a LineString after a given vertex index.
- * The new coordinates are inserted between coords[vertexIndex] and coords[vertexIndex + 1].
- * All existing coordinates are preserved.
- * @param feature - The feature to modify
- * @param newCoords - New coordinates to insert (should NOT include the starting vertex)
- * @param vertexIndex - The index of the vertex from which drawing started
- */
-export const insertVerticesAtIndex = (
-  feature: Feature<Geometry>,
-  newCoords: Coordinate[],
-  vertexIndex: number
-): void => {
-  const geometry = feature.getGeometry() as LineString;
-  const existingCoords = geometry.getCoordinates();
-
-  const mergedCoords = [
-    ...existingCoords.slice(0, vertexIndex + 1),
-    ...newCoords,
-    ...existingCoords.slice(vertexIndex + 1),
-  ];
-
-  geometry.setCoordinates(mergedCoords);
-
-  if (feature.get("isMeasure")) {
-    const length = getLength(geometry);
-    feature.set("distance", length);
-  }
-};
