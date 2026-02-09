@@ -249,7 +249,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           const baseScaleFactor = calculateStrokeScale(resolution!);
 
           // Get base style from FeatureStyler first
-          const baseStyle = getFeatureStyle(feature);
+          const baseStyle = getFeatureStyle(feature, resolution!);
           if (!baseStyle) return baseStyle;
 
           // Apply resolution scaling to stroke widths and text
@@ -320,7 +320,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
         }
 
         // Handle all other feature types normally
-        return getFeatureStyle(feature);
+        return getFeatureStyle(feature, resolution!);
       });
     }
   }, [hiddenTypes, hiddenFeatureIds, resolutionScalingEnabled]);

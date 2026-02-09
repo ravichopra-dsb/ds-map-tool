@@ -21,6 +21,7 @@ import {
 
 export type FeatureStylerFunction = (
   feature: FeatureLike,
+  resolution?: number,
   selectedLegend?: LegendType,
 ) => Style | Style[] | null;
 
@@ -166,7 +167,7 @@ export const getTextAlongLineStyle = (
 };
 
 // ✅ Arrow style function
-export const getArrowStyle = (feature: FeatureLike) => {
+export const getArrowStyle = (feature: FeatureLike, resolution: number) => {
   const geometry = feature.getGeometry();
   if (!geometry) return new Style();
 
@@ -204,19 +205,42 @@ export const getArrowStyle = (feature: FeatureLike) => {
   // Apply opacity to color
   const colorWithOpacity = applyOpacityToColor(customColor, opacity);
 
+  const arrowRadius = 8;
+
+  // --- FIX STARTS HERE ---
+
+  // Calculate how far back to shift the arrow (in map units)
+  // resolution = map_units / pixel. radius is in pixels.
+  const offset = arrowRadius * resolution;
+
+  // Calculate the new anchor point (center of the arrow shape)
+  // We move from endPoint towards startPoint by 'offset' distance
+  const anchorX = endPoint[0] - offset * Math.cos(angle);
+  const anchorY = endPoint[1] - offset * Math.sin(angle);
+
+  // Use this new point for the arrow geometry
+  const arrowAnchorPoint = new Point([anchorX, anchorY]);
+
+  // --- FIX ENDS HERE ---
+
   // Create arrow head using RegularShape
   const arrowHead = new RegularShape({
     points: 3,
-    radius: 8,
-    rotation: -angle,
-    angle: 10,
-    displacement: [0, 0],
+    radius: arrowRadius,
+    rotation: Math.PI / 2 - angle,
+    angle: 0,
     fill: new Fill({ color: colorWithOpacity }),
   });
 
+  // Create a shortened line that ends at the arrow center instead of endPoint
+  const shortenedCoords = [...coordinates];
+  shortenedCoords[shortenedCoords.length - 1] = [anchorX, anchorY];
+  const shortenedLine = new LineString(shortenedCoords);
+
   const styles: Style[] = [
-    // Line style
+    // Line style (shortened so it doesn't poke through the arrowhead)
     new Style({
+      geometry: shortenedLine,
       stroke: new Stroke({
         color: colorWithOpacity,
         width: width,
@@ -224,7 +248,7 @@ export const getArrowStyle = (feature: FeatureLike) => {
     }),
     // Arrow head style at the end point
     new Style({
-      geometry: new Point(endPoint),
+      geometry: arrowAnchorPoint,
       image: arrowHead,
     }),
   ];
@@ -367,13 +391,14 @@ const getLabelTextStyle = (feature: FeatureLike): Style | null => {
 // ✅ Custom feature styles (used for GeoJSON, KML, and KMZ)
 export const getFeatureStyle = (
   feature: FeatureLike,
+  resolution: number = 1,
   selectedLegend?: LegendType,
 ) => {
   const type = feature.getGeometry()?.getType();
   const isArrow = feature.get("isArrow");
 
   if (isArrow && (type === "LineString" || type === "MultiLineString")) {
-    return getArrowStyle(feature);
+    return getArrowStyle(feature, resolution);
   }
 
   // Handle measure features
@@ -393,7 +418,15 @@ export const getFeatureStyle = (
     const textFillColor = feature.get("textFillColor") || "#000000";
     const textStrokeColor = feature.get("textStrokeColor") || "#ffffff";
     const textAlign = feature.get("textAlign") || "center";
-    return getTextStyle(textContent, textScale, textRotation, textOpacity, textFillColor, textStrokeColor, textAlign);
+    return getTextStyle(
+      textContent,
+      textScale,
+      textRotation,
+      textOpacity,
+      textFillColor,
+      textStrokeColor,
+      textAlign,
+    );
   }
 
   // Handle icon features using utility
