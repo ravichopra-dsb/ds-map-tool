@@ -167,11 +167,23 @@ export const injectKmlStyles = (
   // Build styles XML block
   const stylesXml = styles.map(s => s.styleXml).join("\n");
 
-  // Find the position after <Document> to insert styles
-  const documentMatch = kmlString.match(/<Document[^>]*>/);
+  // Ensure <Document> wrapper exists (OpenLayers may omit it for single features)
+  let documentMatch = kmlString.match(/<Document[^>]*>/);
   if (!documentMatch) {
-    console.warn("Could not find <Document> tag in KML");
-    return kmlString;
+    // Wrap all content inside <kml> with a <Document> element
+    kmlString = kmlString.replace(
+      /(<kml[^>]*>)/,
+      "$1\n<Document>"
+    );
+    kmlString = kmlString.replace(
+      /<\/kml>/,
+      "</Document>\n</kml>"
+    );
+    documentMatch = kmlString.match(/<Document[^>]*>/);
+    if (!documentMatch) {
+      console.warn("Could not create <Document> tag in KML");
+      return kmlString;
+    }
   }
 
   const insertPos = (documentMatch.index || 0) + documentMatch[0].length;
