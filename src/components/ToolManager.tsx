@@ -51,12 +51,13 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
 }) => {
   const drawInteractionRef = useRef<Draw | null>(null);
   const snapInteractionRef = useRef<Snap | null>(null);
+  const snapEnabled = useToolStore((state) => state.snapEnabled);
   const { registerClickHandler, removeAllClickHandlers } =
     useClickHandlerManager();
 
   // Helper to add snap interaction after draw - must be added AFTER draw for proper event ordering
   const addSnapInteraction = () => {
-    if (!map) return;
+    if (!map || !snapEnabled) return;
 
     // Remove existing snap interaction
     if (snapInteractionRef.current) {
@@ -73,6 +74,28 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
     });
     map.addInteraction(snapInteractionRef.current);
   };
+
+  // Toggle snap interaction on/off when snapEnabled changes (F7)
+  useEffect(() => {
+    if (!map) return;
+
+    if (snapEnabled && drawInteractionRef.current) {
+      // Add snap if a draw interaction is active
+      if (!snapInteractionRef.current) {
+        snapInteractionRef.current = new Snap({
+          source: vectorSource,
+          pixelTolerance: 15,
+          vertex: true,
+          edge: true,
+        });
+        map.addInteraction(snapInteractionRef.current);
+      }
+    } else if (!snapEnabled && snapInteractionRef.current) {
+      // Remove snap when disabled
+      map.removeInteraction(snapInteractionRef.current);
+      snapInteractionRef.current = null;
+    }
+  }, [snapEnabled, map, vectorSource]);
 
   // Auto-activate legends tool when selectedLegend changes
   useEffect(() => {

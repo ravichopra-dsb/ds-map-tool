@@ -17,6 +17,7 @@ interface ToolState {
   lineColor: string;
   lineWidth: number;
   orthoMode: boolean;
+  snapEnabled: boolean;
   resolutionScalingEnabled: boolean;
   // Drawing pause state
   isDrawingPaused: boolean;
@@ -34,6 +35,7 @@ interface ToolState {
   handleLegendSelect: (legend: LegendType) => void;
   handleIconSelect: (iconPath: string) => void;
   toggleOrthoMode: () => void;
+  toggleSnap: () => void;
   toggleResolutionScaling: () => void;
   undo: () => void;
   redo: () => void;
@@ -54,6 +56,7 @@ export const useToolStore = create<ToolState>((set, get) => ({
   lineColor: DEFAULT_LINE_COLOR,
   lineWidth: DEFAULT_LINE_WIDTH,
   orthoMode: false,
+  snapEnabled: false,
   resolutionScalingEnabled: true,
   isDrawingPaused: false,
   pausedTool: null,
@@ -86,6 +89,8 @@ export const useToolStore = create<ToolState>((set, get) => ({
     }),
 
   toggleOrthoMode: () => set((state) => ({ orthoMode: !state.orthoMode })),
+
+  toggleSnap: () => set((state) => ({ snapEnabled: !state.snapEnabled })),
 
   toggleResolutionScaling: () => set((state) => ({ resolutionScalingEnabled: !state.resolutionScalingEnabled })),
 
