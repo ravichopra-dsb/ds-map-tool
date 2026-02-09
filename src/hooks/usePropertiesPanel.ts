@@ -88,28 +88,51 @@ export const usePropertiesPanel = (
   const save = useCallback(() => {
     if (!selectedFeature || !map) return;
 
+    // Re-read the feature's current coordinates so we don't overwrite
+    // a position that was changed via Translate (drag) with stale values.
+    const currentCoords = extractCoordinates(selectedFeature);
+    const longProp = customProperties.find((p) => p.key === "long");
+    const latProp = customProperties.find((p) => p.key === "lat");
+
+    // Update long/lat in customProperties to current geometry values
+    // unless the user manually edited them
+    const userEditedCoords =
+      longProp &&
+      latProp &&
+      (longProp.value !== originalCoordinates.long ||
+        latProp.value !== originalCoordinates.lat);
+
+    const updatedProperties = userEditedCoords
+      ? customProperties
+      : customProperties.map((p) => {
+          if (p.key === "long") return { ...p, value: currentCoords.long };
+          if (p.key === "lat") return { ...p, value: currentCoords.lat };
+          return p;
+        });
+
     // Apply properties to feature
     applyPropertiesToFeature(
       selectedFeature,
-      customProperties,
+      updatedProperties,
       (lon, lat, name) => {
         updateFeatureCoordinates(selectedFeature, map, lon, lat, name);
       }
     );
 
     // Update original state
-    setOriginalCustomProperties(customProperties);
+    setOriginalCustomProperties(updatedProperties);
+    setCustomProperties(updatedProperties);
 
     // Update coordinates state for consistency
-    const nameProp = customProperties.find((p) => p.key === "name");
-    const longProp = customProperties.find((p) => p.key === "long");
-    const latProp = customProperties.find((p) => p.key === "lat");
+    const nameProp = updatedProperties.find((p) => p.key === "name");
+    const finalLong = updatedProperties.find((p) => p.key === "long");
+    const finalLat = updatedProperties.find((p) => p.key === "lat");
 
-    if (longProp && latProp) {
+    if (finalLong && finalLat) {
       const newCoords = {
         name: nameProp?.value || "",
-        long: longProp.value,
-        lat: latProp.value,
+        long: finalLong.value,
+        lat: finalLat.value,
       };
       setOriginalCoordinates(newCoords);
       setCoordinates(newCoords);
@@ -117,7 +140,7 @@ export const usePropertiesPanel = (
 
     onSave?.();
     setIsEditing(false);
-  }, [selectedFeature, map, customProperties, onSave]);
+  }, [selectedFeature, map, customProperties, originalCoordinates, onSave]);
 
   const cancel = useCallback(() => {
     setCoordinates(originalCoordinates);
