@@ -19,6 +19,7 @@ export interface KeyboardShortcutsProps {
   onDeleteOperation?: () => void;
   onOrthoToggle?: () => void;
   onSnapToggle?: () => void;
+  onModifyToggle?: () => void;
   disabled?: boolean;
 }
 
@@ -36,6 +37,7 @@ export const useKeyboardShortcuts = ({
   onDeleteOperation,
   onOrthoToggle,
   onSnapToggle,
+  onModifyToggle,
   disabled = false,
 }: KeyboardShortcutsProps) => {
   const currentCursorCoordinates = useRef<number[] | null>(null);
@@ -51,6 +53,13 @@ export const useKeyboardShortcuts = ({
       // Ignore if user is typing in an input field
       const target = event.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      // Handle F6 key for Modify (grab handles) toggle
+      if (event.key === 'F6') {
+        event.preventDefault();
+        onModifyToggle?.();
         return;
       }
 
@@ -282,6 +291,7 @@ export const useKeyboardShortcuts = ({
     onDeleteOperation,
     onOrthoToggle,
     onSnapToggle,
+    onModifyToggle,
     disabled
   ]);
 

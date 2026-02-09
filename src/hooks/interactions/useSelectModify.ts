@@ -227,8 +227,19 @@ export const useSelectModify = ({
         allSelectedFeatures.length === 1 ? allSelectedFeatures[0] : null;
 
       if (allSelectedFeatures.length > 0) {
-        translate.setActive(true);
-        dragPanRef.current?.setActive(false);
+        // Check if any selected feature is a LineString — require F6 to move those
+        const hasLineString = allSelectedFeatures.some((f) => {
+          const geomType = f.getGeometry()?.getType();
+          return geomType === 'LineString' || geomType === 'MultiLineString';
+        });
+        if (hasLineString) {
+          const isModifyOn = useToolStore.getState().modifyEnabled;
+          translate.setActive(isModifyOn);
+          dragPanRef.current?.setActive(!isModifyOn);
+        } else {
+          translate.setActive(true);
+          dragPanRef.current?.setActive(false);
+        }
       } else {
         translate.setActive(false);
         dragPanRef.current?.setActive(true);
@@ -266,6 +277,30 @@ export const useSelectModify = ({
 
     selectedFeatures.on('remove', handleFeaturesChange);
 
+    // Subscribe to modifyEnabled changes to toggle translate (move) on F6 for LineStrings
+    let prevModifyEnabled = useToolStore.getState().modifyEnabled;
+    const unsubModify = useToolStore.subscribe((state) => {
+      if (state.modifyEnabled !== prevModifyEnabled) {
+        prevModifyEnabled = state.modifyEnabled;
+        const selected = newSelectInteraction.getFeatures().getArray();
+        const hasLineString = selected.some((f) => {
+          const geomType = f.getGeometry()?.getType();
+          return geomType === 'LineString' || geomType === 'MultiLineString';
+        });
+        if (hasLineString) {
+          translate.setActive(state.modifyEnabled);
+          dragPanRef.current?.setActive(!state.modifyEnabled);
+        }
+      }
+    });
+
+    // Reset modifyEnabled when all features are deselected
+    selectedFeatures.on('remove', () => {
+      if (selectedFeatures.getLength() === 0) {
+        useToolStore.getState().setModifyEnabled(false);
+      }
+    });
+
     // Set state to trigger re-render with interaction values
     setSelectInteraction(newSelectInteraction);
     setModifyInteraction(newModifyInteraction);
@@ -292,6 +327,7 @@ export const useSelectModify = ({
 
       // Remove features collection listener
       selectedFeatures.un('remove', handleFeaturesChange);
+      unsubModify();
 
       // Re-enable panning on cleanup to prevent it being left disabled
       dragPanRef.current?.setActive(true);
