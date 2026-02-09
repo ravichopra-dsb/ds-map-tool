@@ -320,6 +320,39 @@ export const detectEndpointClick = (
 };
 
 /**
+ * Detect which mid vertex (if any) was clicked.
+ * Excludes the first (index 0) and last vertex — those are endpoints.
+ * @param feature - The LineString feature to check
+ * @param coordinate - The click coordinate
+ * @param tolerance - Distance tolerance in map units
+ * @returns The index of the closest mid vertex within tolerance, or null
+ */
+export const detectMidVertexClick = (
+  feature: Feature<Geometry>,
+  coordinate: Coordinate,
+  tolerance: number
+): number | null => {
+  const geometry = feature.getGeometry();
+  if (!geometry || geometry.getType() !== "LineString") return null;
+
+  const coords = (geometry as LineString).getCoordinates();
+  if (coords.length <= 2) return null;
+
+  let closestIndex: number | null = null;
+  let closestDist = Infinity;
+
+  for (let i = 1; i < coords.length - 1; i++) {
+    const dist = getCoordinateDistance(coordinate, coords[i]);
+    if (dist <= tolerance && dist < closestDist) {
+      closestDist = dist;
+      closestIndex = i;
+    }
+  }
+
+  return closestIndex;
+};
+
+/**
  * Get feature type for determining draw behavior and styling
  * @param feature - The LineString feature
  * @returns Feature type string or null
@@ -362,6 +395,36 @@ export const extendLineStringCoordinates = (
   geometry.setCoordinates(mergedCoords);
 
   // Recalculate measure distance if applicable
+  if (feature.get("isMeasure")) {
+    const length = getLength(geometry);
+    feature.set("distance", length);
+  }
+};
+
+/**
+ * Insert new vertices into a LineString after a given vertex index.
+ * The new coordinates are inserted between coords[vertexIndex] and coords[vertexIndex + 1].
+ * All existing coordinates are preserved.
+ * @param feature - The feature to modify
+ * @param newCoords - New coordinates to insert (should NOT include the starting vertex)
+ * @param vertexIndex - The index of the vertex from which drawing started
+ */
+export const insertVerticesAtIndex = (
+  feature: Feature<Geometry>,
+  newCoords: Coordinate[],
+  vertexIndex: number
+): void => {
+  const geometry = feature.getGeometry() as LineString;
+  const existingCoords = geometry.getCoordinates();
+
+  const mergedCoords = [
+    ...existingCoords.slice(0, vertexIndex + 1),
+    ...newCoords,
+    ...existingCoords.slice(vertexIndex + 1),
+  ];
+
+  geometry.setCoordinates(mergedCoords);
+
   if (feature.get("isMeasure")) {
     const length = getLength(geometry);
     feature.set("distance", length);

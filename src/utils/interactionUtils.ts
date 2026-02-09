@@ -991,7 +991,8 @@ export const createRevisionCloudDraw = (
  */
 export interface ContinuationConfig {
   feature: Feature<Geometry>;
-  endpoint: "start" | "end";
+  endpoint: "start" | "end" | "mid";
+  midVertexIndex?: number;
   featureType: "polyline" | "freehand" | "arrow" | "measure";
   onComplete: (newCoordinates: Coordinate[]) => void;
   onCancel: () => void;
@@ -1033,15 +1034,19 @@ export const createContinuationDraw = (
   _source: VectorSource<Feature<Geometry>>,
   config: ContinuationConfig
 ): Draw => {
-  const { feature, endpoint, featureType, onComplete, onCancel } = config;
+  const { feature, endpoint, midVertexIndex, featureType, onComplete, onCancel } = config;
   const geometry = feature.getGeometry() as LineString;
   const existingCoords = geometry.getCoordinates();
 
-  // Determine starting point based on which endpoint is being extended
-  const startCoord =
-    endpoint === "end"
-      ? existingCoords[existingCoords.length - 1]
-      : existingCoords[0];
+  // Determine starting point based on which endpoint/vertex is being extended
+  let startCoord: Coordinate;
+  if (endpoint === "mid" && midVertexIndex !== undefined) {
+    startCoord = existingCoords[midVertexIndex];
+  } else if (endpoint === "end") {
+    startCoord = existingCoords[existingCoords.length - 1];
+  } else {
+    startCoord = existingCoords[0];
+  }
 
   // Freehand mode for freehand features
   const isFreehand = featureType === "freehand";

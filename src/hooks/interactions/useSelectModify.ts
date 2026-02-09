@@ -16,8 +16,10 @@ import { useToolStore } from '@/stores/useToolStore';
 import {
   isContinuableFeature,
   detectEndpointClick,
+  detectMidVertexClick,
   getLineStringType,
   extendLineStringCoordinates,
+  insertVerticesAtIndex,
 } from '@/utils/splitUtils';
 import { STYLE_DEFAULTS } from '@/constants/styleDefaults';
 
@@ -213,6 +215,41 @@ export const useSelectModify = ({
       map.addInteraction(continuationSnapRef.current);
     };
 
+    // Helper function to start continuation from a mid vertex
+    const startMidContinuation = (feature: Feature<Geometry>, vertexIndex: number) => {
+      const vectorSource = vectorLayer.getSource();
+      if (!vectorSource) return;
+
+      isContinuingRef.current = true;
+      newModifyInteraction.setActive(false);
+
+      const featureType = getLineStringType(feature);
+
+      continuationDrawRef.current = createContinuationDraw(vectorSource, {
+        feature,
+        endpoint: 'mid',
+        midVertexIndex: vertexIndex,
+        featureType: featureType || 'polyline',
+        onComplete: (newCoords) => {
+          insertVerticesAtIndex(feature, newCoords, vertexIndex);
+          endContinuation(true);
+        },
+        onCancel: () => {
+          endContinuation(false);
+        },
+      });
+
+      map.addInteraction(continuationDrawRef.current);
+
+      continuationSnapRef.current = new Snap({
+        source: vectorSource,
+        pixelTolerance: 15,
+        vertex: true,
+        edge: true,
+      });
+      map.addInteraction(continuationSnapRef.current);
+    };
+
     // Programmatically delete the next vertex in sequential mode
     const performSequentialVertexDeletion = () => {
       const feature = sequentialDeleteFeatureRef.current;
@@ -312,14 +349,20 @@ export const useSelectModify = ({
       const selectedFeature = currentSelectedFeatureRef.current;
       if (!selectedFeature || !isContinuableFeature(selectedFeature)) return;
 
-      // Detect which endpoint was clicked (tolerance in pixels)
       const coordinate = evt.coordinate;
+
+      // Check endpoints first (they take priority)
       const clickedEndpoint = detectEndpointClick(selectedFeature, coordinate, 15);
+      if (clickedEndpoint) {
+        startContinuation(selectedFeature, clickedEndpoint);
+        return;
+      }
 
-      // Only start continuation if click is within tolerance of an endpoint
-      if (!clickedEndpoint) return;
-
-      startContinuation(selectedFeature, clickedEndpoint);
+      // Check mid vertices
+      const midIndex = detectMidVertexClick(selectedFeature, coordinate, 15);
+      if (midIndex !== null) {
+        startMidContinuation(selectedFeature, midIndex);
+      }
     };
 
     // Right-click handler for sequential vertex deletion
