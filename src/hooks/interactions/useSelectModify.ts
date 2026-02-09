@@ -8,6 +8,7 @@ import type VectorLayer from 'ol/layer/Vector';
 import type { Vector as VectorSource } from 'ol/source';
 import type { Feature } from 'ol';
 import type { Geometry } from 'ol/geom';
+import { LineString } from 'ol/geom';
 import { isSelectableFeature, isEditableFeature } from '@/utils/featureTypeUtils';
 import { recalculateMeasureDistances, createContinuationDraw } from '@/utils/interactionUtils';
 import { createSelectStyle } from '@/utils/styleUtils';
@@ -56,6 +57,12 @@ export const useSelectModify = ({
   const isEKeyPressedRef = useRef<boolean>(false);
   const continuationSnapRef = useRef<Snap | null>(null);
 
+  // Sequential vertex deletion state
+  const sequentialDeleteModeRef = useRef<boolean>(false);
+  const lastDeletedVertexIndexRef = useRef<number>(-1);
+  const sequentialDeleteFeatureRef = useRef<Feature<Geometry> | null>(null);
+  const preModifyCoordsRef = useRef<number[][] | null>(null);
+
   const { resolutionScalingEnabled } = useToolStore();
 
   useEffect(() => {
@@ -93,12 +100,49 @@ export const useSelectModify = ({
       pixelTolerance: STYLE_DEFAULTS.MODIFY_PIXEL_TOLERANCE,
     });
 
+    // Capture pre-modify coordinates to detect vertex deletion
+    newModifyInteraction.on('modifystart', (event) => {
+      const features = event.features.getArray();
+      if (features.length === 1) {
+        const geom = features[0].getGeometry();
+        if (geom && geom.getType() === 'LineString') {
+          preModifyCoordsRef.current = (geom as LineString).getCoordinates().map(c => [...c]);
+        }
+      }
+    });
+
     newModifyInteraction.on('modifyend', (event) => {
       const features = event.features.getArray();
       const measureFeatures = features.filter((feature) => feature.get('isMeasure'));
       if (measureFeatures.length > 0) {
         recalculateMeasureDistances(measureFeatures);
       }
+
+      // Detect vertex deletion and activate sequential delete mode
+      const oldCoords = preModifyCoordsRef.current;
+      if (features.length === 1 && oldCoords) {
+        const feature = features[0];
+        const geom = feature.getGeometry();
+        if (geom && geom.getType() === 'LineString') {
+          const newCoords = (geom as LineString).getCoordinates();
+          if (newCoords.length < oldCoords.length) {
+            // Find deleted index by comparing coordinate arrays
+            let deletedIndex = oldCoords.length - 1; // default: last
+            for (let i = 0; i < newCoords.length; i++) {
+              if (Math.abs(oldCoords[i][0] - newCoords[i][0]) > 0.0001 ||
+                Math.abs(oldCoords[i][1] - newCoords[i][1]) > 0.0001) {
+                deletedIndex = i;
+                break;
+              }
+            }
+            sequentialDeleteModeRef.current = true;
+            sequentialDeleteFeatureRef.current = feature;
+            // Start from the vertex before the one OL already deleted (going backwards)
+            lastDeletedVertexIndexRef.current = deletedIndex > 0 ? deletedIndex - 1 : 0;
+          }
+        }
+      }
+      preModifyCoordsRef.current = null;
     });
 
     translate.setActive(false);
@@ -169,6 +213,68 @@ export const useSelectModify = ({
       map.addInteraction(continuationSnapRef.current);
     };
 
+    // Programmatically delete the next vertex in sequential mode
+    const performSequentialVertexDeletion = () => {
+      const feature = sequentialDeleteFeatureRef.current;
+      let deleteIndex = lastDeletedVertexIndexRef.current;
+      console.log("deleteIndex", deleteIndex);
+
+      if (!feature || deleteIndex < 0) {
+        sequentialDeleteModeRef.current = false;
+        return;
+      }
+
+      const geom = feature.getGeometry();
+      if (!geom || geom.getType() !== 'LineString') {
+        sequentialDeleteModeRef.current = false;
+        return;
+      }
+
+      const lineString = geom as LineString;
+      const coords = lineString.getCoordinates();
+
+      // Must have at least 2 points
+      if (coords.length <= 2) {
+        sequentialDeleteModeRef.current = false;
+        lastDeletedVertexIndexRef.current = -1;
+        return;
+      }
+
+      // Clamp to max valid index
+      deleteIndex = Math.min(deleteIndex, coords.length - 1);
+
+      // Remove the vertex at deleteIndex
+      const newCoords = [
+        ...coords.slice(0, deleteIndex),
+        ...coords.slice(deleteIndex + 1),
+      ];
+      lineString.setCoordinates(newCoords);
+
+      // Decide next delete index
+      if (deleteIndex > 0) {
+        // Move backward
+        lastDeletedVertexIndexRef.current = deleteIndex - 1;
+      } else {
+        // At zero index, keep deleting at 0
+        lastDeletedVertexIndexRef.current = 0;
+      }
+
+      // Recalculate measures if needed
+      if (feature.get('isMeasure')) {
+        recalculateMeasureDistances([feature]);
+      }
+
+      // Trigger DB save
+      window.dispatchEvent(new CustomEvent('continuationComplete'));
+
+      // Stop mode if only two points remain
+      if (lineString.getCoordinates().length <= 2) {
+        sequentialDeleteModeRef.current = false;
+        lastDeletedVertexIndexRef.current = -1;
+      }
+    };
+
+
     // Track 'e' key state for continuation shortcut
     const handleKeyDown = (evt: KeyboardEvent) => {
       // Ignore if user is typing in an input field
@@ -176,6 +282,7 @@ export const useSelectModify = ({
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
         return;
       }
+
 
       if (evt.key === 'e' || evt.key === 'E') {
         isEKeyPressedRef.current = true;
@@ -215,8 +322,19 @@ export const useSelectModify = ({
       startContinuation(selectedFeature, clickedEndpoint);
     };
 
+    // Right-click handler for sequential vertex deletion
+    const handleContextMenu = (evt: MouseEvent) => {
+      if (sequentialDeleteModeRef.current) {
+        evt.preventDefault();
+        performSequentialVertexDeletion();
+      }
+    };
+
+    const mapTarget = map.getTargetElement();
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    mapTarget?.addEventListener('contextmenu', handleContextMenu);
     map.on('singleclick', handleContinuationClick);
 
     // Helper function to update panning and translate based on selection state
@@ -252,6 +370,11 @@ export const useSelectModify = ({
     newSelectInteraction.on('select', () => {
       // Clear "newly created" flag when selecting via click (existing feature)
       useToolStore.getState().setIsNewlyCreatedFeature(false);
+
+      // Reset sequential delete mode on any selection change
+      sequentialDeleteModeRef.current = false;
+      lastDeletedVertexIndexRef.current = -1;
+      sequentialDeleteFeatureRef.current = null;
 
       const allSelectedFeatures = updateSelectionState();
 
@@ -320,9 +443,14 @@ export const useSelectModify = ({
       isContinuingRef.current = false;
       currentSelectedFeatureRef.current = null;
       isEKeyPressedRef.current = false;
+      sequentialDeleteModeRef.current = false;
+      lastDeletedVertexIndexRef.current = -1;
+      sequentialDeleteFeatureRef.current = null;
+      preModifyCoordsRef.current = null;
 
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      mapTarget?.removeEventListener('contextmenu', handleContextMenu);
       map.un('singleclick', handleContinuationClick);
 
       // Remove features collection listener
