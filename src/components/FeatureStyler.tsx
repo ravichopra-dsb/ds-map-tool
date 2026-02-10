@@ -216,6 +216,12 @@ export const getTextAlongLineStyle = (
 
     // For zigzag patterns, place text along the original straight line path
     // so tick marks cross the zigzag at regular intervals
+    // Use custom strokeColor for text fill/stroke when the user changes the line color
+    const textFill = customColor && textStyle.fill === legendType.style.strokeColor
+      ? customColor : (textStyle.fill as string);
+    const textStroke = customColor && textStyle.stroke === legendType.style.strokeColor
+      ? customColor : (textStyle.stroke as string);
+
     styles.push(
       new Style({
         text: new Text({
@@ -224,10 +230,10 @@ export const getTextAlongLineStyle = (
           repeat: textStyle.repeat,
           font: textStyle.font,
           fill: new Fill({
-            color: textStyle.fill,
+            color: textFill,
           }),
           stroke: new Stroke({
-            color: textStyle.stroke,
+            color: textStroke,
             width: textStyle.strokeWidth,
           }),
           textAlign: "center",
