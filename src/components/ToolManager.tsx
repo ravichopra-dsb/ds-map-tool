@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { Draw, Snap } from "ol/interaction";
 import { Feature } from "ol";
-import { LineString } from "ol/geom";
 import type Map from "ol/Map";
 import { Vector as VectorSource } from "ol/source";
 import type { Geometry } from "ol/geom";

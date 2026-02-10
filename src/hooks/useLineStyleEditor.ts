@@ -6,6 +6,7 @@ import {
   supportsCustomLineStyle,
   DEFAULT_LINE_STYLE,
 } from "@/utils/featureTypeUtils";
+import { getLegendById } from "@/tools/legendsConfig";
 
 export interface UseLineStyleEditorReturn {
   // State
@@ -51,10 +52,20 @@ export const useLineStyleEditor = (
   // Initialize line style when feature changes
   useEffect(() => {
     if (selectedFeature && supportsCustomLineStyle(selectedFeature)) {
+      // For legend features, use the legend config's strokeColor as default
+      let defaultColor: string = DEFAULT_LINE_STYLE.color;
+      let defaultWidth: number = DEFAULT_LINE_STYLE.width;
+      if (selectedFeature.get("islegends")) {
+        const legendType = getLegendById(selectedFeature.get("legendType"));
+        if (legendType) {
+          if (legendType.style.strokeColor) defaultColor = legendType.style.strokeColor;
+          if (legendType.style.strokeWidth) defaultWidth = legendType.style.strokeWidth;
+        }
+      }
       const color =
-        selectedFeature.get("lineColor") || DEFAULT_LINE_STYLE.color;
+        selectedFeature.get("lineColor") || defaultColor;
       const width =
-        selectedFeature.get("lineWidth") || DEFAULT_LINE_STYLE.width;
+        selectedFeature.get("lineWidth") || defaultWidth;
       const featureOpacity =
         selectedFeature.get("opacity") !== undefined
           ? selectedFeature.get("opacity")
