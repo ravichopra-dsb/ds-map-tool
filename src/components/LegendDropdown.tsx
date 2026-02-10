@@ -19,6 +19,7 @@ export function LegendDropdown({
   onLegendSelect,
 }: LegendDropdownProps) {
   const legends = getAvailableLegends().filter(legend => legend.id !== 'measure');
+  console.log("legends", legends);
 
   return (
     <DropdownMenu>
@@ -55,6 +56,7 @@ export function LegendDropdown({
               <img
                 src={legend.imagePath}
                 alt={legend.name}
+                title={legend.name}
                 className="w-full h-8 object-cover rounded border border-gray-200"
                 onError={(e) => {
                   // Fallback for broken images

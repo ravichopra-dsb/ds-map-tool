@@ -26,9 +26,29 @@ export interface LegendType {
 // Available legend types with their specific styling
 export const LEGEND_TYPES: LegendType[] = [
   {
-    id: "legend1",
-    name: "Legend 1",
-    imagePath: "/Legends/legend1.png",
+    id: "Drain",
+    name: "Drain",
+    imagePath: "/Legends/Drain.png",
+    style: {
+      strokeColor: "#2626ff",
+      strokeWidth: 1,
+      strokeDash: [0, 0]
+    }
+  },
+  {
+    id: "Road",
+    name: "Road",
+    imagePath: "/Legends/Road.png",
+    style: {
+      strokeColor: "#262626",
+      strokeWidth: 1,
+      strokeDash: [0, 0]
+    }
+  },
+  {
+    id: "proposedOfcRoute",
+    name: "Proposed OFC Route",
+    imagePath: "/Legends/ProposedOfcRoute.png",
     style: {
       strokeColor: "#FF00FF",
       strokeWidth: 4,
@@ -56,9 +76,9 @@ export const LEGEND_TYPES: LegendType[] = [
     }
   },
   {
-    id: "legend11",
-    name: "Legend 11",
-    imagePath: "/Legends/legend11.png",
+    id: "indianOilPipeLine",
+    name: "Indian Oil Pipe Line",
+    imagePath: "/Legends/IndianOilPipeLine.png",
     text: "OIL",
     textStyle: {
       font: "bold 10px Arial",
@@ -78,9 +98,9 @@ export const LEGEND_TYPES: LegendType[] = [
     }
   },
   {
-    id: "legend12",
-    name: "Legend 12",
-    imagePath: "/Legends/legend12.png",
+    id: "waterPipeLine",
+    name: "Water Pipe Line",
+    imagePath: "/Legends/WaterPipeLine.png",
     text: "HW",
     textStyle: {
       font: "bold 8.5px Arial",
@@ -100,9 +120,9 @@ export const LEGEND_TYPES: LegendType[] = [
     }
   },
   {
-    id: "legend13",
-    name: "Legend 13",
-    imagePath: "/Legends/legend13.png",
+    id: "gasPipeLine",
+    name: "Gas Pipe Line",
+    imagePath: "/Legends/GasPipeLine.png",
     text: "GAS",
     textStyle: {
       font: "bold 8.5px Arial",
