@@ -76,6 +76,27 @@ export const LEGEND_TYPES: LegendType[] = [
     }
   },
   {
+    id: "sewerageLine",
+    name: "Sewerage Line",
+    imagePath: "/Legends/SewerageLine.png",
+    text: "⬤",
+    textStyle: {
+      font: "12px Arial",
+      fill: "#ffffff",
+      stroke: "#00f",
+      strokeWidth: 3,
+      repeat: 30,
+      offsetX: 0,
+      offsetY: 0,
+      scale: 0.45,
+      maxAngle: Math.PI / 6
+    },
+    style: {
+      strokeColor: "#00f",
+      strokeWidth: 4,
+    }
+  },
+  {
     id: "proposedOfcRoute",
     name: "Proposed OFC Route",
     imagePath: "/Legends/ProposedOfcRoute.png",
