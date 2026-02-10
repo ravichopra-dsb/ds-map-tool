@@ -14,6 +14,11 @@ export interface LegendType {
     scale?: number;
     maxAngle?: number;
   };
+  linePattern?: "zigzag";
+  zigzagConfig?: {
+    amplitude: number;  // Peak height in pixels
+    wavelength: number; // Full cycle length in pixels
+  };
   style: {
     strokeColor?: string;
     strokeWidth?: number;
@@ -115,6 +120,32 @@ export const LEGEND_TYPES: LegendType[] = [
     style: {
       strokeColor: "#ff0c0c",
       strokeWidth: 1,
+    }
+  },
+  {
+    id: "powerCabel",
+    name: "Power Cabel",
+    imagePath: "/Legends/PowerCabel.png",
+    text: "|",
+    textStyle: {
+      font: "14px Arial",
+      fill: "#f00",
+      stroke: "#f0000000",
+      strokeWidth: 0,
+      repeat: 45,
+      offsetX: 0,
+      offsetY: 0,
+      scale: 1.9,
+      maxAngle: Math.PI / 6
+    },
+    linePattern: "zigzag",
+    zigzagConfig: {
+      amplitude: 8,
+      wavelength: 24,
+    },
+    style: {
+      strokeColor: "#f00",
+      strokeWidth: 2,
     }
   },
   {

@@ -83,10 +83,61 @@ const getShapeTextStyle = (feature: FeatureLike): Style | null => {
   });
 };
 
+/**
+ * Create a zigzag geometry from a LineString
+ * Generates a triangular wave pattern along the line path
+ */
+const createZigzagGeometry = (
+  lineGeom: LineString,
+  amplitudeMap: number,
+  halfWaveMap: number,
+): LineString => {
+  const totalLength = lineGeom.getLength();
+  if (totalLength === 0 || halfWaveMap === 0) return lineGeom;
+
+  const numPoints = Math.ceil(totalLength / halfWaveMap);
+  const zigzagCoords: number[][] = [];
+
+  for (let i = 0; i <= numPoints; i++) {
+    const fraction = Math.min((i * halfWaveMap) / totalLength, 1);
+    const coord = lineGeom.getCoordinateAt(fraction);
+
+    // Get direction by sampling nearby points
+    const f1 = Math.max(fraction - 0.001, 0);
+    const f2 = Math.min(fraction + 0.001, 1);
+    const p1 = lineGeom.getCoordinateAt(f1);
+    const p2 = lineGeom.getCoordinateAt(f2);
+
+    const dx = p2[0] - p1[0];
+    const dy = p2[1] - p1[1];
+    const len = Math.sqrt(dx * dx + dy * dy);
+
+    if (len === 0) {
+      zigzagCoords.push(coord);
+      continue;
+    }
+
+    // Perpendicular direction (left-hand normal)
+    const px = -dy / len;
+    const py = dx / len;
+
+    // Alternate sides: even = up, odd = down
+    const side = i % 2 === 0 ? 1 : -1;
+
+    zigzagCoords.push([
+      coord[0] + px * amplitudeMap * side,
+      coord[1] + py * amplitudeMap * side,
+    ]);
+  }
+
+  return new LineString(zigzagCoords);
+};
+
 // ✅ Reusable function for legends with text along line path
 export const getTextAlongLineStyle = (
   feature: FeatureLike,
   legendType: LegendType,
+  resolution: number = 1,
 ): Style[] => {
   const geometry = feature.getGeometry();
   if (!geometry) return [];
@@ -111,18 +162,48 @@ export const getTextAlongLineStyle = (
   const customStrokeDash = feature.get("strokeDash") as number[] | undefined;
   const lineDash = customStrokeDash ?? legendType.style.strokeDash;
 
-  // Base line style from legend configuration
-  styles.push(
-    new Style({
-      stroke: new Stroke({
-        color: applyOpacityToColor(strokeColor, opacity),
-        width: width,
-        lineDash: lineDash,
-        lineCap: "butt",
+  // Check if this legend uses a zigzag line pattern
+  const isZigzag = legendType.linePattern === "zigzag" && legendType.zigzagConfig;
+
+  if (isZigzag && geometry.getType() === "LineString") {
+    const { amplitude, wavelength } = legendType.zigzagConfig!;
+    // Convert pixel values to map units using resolution
+    const amplitudeMap = amplitude * resolution;
+    const halfWaveMap = (wavelength / 2) * resolution;
+
+    const zigzagGeom = createZigzagGeometry(
+      geometry as LineString,
+      amplitudeMap,
+      halfWaveMap,
+    );
+
+    // Zigzag stroke style
+    styles.push(
+      new Style({
+        geometry: zigzagGeom,
+        stroke: new Stroke({
+          color: applyOpacityToColor(strokeColor, opacity),
+          width: width,
+          lineCap: "butt",
+          lineJoin: "miter",
+        }),
+        zIndex: 1,
       }),
-      zIndex: 1, // Base line layer
-    }),
-  );
+    );
+  } else {
+    // Standard base line style from legend configuration
+    styles.push(
+      new Style({
+        stroke: new Stroke({
+          color: applyOpacityToColor(strokeColor, opacity),
+          width: width,
+          lineDash: lineDash,
+          lineCap: "butt",
+        }),
+        zIndex: 1, // Base line layer
+      }),
+    );
+  }
 
   // Add repeated text along the line if text is configured
   if (
@@ -133,8 +214,8 @@ export const getTextAlongLineStyle = (
   ) {
     const textStyle = legendType.textStyle;
 
-    // For dash centering, we need to account for text starting position
-    // Since OpenLayers doesn't support along-line offset, we use mathematical alignment
+    // For zigzag patterns, place text along the original straight line path
+    // so tick marks cross the zigzag at regular intervals
     styles.push(
       new Style({
         text: new Text({
@@ -152,7 +233,7 @@ export const getTextAlongLineStyle = (
           textAlign: "center",
           textBaseline: "middle",
           maxAngle: textStyle.maxAngle,
-          offsetX: textStyle.offsetX || 0, // Perpendicular offset only
+          offsetX: textStyle.offsetX || 0,
           offsetY: textStyle.offsetY || 0,
           scale: textStyle.scale,
         }),
@@ -561,9 +642,9 @@ export const getFeatureStyle = (
       return [];
     }
 
-    // Check if legend has text configured and use text styling function
-    if (legendType.text) {
-      return getTextAlongLineStyle(feature, legendType);
+    // Check if legend has text or zigzag pattern configured
+    if (legendType.text || legendType.linePattern) {
+      return getTextAlongLineStyle(feature, legendType, resolution);
     }
 
     const styles: Style[] = [];

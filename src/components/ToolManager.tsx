@@ -236,19 +236,16 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           return;
         }
 
-        // Use text styling for legends that have text, otherwise use standard style
-        let drawStyle;
-        if (selectedLegend.text) {
-          // Create a temporary feature to generate the proper text style
-          const tempFeature = new Feature({
-            geometry: new LineString([
-              [0, 0],
-              [1, 0],
-            ]),
-          });
-          tempFeature.set("legendType", selectedLegend.id);
-          tempFeature.set("islegends", true);
-          drawStyle = getTextAlongLineStyle(tempFeature, selectedLegend);
+        // Use text/zigzag styling for legends that have text or linePattern, otherwise use standard style
+        let drawStyle: any;
+        if (selectedLegend.text || selectedLegend.linePattern) {
+          // Use a style function so zigzag/text updates dynamically during drawing
+          const legendRef = selectedLegend;
+          drawStyle = (feature: any, resolution: number) => {
+            feature.set("legendType", legendRef.id, true);
+            feature.set("islegends", true, true);
+            return getTextAlongLineStyle(feature, legendRef, resolution);
+          };
         } else {
           const opacity = selectedLegend.style.opacity || 1;
           const strokeColor = selectedLegend.style.strokeColor || "#000000";
