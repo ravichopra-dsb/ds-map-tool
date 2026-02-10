@@ -66,6 +66,16 @@ export const LEGEND_TYPES: LegendType[] = [
     }
   },
   {
+    id: "airtelExistOfcRoute(Tx)",
+    name: "Airtel Existing OFC Route (Tx)",
+    imagePath: "/Legends/AirtelExistOfcRoute(Tx).png",
+    style: {
+      strokeColor: "#00f",
+      strokeWidth: 4,
+      strokeDash: [16, 5, 1, 5]
+    }
+  },
+  {
     id: "proposedOfcRoute",
     name: "Proposed OFC Route",
     imagePath: "/Legends/ProposedOfcRoute.png",
