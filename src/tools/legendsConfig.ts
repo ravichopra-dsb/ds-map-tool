@@ -46,6 +46,16 @@ export const LEGEND_TYPES: LegendType[] = [
     }
   },
   {
+    id: "centerOfRoad",
+    name: "Center of Road",
+    imagePath: "/Legends/CenterOfRoad.png",
+    style: {
+      strokeColor: "#262626",
+      strokeWidth: 1,
+      strokeDash: [20, 5, 5, 5]
+    }
+  },
+  {
     id: "proposedOfcRoute",
     name: "Proposed OFC Route",
     imagePath: "/Legends/ProposedOfcRoute.png",
