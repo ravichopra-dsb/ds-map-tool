@@ -97,6 +97,27 @@ export const LEGEND_TYPES: LegendType[] = [
     }
   },
   {
+    id: "railwayMetroCrossing",
+    name: "Railway Metro Crossing",
+    imagePath: "/Legends/RailwayMetroCrossing.png",
+    text: "|",
+    textStyle: {
+      font: "12px Arial",
+      fill: "#ff0c0c",
+      stroke: "#ff0c0c00",
+      strokeWidth: 1,
+      repeat: 20,
+      offsetX: 0,
+      offsetY: 0,
+      scale: 2,
+      maxAngle: Math.PI / 6
+    },
+    style: {
+      strokeColor: "#ff0c0c",
+      strokeWidth: 1,
+    }
+  },
+  {
     id: "proposedOfcRoute",
     name: "Proposed OFC Route",
     imagePath: "/Legends/ProposedOfcRoute.png",
