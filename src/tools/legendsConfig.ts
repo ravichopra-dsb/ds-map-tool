@@ -56,6 +56,16 @@ export const LEGEND_TYPES: LegendType[] = [
     }
   },
   {
+    id: "otherExistOfcRoute",
+    name: "Other Existing OFC Route",
+    imagePath: "/Legends/OtherExistOfcRoute.png",
+    style: {
+      strokeColor: "#0f0",
+      strokeWidth: 4,
+      strokeDash: [16, 5, 1, 5]
+    }
+  },
+  {
     id: "proposedOfcRoute",
     name: "Proposed OFC Route",
     imagePath: "/Legends/ProposedOfcRoute.png",
