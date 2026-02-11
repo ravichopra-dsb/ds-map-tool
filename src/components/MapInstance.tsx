@@ -22,7 +22,6 @@ import {
   calculateIconScale,
   calculateTextScale,
   calculateStrokeScale,
-  shouldApplyResolutionScaling,
   RESOLUTION_SCALE_DEFAULTS,
 } from "@/utils/resolutionScaleUtils";
 import type { Geometry } from "ol/geom";
