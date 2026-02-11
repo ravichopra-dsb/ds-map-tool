@@ -87,7 +87,7 @@ const getShapeTextStyle = (feature: FeatureLike): Style | null => {
  * Create a zigzag geometry from a LineString
  * Generates a triangular wave pattern along the line path
  */
-const createZigzagGeometry = (
+export const createZigzagGeometry = (
   lineGeom: LineString,
   amplitudeMap: number,
   halfWaveMap: number,

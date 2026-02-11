@@ -7,7 +7,9 @@ import { Tile as TileLayer, Vector as VectorLayer } from "ol/layer";
 import { OSM, XYZ, Vector as VectorSource } from "ol/source";
 import { fromLonLat } from "ol/proj";
 import { defaults as defaultControls } from "ol/control";
-import { getFeatureStyle } from "./FeatureStyler";
+import { getFeatureStyle, createZigzagGeometry } from "./FeatureStyler";
+import { getLegendById } from "@/tools/legendsConfig";
+import { LineString } from "ol/geom";
 import { useHiddenFeatures } from "@/hooks/useToggleObjects";
 import { useHiddenFeaturesStore } from "@/stores/useHiddenFeaturesStore";
 import { useToolStore } from "@/stores/useToolStore";
@@ -252,7 +254,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           const baseStyle = getFeatureStyle(feature, resolution!);
           if (!baseStyle) return baseStyle;
 
-          // Apply resolution scaling to stroke widths and text
+          // Apply resolution scaling to stroke widths, text, and zigzag geometries
           const applyScalingToStyle = (style: Style): Style => {
             const stroke = style.getStroke();
             const text = style.getText();
@@ -281,6 +283,30 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
               });
             }
 
+            // Scale zigzag geometry if the style has a custom geometry from a zigzag legend
+            let scaledGeometry: any = style.getGeometry();
+            const styleGeom = style.getGeometry();
+            if (styleGeom && feature.get("islegends")) {
+              const legendTypeId = feature.get("legendType");
+              if (legendTypeId) {
+                const legendType = getLegendById(legendTypeId);
+                if (legendType?.linePattern === "zigzag" && legendType.zigzagConfig) {
+                  const featureGeom = feature.getGeometry();
+                  if (featureGeom && featureGeom.getType() === "LineString") {
+                    const { amplitude, wavelength } = legendType.zigzagConfig;
+                    // Scale amplitude and wavelength by the resolution scale factor
+                    const amplitudeMap = amplitude * resolution! * baseScaleFactor;
+                    const halfWaveMap = (wavelength / 2) * resolution! * baseScaleFactor;
+                    scaledGeometry = createZigzagGeometry(
+                      featureGeom as LineString,
+                      amplitudeMap,
+                      halfWaveMap,
+                    );
+                  }
+                }
+              }
+            }
+
             if (stroke) {
               const originalWidth = stroke.getWidth() || 2;
               const scaledWidth = originalWidth * baseScaleFactor;
@@ -294,7 +320,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
                 text: scaledText,
                 image: style.getImage() ?? undefined,
                 fill: style.getFill() ?? undefined,
-                geometry: style.getGeometry() as any,
+                geometry: scaledGeometry,
                 zIndex: style.getZIndex(),
               });
             }
@@ -305,7 +331,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
                 text: scaledText,
                 image: style.getImage() ?? undefined,
                 fill: style.getFill() ?? undefined,
-                geometry: style.getGeometry() as any,
+                geometry: scaledGeometry,
                 zIndex: style.getZIndex(),
               });
             }
