@@ -6,13 +6,14 @@ import {
   supportsCustomLineStyle,
   DEFAULT_LINE_STYLE,
 } from "@/utils/featureTypeUtils";
-import { getLegendById } from "@/tools/legendsConfig";
+import { getLegendById, type LegendType } from "@/tools/legendsConfig";
 
 export interface UseLineStyleEditorReturn {
   // State
   lineColor: string;
   lineWidth: number;
   opacity: number;
+  legendType: string | null;
   supportsLineStyle: boolean;
   isEditingLineStyle: boolean;
 
@@ -20,6 +21,7 @@ export interface UseLineStyleEditorReturn {
   handleColorChange: (color: string) => void;
   handleWidthChange: (width: number) => void;
   handleOpacityChange: (opacity: number) => void;
+  handleLegendTypeChange: (legend: LegendType) => void;
   setLineColor: (color: string) => void;
   resetToOriginal: () => void;
   commitLineStyle: () => void;
@@ -34,6 +36,7 @@ export const useLineStyleEditor = (
   const [lineColor, setLineColor] = useState<string>(DEFAULT_LINE_STYLE.color);
   const [lineWidth, setLineWidth] = useState<number>(DEFAULT_LINE_STYLE.width);
   const [opacity, setOpacity] = useState<number>(1);
+  const [legendType, setLegendType] = useState<string | null>(null);
   const [originalLineColor, setOriginalLineColor] = useState<string>(
     DEFAULT_LINE_STYLE.color
   );
@@ -41,6 +44,7 @@ export const useLineStyleEditor = (
     DEFAULT_LINE_STYLE.width
   );
   const [originalOpacity, setOriginalOpacity] = useState<number>(1);
+  const [originalLegendType, setOriginalLegendType] = useState<string | null>(null);
   const [isEditingLineStyle, setIsEditingLineStyle] = useState(false);
 
   // Check if selected feature supports custom line styling
@@ -70,19 +74,24 @@ export const useLineStyleEditor = (
         selectedFeature.get("opacity") !== undefined
           ? selectedFeature.get("opacity")
           : 1;
+      const featureLegendType = selectedFeature.get("legendType") || null;
       setLineColor(color);
       setLineWidth(width);
       setOpacity(featureOpacity);
+      setLegendType(featureLegendType);
       setOriginalLineColor(color);
       setOriginalLineWidth(width);
       setOriginalOpacity(featureOpacity);
+      setOriginalLegendType(featureLegendType);
     } else {
       setLineColor(DEFAULT_LINE_STYLE.color);
       setLineWidth(DEFAULT_LINE_STYLE.width);
       setOpacity(1);
+      setLegendType(null);
       setOriginalLineColor(DEFAULT_LINE_STYLE.color);
       setOriginalLineWidth(DEFAULT_LINE_STYLE.width);
       setOriginalOpacity(1);
+      setOriginalLegendType(null);
     }
     setIsEditingLineStyle(false);
   }, [selectedFeature]);
@@ -166,35 +175,65 @@ export const useLineStyleEditor = (
     [selectedFeature, map]
   );
 
+  // Handle legend type change with live preview
+  const handleLegendTypeChange = useCallback(
+    (legend: LegendType) => {
+            setLegendType(legend.id);
+      if (selectedFeature) {
+        selectedFeature.set("legendType", legend.id);
+        selectedFeature.set("islegends", true);
+        // Update color/width from the new legend's defaults
+        if (legend.style.strokeColor) {
+          setLineColor(legend.style.strokeColor);
+          selectedFeature.set("lineColor", legend.style.strokeColor);
+        }
+        if (legend.style.strokeWidth) {
+          setLineWidth(legend.style.strokeWidth);
+          selectedFeature.set("lineWidth", legend.style.strokeWidth);
+        }
+        selectedFeature.changed();
+        map?.render();
+      }
+    },
+    [selectedFeature, map]
+  );
+
   const resetToOriginal = useCallback(() => {
     setLineColor(originalLineColor);
     setLineWidth(originalLineWidth);
     setOpacity(originalOpacity);
+    setLegendType(originalLegendType);
     if (selectedFeature) {
       selectedFeature.set("lineColor", originalLineColor);
       selectedFeature.set("lineWidth", originalLineWidth);
       selectedFeature.set("opacity", originalOpacity);
+      if (originalLegendType) {
+        selectedFeature.set("legendType", originalLegendType);
+      }
       selectedFeature.changed();
       map?.render();
     }
-  }, [selectedFeature, map, originalLineColor, originalLineWidth, originalOpacity]);
+  }, [selectedFeature, map, originalLineColor, originalLineWidth, originalOpacity, originalLegendType]);
 
   // Commit current values as new originals (call on save)
   const commitLineStyle = useCallback(() => {
     setOriginalLineColor(lineColor);
     setOriginalLineWidth(lineWidth);
     setOriginalOpacity(opacity);
-  }, [lineColor, lineWidth, opacity]);
+    setOriginalLegendType(legendType);
+  }, [lineColor, lineWidth, opacity, legendType, selectedFeature]);
 
   return {
     lineColor,
     lineWidth,
     opacity,
+    legendType,
     supportsLineStyle,
     isEditingLineStyle,
     handleColorChange,
     handleWidthChange,
     handleOpacityChange,
+    handleLegendTypeChange,
     setLineColor: setLineColorHandler,
     resetToOriginal,
     commitLineStyle,

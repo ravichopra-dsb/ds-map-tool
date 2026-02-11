@@ -127,6 +127,8 @@ const STYLE_PROPERTY_KEYS = [
   "textOffsetY",
   "iconUrl",
   "showLabel",
+  // Legend/line type properties
+  "legendType",
   // Revision Cloud properties
   "bulgeRatio",
   // Text properties
@@ -285,6 +287,7 @@ export const applyPropertiesToFeature = (
     "fillColor",
     "fillOpacity",
     "bulgeRatio",
+    "legendType",
     "originalPath",
     "scallopRadius",
     // Icon properties (Google Earth icons)

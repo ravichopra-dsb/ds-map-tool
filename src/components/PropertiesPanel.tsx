@@ -2,7 +2,15 @@ import React, { useEffect, useState } from "react";
 import type Map from "ol/Map";
 import type Feature from "ol/Feature";
 import type { Select } from "ol/interaction";
-import { X, Edit2, Save, Plus, Trash2, ChevronDown, AlertCircle } from "lucide-react";
+import {
+  X,
+  Edit2,
+  Save,
+  Plus,
+  Trash2,
+  ChevronDown,
+  AlertCircle,
+} from "lucide-react";
 import { useToolStore } from "@/stores/useToolStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +46,8 @@ import {
   ExpandableScreenContent,
   ExpandableScreenTrigger,
 } from "@/components/ui/expandable-screen";
+import { LegendDropdown } from "./LegendDropdown";
+import { getLegendById, type LegendType } from "@/tools/legendsConfig";
 
 interface PropertiesPanelProps {
   map: Map | null;
@@ -669,7 +679,9 @@ const PropertyEditList: React.FC<PropertyEditListProps> = ({
                 value={prop.key}
                 onChange={(e) => onUpdate(prop.id, "key", e.target.value)}
                 className={`flex-1 text-sm ${
-                  isReadOnly || isCalculated ? "bg-gray-50 dark:bg-slate-700" : ""
+                  isReadOnly || isCalculated
+                    ? "bg-gray-50 dark:bg-slate-700"
+                    : ""
                 }`}
                 disabled={isReadOnly || isCalculated}
               />
@@ -691,10 +703,14 @@ const PropertyEditList: React.FC<PropertyEditListProps> = ({
                   } ${hasNameError ? "border-red-500 focus:ring-red-500" : ""}`}
                   disabled={isCalculated}
                   type={
-                    prop.key === "long" || prop.key === "lat" ? "number" : "text"
+                    prop.key === "long" || prop.key === "lat"
+                      ? "number"
+                      : "text"
                   }
                   step={
-                    prop.key === "long" || prop.key === "lat" ? "any" : undefined
+                    prop.key === "long" || prop.key === "lat"
+                      ? "any"
+                      : undefined
                   }
                 />
               )}
@@ -728,9 +744,11 @@ interface LineStyleSectionProps {
     lineColor: string;
     lineWidth: number;
     opacity: number;
+    legendType: string | null;
     handleColorChange: (color: string) => void;
     handleWidthChange: (width: number) => void;
     handleOpacityChange: (opacity: number) => void;
+    handleLegendTypeChange: (legend: LegendType) => void;
     setLineColor: (color: string) => void;
   };
   isEditing: boolean;
@@ -751,6 +769,7 @@ const LineStyleSection: React.FC<LineStyleSectionProps> = ({
           lineColor={lineStyle.lineColor}
           lineWidth={lineStyle.lineWidth}
           opacity={lineStyle.opacity}
+          legendType={lineStyle.legendType}
         />
       ) : (
         <LineStyleEditor lineStyle={lineStyle} />
@@ -763,58 +782,82 @@ interface LineStyleDisplayProps {
   lineColor: string;
   lineWidth: number;
   opacity: number;
+  legendType: string | null;
 }
 
 const LineStyleDisplay: React.FC<LineStyleDisplayProps> = ({
   lineColor,
   lineWidth,
   opacity,
-}) => (
-  <div className="space-y-2">
-    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">
-        Color:
-      </span>
-      <div className="flex items-center gap-2">
-        <div
-          className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
-          style={{ backgroundColor: lineColor }}
-        />
-        <span className="text-gray-600 dark:text-gray-400 font-mono text-xs">
-          {lineColor.toUpperCase()}
+  legendType,
+}) => {
+  const legend = legendType ? getLegendById(legendType) : null;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+        <span className="font-medium text-gray-700 dark:text-gray-300">
+          Color:
+        </span>
+        <div className="flex items-center gap-2">
+          <div
+            className="w-6 h-6 rounded border border-gray-300 dark:border-gray-600"
+            style={{ backgroundColor: lineColor }}
+          />
+          <span className="text-gray-600 dark:text-gray-400 font-mono text-xs">
+            {lineColor.toUpperCase()}
+          </span>
+        </div>
+      </div>
+      {legend && (
+        <div className="py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+          <span className="font-medium text-gray-700 dark:text-gray-300">
+            Line Type:
+          </span>
+          <img
+            src={legend.imagePath}
+            alt={legend.name}
+            title={legend.name}
+            className="w-full h-8 object-cover rounded border border-gray-200 dark:border-gray-600 mt-1"
+          />
+        </div>
+      )}
+      <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+        <span className="font-medium text-gray-700 dark:text-gray-300">
+          Width:
+        </span>
+        <span className="text-gray-600 dark:text-gray-400">{lineWidth}px</span>
+      </div>
+      <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+        <span className="font-medium text-gray-700 dark:text-gray-300">
+          Opacity:
+        </span>
+        <span className="text-gray-600 dark:text-gray-400">
+          {Math.round(opacity * 100)}%
         </span>
       </div>
     </div>
-    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">
-        Width:
-      </span>
-      <span className="text-gray-600 dark:text-gray-400">{lineWidth}px</span>
-    </div>
-    <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
-      <span className="font-medium text-gray-700 dark:text-gray-300">
-        Opacity:
-      </span>
-      <span className="text-gray-600 dark:text-gray-400">
-        {Math.round(opacity * 100)}%
-      </span>
-    </div>
-  </div>
-);
+  );
+};
 
 interface LineStyleEditorProps {
   lineStyle: {
     lineColor: string;
     lineWidth: number;
     opacity: number;
+    legendType: string | null;
     handleColorChange: (color: string) => void;
     handleWidthChange: (width: number) => void;
     handleOpacityChange: (opacity: number) => void;
+    handleLegendTypeChange: (legend: LegendType) => void;
     setLineColor: (color: string) => void;
   };
 }
 
-const LineStyleEditor: React.FC<LineStyleEditorProps> = ({ lineStyle }) => (
+const LineStyleEditor: React.FC<LineStyleEditorProps> = ({ lineStyle }) => {
+  const currentLegend = lineStyle.legendType ? getLegendById(lineStyle.legendType) : null;
+
+  return (
   <div className="space-y-4">
     {/* Color Picker */}
     <div>
@@ -856,6 +899,27 @@ const LineStyleEditor: React.FC<LineStyleEditorProps> = ({ lineStyle }) => (
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+      </div>
+    </div>
+
+    {/* Line Type */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Line Type
+      </Label>
+      <div className="flex items-center gap-3">
+        {currentLegend && (
+          <img
+            src={currentLegend.imagePath}
+            alt={currentLegend.name}
+            title={currentLegend.name}
+            className="h-10 w-2 flex-1 object-cover rounded border border-gray-300 dark:border-gray-600"
+          />
+        )}
+        <LegendDropdown
+          selectedLegend={currentLegend ?? undefined}
+          onLegendSelect={lineStyle.handleLegendTypeChange}
+        />
       </div>
     </div>
 
@@ -933,7 +997,8 @@ const LineStyleEditor: React.FC<LineStyleEditorProps> = ({ lineStyle }) => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 interface ShapeStyleSectionProps {
   shapeStyle: {
@@ -1884,7 +1949,11 @@ const TextStyleSection: React.FC<TextStyleSectionProps> = ({
           latitude={textStyle.latitude}
         />
       ) : (
-        <TextStyleEditor textStyle={textStyle} onSave={onSave} onCancel={onCancel} />
+        <TextStyleEditor
+          textStyle={textStyle}
+          onSave={onSave}
+          onCancel={onCancel}
+        />
       )}
     </div>
   );
@@ -1988,7 +2057,7 @@ const TextStyleDisplay: React.FC<TextStyleDisplayProps> = ({
   </div>
 );
 
-type TextAlign = 'left' | 'center' | 'right';
+type TextAlign = "left" | "center" | "right";
 
 interface TextStyleEditorProps {
   textStyle: {
@@ -2015,7 +2084,11 @@ interface TextStyleEditorProps {
   onCancel?: () => void;
 }
 
-const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, onCancel }) => {
+const TextStyleEditor: React.FC<TextStyleEditorProps> = ({
+  textStyle,
+  onSave,
+  onCancel,
+}) => {
   const handleTextKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && e.altKey) {
       // Alt+Enter: insert newline
@@ -2024,7 +2097,8 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, on
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
       const currentText = textStyle.text;
-      const newText = currentText.substring(0, start) + "\n" + currentText.substring(end);
+      const newText =
+        currentText.substring(0, start) + "\n" + currentText.substring(end);
       textStyle.handleTextChange(newText);
       // Set cursor position after the newline
       setTimeout(() => {
@@ -2040,273 +2114,275 @@ const TextStyleEditor: React.FC<TextStyleEditorProps> = ({ textStyle, onSave, on
   };
 
   return (
-  <div className="space-y-4">
-    {/* Text Content Input */}
-    <div>
-      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Text
-      </Label>
-      <Textarea
-        value={textStyle.text}
-        onChange={(e) => textStyle.handleTextChange(e.target.value)}
-        onKeyDown={handleTextKeyDown}
-        placeholder="Enter text... (Alt+Enter for new line)"
-        className="mt-1 min-h-[60px]"
-      />
-    </div>
+    <div className="space-y-4">
+      {/* Text Content Input */}
+      <div>
+        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Text
+        </Label>
+        <Textarea
+          value={textStyle.text}
+          onChange={(e) => textStyle.handleTextChange(e.target.value)}
+          onKeyDown={handleTextKeyDown}
+          placeholder="Enter text... (Alt+Enter for new line)"
+          className="mt-1 min-h-[60px]"
+        />
+      </div>
 
-    {/* Text Align */}
-    <div>
-      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Text Align
-      </Label>
-      <div className="flex gap-1 mt-1">
-        {(['left', 'center', 'right'] as const).map((align) => (
+      {/* Text Align */}
+      <div>
+        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Text Align
+        </Label>
+        <div className="flex gap-1 mt-1">
+          {(["left", "center", "right"] as const).map((align) => (
+            <Button
+              key={align}
+              variant={textStyle.textAlign === align ? "default" : "outline"}
+              size="sm"
+              onClick={() => textStyle.handleTextAlignChange(align)}
+              className="flex-1 capitalize"
+            >
+              {align}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* Longitude Input */}
+      <div>
+        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Longitude
+        </Label>
+        <Input
+          type="number"
+          step="any"
+          value={textStyle.longitude}
+          onChange={(e) => textStyle.handleLongitudeChange(e.target.value)}
+          placeholder="0.000000"
+          className="mt-1"
+          disabled
+        />
+      </div>
+
+      {/* Latitude Input */}
+      <div>
+        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Latitude
+        </Label>
+        <Input
+          type="number"
+          step="any"
+          value={textStyle.latitude}
+          onChange={(e) => textStyle.handleLatitudeChange(e.target.value)}
+          placeholder="0.000000"
+          className="mt-1"
+          disabled
+        />
+      </div>
+
+      {/* Scale Slider */}
+      <div>
+        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Scale:{" "}
+          <EditableSliderValue
+            value={textStyle.textScale}
+            onChange={textStyle.handleScaleChange}
+            min={0.1}
+            max={3.0}
+            step={0.1}
+            format="decimal"
+            suffix="x"
+          />
+        </Label>
+        <div className="flex items-center gap-3">
+          <Slider
+            value={[textStyle.textScale]}
+            onValueChange={(value) => textStyle.handleScaleChange(value[0])}
+            min={0.1}
+            max={3.0}
+            step={0.1}
+            className="flex-1"
+          />
           <Button
-            key={align}
-            variant={textStyle.textAlign === align ? "default" : "outline"}
+            variant="outline"
             size="sm"
-            onClick={() => textStyle.handleTextAlignChange(align)}
-            className="flex-1 capitalize"
+            onClick={() => textStyle.handleScaleChange(1)}
+            className="px-2 py-1 text-xs shrink-0"
           >
-            {align}
+            Reset
           </Button>
-        ))}
+        </div>
+        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <span>0.1x</span>
+          <span>3.0x</span>
+        </div>
       </div>
-    </div>
 
-    {/* Longitude Input */}
-    <div>
-      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Longitude
-      </Label>
-      <Input
-        type="number"
-        step="any"
-        value={textStyle.longitude}
-        onChange={(e) => textStyle.handleLongitudeChange(e.target.value)}
-        placeholder="0.000000"
-        className="mt-1"
-        disabled
-      />
-    </div>
+      {/* Rotation Slider */}
+      <div>
+        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Rotation:{" "}
+          <EditableSliderValue
+            value={textStyle.textRotation}
+            onChange={textStyle.handleRotationChange}
+            min={0}
+            max={360}
+            step={1}
+            format="degrees"
+          />
+        </Label>
+        <div className="flex items-center gap-3">
+          <Slider
+            value={[textStyle.textRotation]}
+            onValueChange={(value) => textStyle.handleRotationChange(value[0])}
+            min={0}
+            max={360}
+            step={1}
+            className="flex-1"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => textStyle.handleRotationChange(0)}
+            className="px-2 py-1 text-xs shrink-0"
+          >
+            Reset
+          </Button>
+        </div>
+        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <span>0°</span>
+          <span>360°</span>
+        </div>
+      </div>
 
-    {/* Latitude Input */}
-    <div>
-      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Latitude
-      </Label>
-      <Input
-        type="number"
-        step="any"
-        value={textStyle.latitude}
-        onChange={(e) => textStyle.handleLatitudeChange(e.target.value)}
-        placeholder="0.000000"
-        className="mt-1"
-        disabled
-      />
-    </div>
+      {/* Opacity Slider */}
+      <div>
+        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Opacity:{" "}
+          <EditableSliderValue
+            value={textStyle.textOpacity}
+            onChange={textStyle.handleOpacityChange}
+            min={0}
+            max={1}
+            step={0.01}
+            format="percent"
+          />
+        </Label>
+        <div className="flex items-center gap-3">
+          <Slider
+            value={[textStyle.textOpacity]}
+            onValueChange={(value) => textStyle.handleOpacityChange(value[0])}
+            min={0}
+            max={1}
+            step={0.01}
+            className="flex-1"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => textStyle.handleOpacityChange(1)}
+            className="px-2 py-1 text-xs shrink-0"
+          >
+            Reset
+          </Button>
+        </div>
+        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <span>0%</span>
+          <span>100%</span>
+        </div>
+      </div>
 
-    {/* Scale Slider */}
-    <div>
-      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Scale:{" "}
-        <EditableSliderValue
-          value={textStyle.textScale}
-          onChange={textStyle.handleScaleChange}
-          min={0.1}
-          max={3.0}
-          step={0.1}
-          format="decimal"
-          suffix="x"
-        />
-      </Label>
-      <div className="flex items-center gap-3">
-        <Slider
-          value={[textStyle.textScale]}
-          onValueChange={(value) => textStyle.handleScaleChange(value[0])}
-          min={0.1}
-          max={3.0}
-          step={0.1}
-          className="flex-1"
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => textStyle.handleScaleChange(1)}
-          className="px-2 py-1 text-xs shrink-0"
-        >
-          Reset
-        </Button>
+      {/* Fill Color Picker */}
+      <div>
+        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Fill Color
+        </Label>
+        <div className="flex items-center gap-3">
+          <input
+            type="color"
+            value={textStyle.textFillColor}
+            onChange={(e) => textStyle.handleFillColorChange(e.target.value)}
+            className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-10 px-3">
+                Choose Color
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48 p-1 bg-white rounded-sm shadow-lg z-10">
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup
+                value={textStyle.textFillColor}
+                onValueChange={(value) =>
+                  textStyle.handleFillColorChange(value)
+                }
+              >
+                {COLOR_OPTIONS.map((colorOption) => (
+                  <DropdownMenuRadioItem
+                    key={colorOption.color}
+                    value={colorOption.color}
+                    className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
+                  >
+                    <div
+                      className="w-4 h-4 rounded"
+                      style={{ backgroundColor: colorOption.color }}
+                    />
+                    <span>{colorOption.name}</span>
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
-      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
-        <span>0.1x</span>
-        <span>3.0x</span>
-      </div>
-    </div>
 
-    {/* Rotation Slider */}
-    <div>
-      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Rotation:{" "}
-        <EditableSliderValue
-          value={textStyle.textRotation}
-          onChange={textStyle.handleRotationChange}
-          min={0}
-          max={360}
-          step={1}
-          format="degrees"
-        />
-      </Label>
-      <div className="flex items-center gap-3">
-        <Slider
-          value={[textStyle.textRotation]}
-          onValueChange={(value) => textStyle.handleRotationChange(value[0])}
-          min={0}
-          max={360}
-          step={1}
-          className="flex-1"
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => textStyle.handleRotationChange(0)}
-          className="px-2 py-1 text-xs shrink-0"
-        >
-          Reset
-        </Button>
-      </div>
-      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
-        <span>0°</span>
-        <span>360°</span>
-      </div>
-    </div>
-
-    {/* Opacity Slider */}
-    <div>
-      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Opacity:{" "}
-        <EditableSliderValue
-          value={textStyle.textOpacity}
-          onChange={textStyle.handleOpacityChange}
-          min={0}
-          max={1}
-          step={0.01}
-          format="percent"
-        />
-      </Label>
-      <div className="flex items-center gap-3">
-        <Slider
-          value={[textStyle.textOpacity]}
-          onValueChange={(value) => textStyle.handleOpacityChange(value[0])}
-          min={0}
-          max={1}
-          step={0.01}
-          className="flex-1"
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => textStyle.handleOpacityChange(1)}
-          className="px-2 py-1 text-xs shrink-0"
-        >
-          Reset
-        </Button>
-      </div>
-      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
-        <span>0%</span>
-        <span>100%</span>
+      {/* Stroke Color Picker */}
+      <div>
+        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Stroke Color
+        </Label>
+        <div className="flex items-center gap-3">
+          <input
+            type="color"
+            value={textStyle.textStrokeColor}
+            onChange={(e) => textStyle.handleStrokeColorChange(e.target.value)}
+            className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-10 px-3">
+                Choose Color
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-48 p-1 bg-white rounded-sm shadow-lg z-10">
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup
+                value={textStyle.textStrokeColor}
+                onValueChange={(value) =>
+                  textStyle.handleStrokeColorChange(value)
+                }
+              >
+                {COLOR_OPTIONS.map((colorOption) => (
+                  <DropdownMenuRadioItem
+                    key={colorOption.color}
+                    value={colorOption.color}
+                    className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
+                  >
+                    <div
+                      className="w-4 h-4 rounded"
+                      style={{ backgroundColor: colorOption.color }}
+                    />
+                    <span>{colorOption.name}</span>
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </div>
-
-    {/* Fill Color Picker */}
-    <div>
-      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Fill Color
-      </Label>
-      <div className="flex items-center gap-3">
-        <input
-          type="color"
-          value={textStyle.textFillColor}
-          onChange={(e) => textStyle.handleFillColorChange(e.target.value)}
-          className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
-        />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-10 px-3">
-              Choose Color
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-48 p-1 bg-white rounded-sm shadow-lg z-10">
-            <DropdownMenuSeparator />
-            <DropdownMenuRadioGroup
-              value={textStyle.textFillColor}
-              onValueChange={(value) => textStyle.handleFillColorChange(value)}
-            >
-              {COLOR_OPTIONS.map((colorOption) => (
-                <DropdownMenuRadioItem
-                  key={colorOption.color}
-                  value={colorOption.color}
-                  className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
-                >
-                  <div
-                    className="w-4 h-4 rounded"
-                    style={{ backgroundColor: colorOption.color }}
-                  />
-                  <span>{colorOption.name}</span>
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </div>
-
-    {/* Stroke Color Picker */}
-    <div>
-      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-        Stroke Color
-      </Label>
-      <div className="flex items-center gap-3">
-        <input
-          type="color"
-          value={textStyle.textStrokeColor}
-          onChange={(e) => textStyle.handleStrokeColorChange(e.target.value)}
-          className="w-12 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
-        />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-10 px-3">
-              Choose Color
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-48 p-1 bg-white rounded-sm shadow-lg z-10">
-            <DropdownMenuSeparator />
-            <DropdownMenuRadioGroup
-              value={textStyle.textStrokeColor}
-              onValueChange={(value) =>
-                textStyle.handleStrokeColorChange(value)
-              }
-            >
-              {COLOR_OPTIONS.map((colorOption) => (
-                <DropdownMenuRadioItem
-                  key={colorOption.color}
-                  value={colorOption.color}
-                  className="flex items-center gap-2 p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700 data-[state=checked]:bg-blue-50 dark:data-[state=checked]:bg-blue-900/20"
-                >
-                  <div
-                    className="w-4 h-4 rounded"
-                    style={{ backgroundColor: colorOption.color }}
-                  />
-                  <span>{colorOption.name}</span>
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </div>
-  </div>
   );
 };
 
