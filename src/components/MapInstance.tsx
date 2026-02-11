@@ -247,7 +247,8 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
         }
 
         // Apply world-scaling for all LineString/MultiLineString features based on resolution (if enabled)
-        if (resolutionScalingEnabled && shouldApplyResolutionScaling(resolution!) && (type === "LineString" || type === "MultiLineString")) {
+        console.log("* resolution", resolution);
+        if (resolutionScalingEnabled && (type === "LineString" || type === "MultiLineString")) {
           const baseScaleFactor = calculateStrokeScale(resolution!);
 
           // Get base style from FeatureStyler first
@@ -273,7 +274,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
                 stroke: text.getStroke() ?? undefined,
                 scale: finalTextScale,
                 placement: text.getPlacement(),
-                repeat: text.getRepeat() ?? undefined,
+                repeat: text.getRepeat() ? text.getRepeat()! * baseScaleFactor : undefined,
                 textAlign: text.getTextAlign() ?? undefined,
                 textBaseline: text.getTextBaseline() ?? undefined,
                 maxAngle: text.getMaxAngle(),
@@ -314,7 +315,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
                 stroke: new Stroke({
                   color: stroke.getColor(),
                   width: scaledWidth,
-                  lineDash: stroke.getLineDash() || undefined,
+                  lineDash: stroke.getLineDash()?.map(v => v * baseScaleFactor) || undefined,
                   lineCap: stroke.getLineCap() as CanvasLineCap || "butt",
                 }),
                 text: scaledText,
