@@ -127,6 +127,8 @@ const STYLE_PROPERTY_KEYS = [
   "textOffsetY",
   "iconUrl",
   "showLabel",
+  // Revision Cloud properties
+  "bulgeRatio",
   // Text properties
   "text",
   "textScale",
@@ -278,9 +280,13 @@ export const applyPropertiesToFeature = (
     "lineWidth",
     "opacity",
     "strokeColor",
+    "strokeWidth",
     "strokeOpacity",
     "fillColor",
     "fillOpacity",
+    "bulgeRatio",
+    "originalPath",
+    "scallopRadius",
     // Icon properties (Google Earth icons)
     "iconScale",
     "labelScale",

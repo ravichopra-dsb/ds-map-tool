@@ -921,6 +921,9 @@ export const createRevisionCloudDraw = (
   const customFillColor = fillColor;
   const radius = scallopRadius || REVISION_CLOUD_CONFIG.defaultScallopRadius;
 
+  // Track raw freehand coordinates for later regeneration with different bulgeRatio
+  let lastRawCoordinates: Coordinate[] = [];
+
   const drawInteraction = new Draw({
     source: source,
     type: "Polygon",
@@ -935,6 +938,8 @@ export const createRevisionCloudDraw = (
       }
 
       if (coordArray.length > 0 && coordArray[0].length >= 3) {
+        // Capture raw coordinates before cloud transformation
+        lastRawCoordinates = coordArray[0].map((c) => [...c]);
         // Generate revision cloud preview
         const cloudCoords = generateRevisionCloudPreview(coordArray[0], radius);
         (geom as Polygon).setCoordinates([cloudCoords]);
@@ -954,13 +959,13 @@ export const createRevisionCloudDraw = (
   drawInteraction.on("drawend", (event) => {
     removeDrawKeyboardHandlers(drawInteraction);
 
-    // Get the original freehand coordinates and regenerate with full resolution
+    // Use captured raw freehand coordinates and regenerate with full resolution
     const polygon = event.feature.getGeometry() as Polygon;
-    const originalCoords = polygon.getCoordinates()[0];
+    const rawPath = lastRawCoordinates.length > 0 ? lastRawCoordinates : polygon.getCoordinates()[0];
 
     // Generate final revision cloud with full resolution
     const finalCloudCoords = generateRevisionCloudCoordinates(
-      originalCoords,
+      rawPath,
       radius
     );
     polygon.setCoordinates([finalCloudCoords]);
@@ -971,6 +976,8 @@ export const createRevisionCloudDraw = (
     event.feature.set("fillColor", customFillColor);
     event.feature.set("fillOpacity", 0);
     event.feature.set("scallopRadius", radius);
+    event.feature.set("bulgeRatio", REVISION_CLOUD_CONFIG.bulgeRatio);
+    event.feature.set("originalPath", JSON.stringify(rawPath));
 
     if (onDrawEnd) {
       onDrawEnd(event);

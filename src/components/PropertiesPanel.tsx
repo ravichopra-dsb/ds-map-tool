@@ -942,12 +942,14 @@ interface ShapeStyleSectionProps {
     strokeOpacity: number;
     fillColor: string;
     fillOpacity: number;
+    bulgeRatio: number;
     isRevisionCloud: boolean;
     handleStrokeColorChange: (color: string) => void;
     handleStrokeWidthChange: (width: number) => void;
     handleStrokeOpacityChange: (opacity: number) => void;
     handleFillColorChange: (color: string) => void;
     handleFillOpacityChange: (opacity: number) => void;
+    handleBulgeRatioChange: (ratio: number) => void;
     setStrokeColor: (color: string) => void;
     setFillColor: (color: string) => void;
   };
@@ -975,6 +977,7 @@ const ShapeStyleSection: React.FC<ShapeStyleSectionProps> = ({
           strokeOpacity={shapeStyle.strokeOpacity}
           fillColor={shapeStyle.fillColor}
           fillOpacity={shapeStyle.fillOpacity}
+          bulgeRatio={shapeStyle.bulgeRatio}
           isRevisionCloud={shapeStyle.isRevisionCloud}
         />
       ) : (
@@ -990,6 +993,7 @@ interface ShapeStyleDisplayProps {
   strokeOpacity: number;
   fillColor: string;
   fillOpacity: number;
+  bulgeRatio: number;
   isRevisionCloud: boolean;
 }
 
@@ -999,6 +1003,7 @@ const ShapeStyleDisplay: React.FC<ShapeStyleDisplayProps> = ({
   strokeOpacity,
   fillColor,
   fillOpacity,
+  bulgeRatio,
   isRevisionCloud,
 }) => (
   <div className="space-y-2">
@@ -1030,6 +1035,17 @@ const ShapeStyleDisplay: React.FC<ShapeStyleDisplayProps> = ({
         {Math.round(strokeOpacity * 100)}%
       </span>
     </div>
+    {/* Bulge Ratio for RevisionCloud */}
+    {isRevisionCloud && (
+      <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+        <span className="font-medium text-gray-700 dark:text-gray-300">
+          Radius:
+        </span>
+        <span className="text-gray-600 dark:text-gray-400">
+          {Number(bulgeRatio || 0.5).toFixed(1)}
+        </span>
+      </div>
+    )}
     {/* Hide fill options for RevisionCloud since it's typically stroke-only */}
     {!isRevisionCloud && (
       <>
@@ -1067,12 +1083,14 @@ interface ShapeStyleEditorProps {
     strokeOpacity: number;
     fillColor: string;
     fillOpacity: number;
+    bulgeRatio: number;
     isRevisionCloud: boolean;
     handleStrokeColorChange: (color: string) => void;
     handleStrokeWidthChange: (width: number) => void;
     handleStrokeOpacityChange: (opacity: number) => void;
     handleFillColorChange: (color: string) => void;
     handleFillOpacityChange: (opacity: number) => void;
+    handleBulgeRatioChange: (ratio: number) => void;
     setStrokeColor: (color: string) => void;
     setFillColor: (color: string) => void;
   };
@@ -1200,6 +1218,47 @@ const ShapeStyleEditor: React.FC<ShapeStyleEditorProps> = ({ shapeStyle }) => (
         <span>100%</span>
       </div>
     </div>
+
+    {/* Bulge Ratio Slider - only for RevisionCloud */}
+    {shapeStyle.isRevisionCloud && (
+      <div>
+        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Radius:{" "}
+          <EditableSliderValue
+            value={shapeStyle.bulgeRatio}
+            onChange={shapeStyle.handleBulgeRatioChange}
+            min={0.5}
+            max={1.1}
+            step={0.01}
+            format="decimal"
+          />
+        </Label>
+        <div className="flex items-center gap-3">
+          <Slider
+            value={[shapeStyle.bulgeRatio]}
+            onValueChange={(value) =>
+              shapeStyle.handleBulgeRatioChange(value[0])
+            }
+            min={0.5}
+            max={1.1}
+            step={0.01}
+            className="flex-1"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => shapeStyle.handleBulgeRatioChange(0.5)}
+            className="px-2 py-1 text-xs shrink-0"
+          >
+            Reset
+          </Button>
+        </div>
+        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <span>0.5</span>
+          <span>1.1</span>
+        </div>
+      </div>
+    )}
 
     {/* Fill Color Picker - only for non-RevisionCloud shapes */}
     {!shapeStyle.isRevisionCloud && (
