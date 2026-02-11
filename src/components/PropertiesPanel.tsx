@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/expandable-screen";
 import { LegendDropdown } from "./LegendDropdown";
 import { getLegendById, type LegendType } from "@/tools/legendsConfig";
+import { IconPickerDialog } from "./IconPickerDialog";
 
 interface PropertiesPanelProps {
   map: Map | null;
@@ -1511,6 +1512,7 @@ interface IconStyleSectionProps {
     textOffsetY: number;
     rotation: number;
     showLabel: boolean;
+    iconSrc: string;
     handleOpacityChange: (opacity: number) => void;
     handleIconScaleChange: (scale: number) => void;
     handleLabelScaleChange: (scale: number) => void;
@@ -1518,6 +1520,7 @@ interface IconStyleSectionProps {
     handleTextOffsetYChange: (offset: number) => void;
     handleRotationChange: (rotation: number) => void;
     handleShowLabelChange: (show: boolean) => void;
+    handleIconChange: (iconPath: string) => void;
   };
   isEditing: boolean;
 }
@@ -1541,6 +1544,7 @@ const IconStyleSection: React.FC<IconStyleSectionProps> = ({
           textOffsetY={iconProperties.textOffsetY}
           rotation={iconProperties.rotation}
           showLabel={iconProperties.showLabel}
+          iconSrc={iconProperties.iconSrc}
         />
       ) : (
         <IconStyleEditor iconProperties={iconProperties} />
@@ -1557,6 +1561,7 @@ interface IconStyleDisplayProps {
   textOffsetY: number;
   rotation: number;
   showLabel: boolean;
+  iconSrc: string;
 }
 
 const IconStyleDisplay: React.FC<IconStyleDisplayProps> = ({
@@ -1567,8 +1572,26 @@ const IconStyleDisplay: React.FC<IconStyleDisplayProps> = ({
   textOffsetY,
   rotation,
   showLabel,
+  iconSrc,
 }) => (
   <div className="space-y-2">
+    {iconSrc && (
+      <div className="py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+        <span className="font-medium text-gray-700 dark:text-gray-300">
+          Icon:
+        </span>
+        <div className="flex items-center gap-2 mt-1">
+          <img
+            src={iconSrc}
+            alt="Current icon"
+            className="w-8 h-8 object-contain"
+          />
+          <span className="text-gray-600 dark:text-gray-400 text-xs truncate">
+            {iconSrc.split("/").pop()?.replace(".png", "")}
+          </span>
+        </div>
+      </div>
+    )}
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
       <span className="font-medium text-gray-700 dark:text-gray-300">
         Opacity:
@@ -1633,6 +1656,7 @@ interface IconStyleEditorProps {
     textOffsetY: number;
     rotation: number;
     showLabel: boolean;
+    iconSrc: string;
     handleOpacityChange: (opacity: number) => void;
     handleIconScaleChange: (scale: number) => void;
     handleLabelScaleChange: (scale: number) => void;
@@ -1640,13 +1664,46 @@ interface IconStyleEditorProps {
     handleTextOffsetYChange: (offset: number) => void;
     handleRotationChange: (rotation: number) => void;
     handleShowLabelChange: (show: boolean) => void;
+    handleIconChange: (iconPath: string) => void;
   };
 }
 
 const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
   iconProperties,
-}) => (
+}) => {
+  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
+
+  return (
   <div className="space-y-4">
+    {/* Icon Picker */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Icon
+      </Label>
+      <div className="flex items-center gap-3 mt-1">
+        {iconProperties.iconSrc && (
+          <img
+            src={iconProperties.iconSrc}
+            alt="Current icon"
+            className="w-10 h-10 object-contain rounded border border-gray-300 dark:border-gray-600 p-1"
+          />
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsIconPickerOpen(true)}
+          className="h-10 px-3"
+        >
+          Change Icon
+        </Button>
+      </div>
+      <IconPickerDialog
+        isOpen={isIconPickerOpen}
+        onClose={() => setIsIconPickerOpen(false)}
+        onSelectIcon={iconProperties.handleIconChange}
+      />
+    </div>
+
     {/* Opacity Slider */}
     <div>
       <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1896,7 +1953,8 @@ const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
       </div>
     </div>
   </div>
-);
+  );
+};
 
 // Text Style Section
 interface TextStyleSectionProps {

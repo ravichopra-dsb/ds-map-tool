@@ -159,6 +159,7 @@ export const extractStyleMetadata = (feature: Feature<Geometry>): any => {
   if (feature.get("textOffsetY") !== undefined) properties.textOffsetY = feature.get("textOffsetY");
   if (feature.get("iconRotation") !== undefined) properties.iconRotation = feature.get("iconRotation");
   if (feature.get("showLabel") !== undefined) properties.showLabel = feature.get("showLabel");
+  if (feature.get("iconSrc") !== undefined) properties.iconSrc = feature.get("iconSrc");
 
   return properties;
 };

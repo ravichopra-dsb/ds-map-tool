@@ -126,7 +126,9 @@ const STYLE_PROPERTY_KEYS = [
   "textOffsetX",
   "textOffsetY",
   "iconUrl",
+  "iconPath",
   "showLabel",
+  "iconSrc",
   // Legend/line type properties
   "legendType",
   // Revision Cloud properties
@@ -296,8 +298,10 @@ export const applyPropertiesToFeature = (
     "iconRotation",
     "textOffsetX",
     "textOffsetY",
+    "iconPath",
     "iconUrl",
     "showLabel",
+    "iconSrc",
     // Text properties
     "text",
     "textScale",
