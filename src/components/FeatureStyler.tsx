@@ -1,7 +1,7 @@
 import { Style, Text, RegularShape, Circle } from "ol/style";
 import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
-import { Point, MultiLineString, LineString } from "ol/geom";
+import { Point, MultiLineString, LineString, Polygon } from "ol/geom";
 import { getCenter } from "ol/extent";
 import type { FeatureLike } from "ol/Feature";
 import type { LegendType } from "@/tools/legendsConfig";
@@ -81,6 +81,103 @@ const getShapeTextStyle = (feature: FeatureLike): Style | null => {
     },
     zIndex: 100,
   });
+};
+
+/**
+ * Build complete shape styles including legend strokeDash and zigzag patterns.
+ * Extracts polygon exterior ring as LineString for zigzag rendering.
+ */
+const getShapeStyles = (
+  feature: FeatureLike,
+  strokeColor: string,
+  strokeWidth: number,
+  strokeOpacity: number,
+  fillColor: string | undefined,
+  fillOpacity: number,
+  strokeDash: number[] | undefined,
+  resolution: number = 1,
+): Style | Style[] => {
+  const styles: Style[] = [];
+  const legendTypeId = feature.get("legendType");
+  const legendType = legendTypeId ? getLegendById(legendTypeId) : null;
+
+  // Resolve dash pattern: feature-level > legend-level
+  const lineDash = strokeDash ?? legendType?.style.strokeDash;
+
+  // Check for zigzag pattern
+  const isZigzag =
+    feature.get("linePattern") === "zigzag" ||
+    (legendType?.linePattern === "zigzag" && legendType?.zigzagConfig);
+  const zigzagConfig =
+    feature.get("zigzagConfig") || legendType?.zigzagConfig;
+
+  if (isZigzag && zigzagConfig) {
+    // For zigzag, render the fill separately and the zigzag stroke along the exterior ring
+    const geometry = feature.getGeometry();
+    if (geometry) {
+      // Fill style (no stroke)
+      if (fillColor) {
+        styles.push(
+          new Style({
+            fill: new Fill({
+              color: applyOpacityToColor(fillColor, fillOpacity),
+            }),
+          }),
+        );
+      }
+
+      // Extract exterior ring as LineString for zigzag
+      const geomType = geometry.getType();
+      let ring: LineString | null = null;
+      if (geomType === "Polygon") {
+        const coords = (geometry as Polygon).getLinearRing(0)?.getCoordinates();
+        if (coords) ring = new LineString(coords);
+      }
+
+      if (ring) {
+        const { amplitude, wavelength } = zigzagConfig;
+        const amplitudeMap = amplitude * resolution;
+        const halfWaveMap = (wavelength / 2) * resolution;
+        const zigzagGeom = createZigzagGeometry(ring, amplitudeMap, halfWaveMap);
+
+        styles.push(
+          new Style({
+            geometry: zigzagGeom,
+            stroke: new Stroke({
+              color: applyOpacityToColor(strokeColor, strokeOpacity),
+              width: strokeWidth,
+              lineCap: "butt",
+              lineJoin: "miter",
+            }),
+            zIndex: 1,
+          }),
+        );
+      }
+    }
+  } else {
+    // Standard polygon style with optional lineDash
+    const baseStyle = createPolygonStyle(
+      strokeColor,
+      strokeWidth,
+      strokeOpacity,
+      fillColor,
+      fillOpacity,
+      lineDash,
+    );
+    if (Array.isArray(baseStyle)) {
+      styles.push(...baseStyle);
+    } else {
+      styles.push(baseStyle);
+    }
+  }
+
+  // Add text label if legendType is set
+  const textStyle = getShapeTextStyle(feature);
+  if (textStyle) {
+    styles.push(textStyle);
+  }
+
+  return styles.length === 1 ? styles[0] : styles;
 };
 
 /**
@@ -536,6 +633,8 @@ export const getFeatureStyle = (
   // Handle Box features
   if (feature.get("isBox") && (type === "Polygon" || type === "MultiPolygon")) {
     const strokeColor = feature.get("strokeColor") || "#000000";
+    const strokeWidth =
+      feature.get("strokeWidth") !== undefined ? feature.get("strokeWidth") : 2;
     const strokeOpacity =
       feature.get("strokeOpacity") !== undefined
         ? feature.get("strokeOpacity")
@@ -544,22 +643,7 @@ export const getFeatureStyle = (
     const fillOpacity =
       feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
     const strokeDash = feature.get("strokeDash") as number[] | undefined;
-    const baseStyle = createPolygonStyle(
-      strokeColor,
-      2,
-      strokeOpacity,
-      fillColor,
-      fillOpacity,
-      strokeDash,
-    );
-    // Add text label if legendType is set
-    const textStyle = getShapeTextStyle(feature);
-    if (textStyle) {
-      return Array.isArray(baseStyle)
-        ? [...baseStyle, textStyle]
-        : [baseStyle, textStyle];
-    }
-    return baseStyle;
+    return getShapeStyles(feature, strokeColor, strokeWidth, strokeOpacity, fillColor, fillOpacity, strokeDash, resolution);
   }
 
   // Handle Circle features
@@ -568,6 +652,8 @@ export const getFeatureStyle = (
     (type === "Polygon" || type === "MultiPolygon")
   ) {
     const strokeColor = feature.get("strokeColor") || "#000000";
+    const strokeWidth =
+      feature.get("strokeWidth") !== undefined ? feature.get("strokeWidth") : 2;
     const strokeOpacity =
       feature.get("strokeOpacity") !== undefined
         ? feature.get("strokeOpacity")
@@ -576,22 +662,7 @@ export const getFeatureStyle = (
     const fillOpacity =
       feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
     const strokeDash = feature.get("strokeDash") as number[] | undefined;
-    const baseStyle = createPolygonStyle(
-      strokeColor,
-      2,
-      strokeOpacity,
-      fillColor,
-      fillOpacity,
-      strokeDash,
-    );
-    // Add text label if legendType is set
-    const textStyle = getShapeTextStyle(feature);
-    if (textStyle) {
-      return Array.isArray(baseStyle)
-        ? [...baseStyle, textStyle]
-        : [baseStyle, textStyle];
-    }
-    return baseStyle;
+    return getShapeStyles(feature, strokeColor, strokeWidth, strokeOpacity, fillColor, fillOpacity, strokeDash, resolution);
   }
 
   // Handle Revision Cloud features
@@ -610,22 +681,7 @@ export const getFeatureStyle = (
     const fillOpacity =
       feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
     const strokeDash = feature.get("strokeDash") as number[] | undefined;
-    const baseStyle = createPolygonStyle(
-      strokeColor,
-      strokeWidth,
-      strokeOpacity,
-      fillColor,
-      fillOpacity,
-      strokeDash,
-    );
-    // Add text label if legendType is set
-    const textStyle = getShapeTextStyle(feature);
-    if (textStyle) {
-      return Array.isArray(baseStyle)
-        ? [...baseStyle, textStyle]
-        : [baseStyle, textStyle];
-    }
-    return baseStyle;
+    return getShapeStyles(feature, strokeColor, strokeWidth, strokeOpacity, fillColor, fillOpacity, strokeDash, resolution);
   }
 
   if (

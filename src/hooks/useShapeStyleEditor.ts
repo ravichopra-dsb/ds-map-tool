@@ -297,6 +297,20 @@ export const useShapeStyleEditor = (
           setStrokeWidth(legend.style.strokeWidth);
           selectedFeature.set("strokeWidth", legend.style.strokeWidth);
         }
+        // Apply strokeDash from legend (or clear it for solid lines)
+        if (legend.style.strokeDash) {
+          selectedFeature.set("strokeDash", legend.style.strokeDash);
+        } else {
+          selectedFeature.unset("strokeDash");
+        }
+        // Apply zigzag pattern info
+        if (legend.linePattern === "zigzag" && legend.zigzagConfig) {
+          selectedFeature.set("linePattern", "zigzag");
+          selectedFeature.set("zigzagConfig", legend.zigzagConfig);
+        } else {
+          selectedFeature.unset("linePattern");
+          selectedFeature.unset("zigzagConfig");
+        }
         selectedFeature.changed();
         map?.render();
       }
