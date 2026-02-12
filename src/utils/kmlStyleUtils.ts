@@ -2,6 +2,7 @@ import { Feature } from "ol";
 import type { Geometry } from "ol/geom";
 import type { Folder } from "@/types/folders";
 import { restructureKmlWithFolders, escapeXml } from "./kmlFolderUtils";
+import { getLegendById } from "@/tools/legendsConfig";
 
 // ============================================================================
 // COLOR CONVERSION UTILITIES
@@ -63,9 +64,11 @@ export const featureToKmlStyle = (feature: Feature<Geometry>, index: number): Km
   const geomType = feature.getGeometry()?.getType();
   const styleId = `style_${index}`;
 
-  // Get feature properties
-  const lineColor = feature.get("lineColor") || feature.get("strokeColor") || "#00ff00";
-  const lineWidth = feature.get("lineWidth") || 2;
+  // Get feature properties - resolve legend colors from config
+  const legendTypeId = feature.get("legendType");
+  const legendConfig = legendTypeId ? getLegendById(legendTypeId) : null;
+  const lineColor = feature.get("lineColor") || feature.get("strokeColor") || legendConfig?.style.strokeColor || "#00ff00";
+  const lineWidth = feature.get("lineWidth") || legendConfig?.style.strokeWidth || 2;
   const fillColor = feature.get("fillColor") || "#000000";
   const fillOpacity = feature.get("fillOpacity") ?? 0;
   const strokeOpacity = feature.get("strokeOpacity") ?? 1;
@@ -433,6 +436,11 @@ export const applyKmlStylesToFeatures = (
 
     // Skip features that already have custom styles (from ExtendedData)
     if (feature.get("lineColor") || feature.get("strokeColor") || feature.get("fillColor")) {
+      return;
+    }
+
+    // Skip legend features - their styles come from legendsConfig.ts via legendType
+    if (feature.get("islegends") && feature.get("legendType")) {
       return;
     }
 
