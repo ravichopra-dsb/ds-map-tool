@@ -7,6 +7,7 @@ import {
   generateRevisionCloudCoordinates,
   REVISION_CLOUD_CONFIG,
 } from "@/utils/revisionCloudUtils";
+import { getLegendById, type LegendType } from "@/tools/legendsConfig";
 
 export interface UseShapeStyleEditorReturn {
   // State
@@ -16,6 +17,7 @@ export interface UseShapeStyleEditorReturn {
   fillColor: string;
   fillOpacity: number;
   bulgeRatio: number;
+  legendType: string | null;
   supportsShapeStyle: boolean;
   isRevisionCloud: boolean;
   isEditingShapeStyle: boolean;
@@ -27,6 +29,7 @@ export interface UseShapeStyleEditorReturn {
   handleFillColorChange: (color: string) => void;
   handleFillOpacityChange: (opacity: number) => void;
   handleBulgeRatioChange: (ratio: number) => void;
+  handleLegendTypeChange: (legend: LegendType) => void;
   setStrokeColor: (color: string) => void;
   setFillColor: (color: string) => void;
   resetToOriginal: () => void;
@@ -53,6 +56,7 @@ export const useShapeStyleEditor = (
   const [fillColor, setFillColor] = useState<string>(DEFAULT_FILL_COLOR);
   const [fillOpacity, setFillOpacity] = useState<number>(DEFAULT_FILL_OPACITY);
   const [bulgeRatio, setBulgeRatio] = useState<number>(DEFAULT_BULGE_RATIO);
+  const [legendType, setLegendType] = useState<string | null>(null);
 
   const [originalStrokeColor, setOriginalStrokeColor] = useState<string>(
     DEFAULT_STROKE_COLOR
@@ -72,6 +76,7 @@ export const useShapeStyleEditor = (
   const [originalBulgeRatio, setOriginalBulgeRatio] = useState<number>(
     DEFAULT_BULGE_RATIO
   );
+  const [originalLegendType, setOriginalLegendType] = useState<string | null>(null);
   const [isEditingShapeStyle, setIsEditingShapeStyle] = useState(false);
 
   // Check if selected feature is a Box, Circle, or RevisionCloud
@@ -121,18 +126,22 @@ export const useShapeStyleEditor = (
             ? parseFloat(rawBulgeRatio)
             : DEFAULT_BULGE_RATIO;
 
+      const featureLegendType = selectedFeature.get("legendType") || null;
+
       setStrokeColor(featureStrokeColor);
       setStrokeWidth(featureStrokeWidth);
       setStrokeOpacity(featureStrokeOpacity);
       setFillColor(featureFillColor);
       setFillOpacity(featureFillOpacity);
       setBulgeRatio(featureBulgeRatio);
+      setLegendType(featureLegendType);
       setOriginalStrokeColor(featureStrokeColor);
       setOriginalStrokeWidth(featureStrokeWidth);
       setOriginalStrokeOpacity(featureStrokeOpacity);
       setOriginalFillColor(featureFillColor);
       setOriginalFillOpacity(featureFillOpacity);
       setOriginalBulgeRatio(featureBulgeRatio);
+      setOriginalLegendType(featureLegendType);
     } else {
       setStrokeColor(DEFAULT_STROKE_COLOR);
       setStrokeWidth(DEFAULT_STROKE_WIDTH);
@@ -140,12 +149,14 @@ export const useShapeStyleEditor = (
       setFillColor(DEFAULT_FILL_COLOR);
       setFillOpacity(DEFAULT_FILL_OPACITY);
       setBulgeRatio(DEFAULT_BULGE_RATIO);
+      setLegendType(null);
       setOriginalStrokeColor(DEFAULT_STROKE_COLOR);
       setOriginalStrokeWidth(DEFAULT_STROKE_WIDTH);
       setOriginalStrokeOpacity(DEFAULT_STROKE_OPACITY);
       setOriginalFillColor(DEFAULT_FILL_COLOR);
       setOriginalFillOpacity(DEFAULT_FILL_OPACITY);
       setOriginalBulgeRatio(DEFAULT_BULGE_RATIO);
+      setOriginalLegendType(null);
     }
     setIsEditingShapeStyle(false);
   }, [selectedFeature, supportsShapeStyle]);
@@ -272,6 +283,27 @@ export const useShapeStyleEditor = (
     [selectedFeature, map]
   );
 
+  // Handle legend type change with live preview
+  const handleLegendTypeChange = useCallback(
+    (legend: LegendType) => {
+      setLegendType(legend.id);
+      if (selectedFeature) {
+        selectedFeature.set("legendType", legend.id);
+        if (legend.style.strokeColor) {
+          setStrokeColor(legend.style.strokeColor);
+          selectedFeature.set("strokeColor", legend.style.strokeColor);
+        }
+        if (legend.style.strokeWidth) {
+          setStrokeWidth(legend.style.strokeWidth);
+          selectedFeature.set("strokeWidth", legend.style.strokeWidth);
+        }
+        selectedFeature.changed();
+        map?.render();
+      }
+    },
+    [selectedFeature, map]
+  );
+
   // Handle dropdown stroke color selection
   const setStrokeColorHandler = useCallback(
     (color: string) => {
@@ -305,12 +337,16 @@ export const useShapeStyleEditor = (
     setFillColor(originalFillColor);
     setFillOpacity(originalFillOpacity);
     setBulgeRatio(originalBulgeRatio);
+    setLegendType(originalLegendType);
     if (selectedFeature) {
       selectedFeature.set("strokeColor", originalStrokeColor);
       selectedFeature.set("strokeWidth", originalStrokeWidth);
       selectedFeature.set("strokeOpacity", originalStrokeOpacity);
       selectedFeature.set("fillColor", originalFillColor);
       selectedFeature.set("fillOpacity", originalFillOpacity);
+      if (originalLegendType) {
+        selectedFeature.set("legendType", originalLegendType);
+      }
 
       // Restore original cloud geometry if revision cloud
       if (selectedFeature.get("isRevisionCloud")) {
@@ -334,7 +370,7 @@ export const useShapeStyleEditor = (
       selectedFeature.changed();
       map?.render();
     }
-  }, [selectedFeature, map, originalStrokeColor, originalStrokeWidth, originalStrokeOpacity, originalFillColor, originalFillOpacity, originalBulgeRatio]);
+  }, [selectedFeature, map, originalStrokeColor, originalStrokeWidth, originalStrokeOpacity, originalFillColor, originalFillOpacity, originalBulgeRatio, originalLegendType]);
 
   // Commit current values as new originals (call on save)
   const commitShapeStyle = useCallback(() => {
@@ -344,7 +380,8 @@ export const useShapeStyleEditor = (
     setOriginalFillColor(fillColor);
     setOriginalFillOpacity(fillOpacity);
     setOriginalBulgeRatio(bulgeRatio);
-  }, [strokeColor, strokeWidth, strokeOpacity, fillColor, fillOpacity, bulgeRatio]);
+    setOriginalLegendType(legendType);
+  }, [strokeColor, strokeWidth, strokeOpacity, fillColor, fillOpacity, bulgeRatio, legendType]);
 
   return {
     strokeColor,
@@ -353,6 +390,7 @@ export const useShapeStyleEditor = (
     fillColor,
     fillOpacity,
     bulgeRatio,
+    legendType,
     supportsShapeStyle,
     isRevisionCloud,
     isEditingShapeStyle,
@@ -362,6 +400,7 @@ export const useShapeStyleEditor = (
     handleFillColorChange,
     handleFillOpacityChange,
     handleBulgeRatioChange,
+    handleLegendTypeChange,
     setStrokeColor: setStrokeColorHandler,
     setFillColor: setFillColorHandler,
     resetToOriginal,

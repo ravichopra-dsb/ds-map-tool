@@ -1009,6 +1009,7 @@ interface ShapeStyleSectionProps {
     fillColor: string;
     fillOpacity: number;
     bulgeRatio: number;
+    legendType: string | null;
     isRevisionCloud: boolean;
     handleStrokeColorChange: (color: string) => void;
     handleStrokeWidthChange: (width: number) => void;
@@ -1016,6 +1017,7 @@ interface ShapeStyleSectionProps {
     handleFillColorChange: (color: string) => void;
     handleFillOpacityChange: (opacity: number) => void;
     handleBulgeRatioChange: (ratio: number) => void;
+    handleLegendTypeChange: (legend: LegendType) => void;
     setStrokeColor: (color: string) => void;
     setFillColor: (color: string) => void;
   };
@@ -1044,6 +1046,7 @@ const ShapeStyleSection: React.FC<ShapeStyleSectionProps> = ({
           fillColor={shapeStyle.fillColor}
           fillOpacity={shapeStyle.fillOpacity}
           bulgeRatio={shapeStyle.bulgeRatio}
+          legendType={shapeStyle.legendType}
           isRevisionCloud={shapeStyle.isRevisionCloud}
         />
       ) : (
@@ -1060,6 +1063,7 @@ interface ShapeStyleDisplayProps {
   fillColor: string;
   fillOpacity: number;
   bulgeRatio: number;
+  legendType: string | null;
   isRevisionCloud: boolean;
 }
 
@@ -1070,8 +1074,12 @@ const ShapeStyleDisplay: React.FC<ShapeStyleDisplayProps> = ({
   fillColor,
   fillOpacity,
   bulgeRatio,
+  legendType,
   isRevisionCloud,
-}) => (
+}) => {
+  const legend = legendType ? getLegendById(legendType) : null;
+
+  return (
   <div className="space-y-2">
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
       <span className="font-medium text-gray-700 dark:text-gray-300">
@@ -1087,6 +1095,19 @@ const ShapeStyleDisplay: React.FC<ShapeStyleDisplayProps> = ({
         </span>
       </div>
     </div>
+    {legend && (
+      <div className="py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+        <span className="font-medium text-gray-700 dark:text-gray-300">
+          Line Type:
+        </span>
+        <img
+          src={legend.imagePath}
+          alt={legend.name}
+          title={legend.name}
+          className="w-full h-8 object-cover rounded border border-gray-200 dark:border-gray-600 mt-1"
+        />
+      </div>
+    )}
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
       <span className="font-medium text-gray-700 dark:text-gray-300">
         {isRevisionCloud ? "Width:" : "Stroke Width:"}
@@ -1140,7 +1161,8 @@ const ShapeStyleDisplay: React.FC<ShapeStyleDisplayProps> = ({
       </>
     )}
   </div>
-);
+  );
+};
 
 interface ShapeStyleEditorProps {
   shapeStyle: {
@@ -1150,6 +1172,7 @@ interface ShapeStyleEditorProps {
     fillColor: string;
     fillOpacity: number;
     bulgeRatio: number;
+    legendType: string | null;
     isRevisionCloud: boolean;
     handleStrokeColorChange: (color: string) => void;
     handleStrokeWidthChange: (width: number) => void;
@@ -1157,12 +1180,16 @@ interface ShapeStyleEditorProps {
     handleFillColorChange: (color: string) => void;
     handleFillOpacityChange: (opacity: number) => void;
     handleBulgeRatioChange: (ratio: number) => void;
+    handleLegendTypeChange: (legend: LegendType) => void;
     setStrokeColor: (color: string) => void;
     setFillColor: (color: string) => void;
   };
 }
 
-const ShapeStyleEditor: React.FC<ShapeStyleEditorProps> = ({ shapeStyle }) => (
+const ShapeStyleEditor: React.FC<ShapeStyleEditorProps> = ({ shapeStyle }) => {
+  const currentLegend = shapeStyle.legendType ? getLegendById(shapeStyle.legendType) : null;
+
+  return (
   <div className="space-y-4">
     {/* Stroke/Line Color Picker */}
     <div>
@@ -1204,6 +1231,27 @@ const ShapeStyleEditor: React.FC<ShapeStyleEditorProps> = ({ shapeStyle }) => (
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+      </div>
+    </div>
+
+    {/* Line Type */}
+    <div>
+      <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        Line Type
+      </Label>
+      <div className="flex items-center gap-3">
+        {currentLegend && (
+          <img
+            src={currentLegend.imagePath}
+            alt={currentLegend.name}
+            title={currentLegend.name}
+            className="h-10 w-2 flex-1 object-cover rounded border border-gray-300 dark:border-gray-600"
+          />
+        )}
+        <LegendDropdown
+          selectedLegend={currentLegend ?? undefined}
+          onLegendSelect={shapeStyle.handleLegendTypeChange}
+        />
       </div>
     </div>
 
@@ -1402,7 +1450,8 @@ const ShapeStyleEditor: React.FC<ShapeStyleEditorProps> = ({ shapeStyle }) => (
       </div>
     )}
   </div>
-);
+  );
+};
 
 // Point/Icon Opacity Section
 interface PointOpacitySectionProps {
