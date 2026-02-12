@@ -9,6 +9,21 @@ import { LineStyleEditor, IconStyleEditor } from "./PropertiesPanel";
 import { supportsCustomLineStyle, DEFAULT_LINE_STYLE } from "@/utils/featureTypeUtils";
 import type { LegendType } from "@/tools/legendsConfig";
 
+/** Apply a property to all features and trigger re-render */
+function applyToFeatures(
+  features: Feature<Geometry>[],
+  props: Record<string, unknown>,
+  map: Map | null,
+) {
+  for (const f of features) {
+    for (const [key, value] of Object.entries(props)) {
+      f.set(key, value);
+    }
+    f.changed();
+  }
+  map?.render();
+}
+
 interface FolderPropertiesDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -56,13 +71,36 @@ export function FolderPropertiesDialog({
   const hasLineFeatures = lineFeatures.length > 0;
   const hasIconFeatures = iconFeatures.length > 0;
 
-  // Line style adapter (matches LineStyleEditorProps interface)
-  const handleColorChange = useCallback((color: string) => setLineColor(color), []);
-  const handleWidthChange = useCallback((width: number) => setLineWidth(width), []);
-  const handleLineOpacityChange = useCallback((opacity: number) => setLineOpacity(opacity), []);
+  // Line style adapter (matches LineStyleEditorProps interface) — live preview
+  const handleColorChange = useCallback((color: string) => {
+    setLineColor(color);
+    applyToFeatures(lineFeatures, { lineColor: color }, map);
+  }, [lineFeatures, map]);
+
+  const handleWidthChange = useCallback((width: number) => {
+    setLineWidth(width);
+    applyToFeatures(lineFeatures, { lineWidth: width }, map);
+  }, [lineFeatures, map]);
+
+  const handleLineOpacityChange = useCallback((opacity: number) => {
+    setLineOpacity(opacity);
+    applyToFeatures(lineFeatures, { opacity }, map);
+  }, [lineFeatures, map]);
+
   const handleLegendTypeChange = useCallback((legend: LegendType) => {
     setLegendType(legend.id);
-  }, []);
+    const props: Record<string, unknown> = { legendType: legend.id, islegends: true };
+    // Also apply the legend's default color and width
+    if (legend.style.strokeColor) {
+      setLineColor(legend.style.strokeColor);
+      props.lineColor = legend.style.strokeColor;
+    }
+    if (legend.style.strokeWidth) {
+      setLineWidth(legend.style.strokeWidth);
+      props.lineWidth = legend.style.strokeWidth;
+    }
+    applyToFeatures(lineFeatures, props, map);
+  }, [lineFeatures, map]);
 
   const lineStyleAdapter = {
     lineColor,
@@ -73,10 +111,10 @@ export function FolderPropertiesDialog({
     handleWidthChange,
     handleOpacityChange: handleLineOpacityChange,
     handleLegendTypeChange,
-    setLineColor,
+    setLineColor: handleColorChange,
   };
 
-  // Icon style adapter (matches IconStyleEditorProps interface)
+  // Icon style adapter (matches IconStyleEditorProps interface) — live preview
   const iconPropertiesAdapter = {
     opacity: iconOpacity,
     iconScale,
@@ -86,43 +124,43 @@ export function FolderPropertiesDialog({
     rotation,
     showLabel,
     iconSrc,
-    handleOpacityChange: useCallback((v: number) => setIconOpacity(v), []),
-    handleIconScaleChange: useCallback((v: number) => setIconScale(v), []),
-    handleLabelScaleChange: useCallback((v: number) => setLabelScale(v), []),
-    handleTextOffsetXChange: useCallback((v: number) => setTextOffsetX(v), []),
-    handleTextOffsetYChange: useCallback((v: number) => setTextOffsetY(v), []),
-    handleRotationChange: useCallback((v: number) => setRotation(v), []),
-    handleShowLabelChange: useCallback((v: boolean) => setShowLabel(v), []),
-    handleIconChange: useCallback((iconPath: string) => setIconSrc(iconPath), []),
+    handleOpacityChange: useCallback((v: number) => {
+      setIconOpacity(v);
+      applyToFeatures(iconFeatures, { opacity: v }, map);
+    }, [iconFeatures, map]),
+    handleIconScaleChange: useCallback((v: number) => {
+      setIconScale(v);
+      applyToFeatures(iconFeatures, { iconScale: v }, map);
+    }, [iconFeatures, map]),
+    handleLabelScaleChange: useCallback((v: number) => {
+      setLabelScale(v);
+      applyToFeatures(iconFeatures, { labelScale: v }, map);
+    }, [iconFeatures, map]),
+    handleTextOffsetXChange: useCallback((v: number) => {
+      setTextOffsetX(v);
+      applyToFeatures(iconFeatures, { textOffsetX: v }, map);
+    }, [iconFeatures, map]),
+    handleTextOffsetYChange: useCallback((v: number) => {
+      setTextOffsetY(v);
+      applyToFeatures(iconFeatures, { textOffsetY: v }, map);
+    }, [iconFeatures, map]),
+    handleRotationChange: useCallback((v: number) => {
+      setRotation(v);
+      applyToFeatures(iconFeatures, { iconRotation: v }, map);
+    }, [iconFeatures, map]),
+    handleShowLabelChange: useCallback((v: boolean) => {
+      setShowLabel(v);
+      applyToFeatures(iconFeatures, { showLabel: v }, map);
+    }, [iconFeatures, map]),
+    handleIconChange: useCallback((iconPath: string) => {
+      setIconSrc(iconPath);
+      applyToFeatures(iconFeatures, { iconPath }, map);
+    }, [iconFeatures, map]),
   };
 
   const handleApply = () => {
-    // Apply line styles to all line features
-    for (const feature of lineFeatures) {
-      feature.set("lineColor", lineColor);
-      feature.set("lineWidth", lineWidth);
-      feature.set("opacity", lineOpacity);
-      if (legendType) {
-        feature.set("legendType", legendType);
-        feature.set("islegends", true);
-      }
-      feature.changed();
-    }
-
-    // Apply icon styles to all icon features
-    for (const feature of iconFeatures) {
-      if (iconSrc) feature.set("iconPath", iconSrc);
-      feature.set("opacity", iconOpacity);
-      feature.set("iconScale", iconScale);
-      feature.set("labelScale", labelScale);
-      feature.set("textOffsetX", textOffsetX);
-      feature.set("textOffsetY", textOffsetY);
-      feature.set("iconRotation", rotation);
-      feature.set("showLabel", showLabel);
-      feature.changed();
-    }
-
-    map?.render();
+    // Changes are already applied in real-time via the handlers above.
+    // Just persist and close.
     onSaveMapState?.();
     onClose();
   };
