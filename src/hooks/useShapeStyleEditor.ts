@@ -7,7 +7,7 @@ import {
   generateRevisionCloudCoordinates,
   REVISION_CLOUD_CONFIG,
 } from "@/utils/revisionCloudUtils";
-import { getLegendById, type LegendType } from "@/tools/legendsConfig";
+import { type LegendType } from "@/tools/legendsConfig";
 
 export interface UseShapeStyleEditorReturn {
   // State

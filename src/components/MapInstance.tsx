@@ -245,9 +245,12 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           return new Style({ stroke: undefined });
         }
 
-        // Apply world-scaling for all LineString/MultiLineString features based on resolution (if enabled)
-        console.log("* resolution", resolution);
-        if (resolutionScalingEnabled && (type === "LineString" || type === "MultiLineString")) {
+        // Check if this is a shape feature (Box, Circle, RevisionCloud) that needs resolution scaling
+        const isShapeFeature = (type === "Polygon" || type === "MultiPolygon") &&
+          (feature.get("isBox") || feature.get("isCircle") || feature.get("isRevisionCloud"));
+
+        // Apply world-scaling for all LineString/MultiLineString and shape features based on resolution (if enabled)
+        if (resolutionScalingEnabled && (type === "LineString" || type === "MultiLineString" || isShapeFeature)) {
           const baseScaleFactor = calculateStrokeScale(resolution!);
 
           // Get base style from FeatureStyler first
@@ -286,22 +289,33 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
             // Scale zigzag geometry if the style has a custom geometry from a zigzag legend
             let scaledGeometry: any = style.getGeometry();
             const styleGeom = style.getGeometry();
-            if (styleGeom && feature.get("islegends")) {
+            if (styleGeom && (feature.get("islegends") || isShapeFeature)) {
               const legendTypeId = feature.get("legendType");
               if (legendTypeId) {
                 const legendType = getLegendById(legendTypeId);
                 if (legendType?.linePattern === "zigzag" && legendType.zigzagConfig) {
                   const featureGeom = feature.getGeometry();
-                  if (featureGeom && featureGeom.getType() === "LineString") {
+                  if (featureGeom) {
+                    const featureGeomType = featureGeom.getType();
                     const { amplitude, wavelength } = legendType.zigzagConfig;
-                    // Scale amplitude and wavelength by the resolution scale factor
                     const amplitudeMap = amplitude * resolution! * baseScaleFactor;
                     const halfWaveMap = (wavelength / 2) * resolution! * baseScaleFactor;
-                    scaledGeometry = createZigzagGeometry(
-                      featureGeom as LineString,
-                      amplitudeMap,
-                      halfWaveMap,
-                    );
+
+                    if (featureGeomType === "LineString") {
+                      // Scale amplitude and wavelength by the resolution scale factor
+                      scaledGeometry = createZigzagGeometry(
+                        featureGeom as LineString,
+                        amplitudeMap,
+                        halfWaveMap,
+                      );
+                    } else if (featureGeomType === "Polygon") {
+                      // For shapes, extract exterior ring as LineString for zigzag
+                      const coords = (featureGeom as any).getLinearRing(0)?.getCoordinates();
+                      if (coords) {
+                        const ring = new LineString(coords);
+                        scaledGeometry = createZigzagGeometry(ring, amplitudeMap, halfWaveMap);
+                      }
+                    }
                   }
                 }
               }
