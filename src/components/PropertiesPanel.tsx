@@ -58,7 +58,7 @@ interface PropertiesPanelProps {
   selectInteraction?: Select | null;
 }
 
-const COLOR_OPTIONS = [
+export const COLOR_OPTIONS = [
   { name: "Green", color: "#00ff00" },
   { name: "Red", color: "#ff0000" },
   { name: "Yellow", color: "#ffff00" },
@@ -841,7 +841,7 @@ const LineStyleDisplay: React.FC<LineStyleDisplayProps> = ({
   );
 };
 
-interface LineStyleEditorProps {
+export interface LineStyleEditorProps {
   lineStyle: {
     lineColor: string;
     lineWidth: number;
@@ -855,7 +855,7 @@ interface LineStyleEditorProps {
   };
 }
 
-const LineStyleEditor: React.FC<LineStyleEditorProps> = ({ lineStyle }) => {
+export const LineStyleEditor: React.FC<LineStyleEditorProps> = ({ lineStyle }) => {
   const currentLegend = lineStyle.legendType ? getLegendById(lineStyle.legendType) : null;
 
   return (
@@ -1647,7 +1647,7 @@ const IconStyleDisplay: React.FC<IconStyleDisplayProps> = ({
   </div>
 );
 
-interface IconStyleEditorProps {
+export interface IconStyleEditorProps {
   iconProperties: {
     opacity: number;
     iconScale: number;
@@ -1668,7 +1668,7 @@ interface IconStyleEditorProps {
   };
 }
 
-const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
+export const IconStyleEditor: React.FC<IconStyleEditorProps> = ({
   iconProperties,
 }) => {
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
