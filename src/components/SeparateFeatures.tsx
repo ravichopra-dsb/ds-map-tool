@@ -341,6 +341,7 @@ export function SeparateFeatures({
         } else {
           feature.unset("folderId");
         }
+        updateFeatures();
         onSaveMapState();
       }
     }
