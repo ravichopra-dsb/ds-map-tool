@@ -140,7 +140,7 @@ const convertIconPathToGoogleEarth = (iconPath: string): string => {
     return iconPath;
   }
 
-  return "https://ds-map-tool.vercel.app"+iconPath;
+  return "https://ds-map-tool.vercel.app" + iconPath;
 };
 
 /**
@@ -208,6 +208,30 @@ export const injectKmlStyles = (
         `<Placemark>\n    <styleUrl>${styleUrl}</styleUrl>`
       );
     }
+
+    // =======================================================
+    // FIX: Inject strokeDash into KML ExtendedData
+    // =======================================================
+    const dashArray = feature.get("strokeDash");
+    if (Array.isArray(dashArray) && dashArray.length > 0) {
+      const dashString = dashArray.join(','); // Convert [16, 12] back to "16,12"
+
+      // Check if ExtendedData already exists
+      if (placemarkContent.includes("<ExtendedData>")) {
+        // Append to existing ExtendedData
+        placemarkContent = placemarkContent.replace(
+          /(<\/ExtendedData>)/,
+          `    <Data name="strokeDash"><value>${dashString}</value></Data>\n$1`
+        );
+      } else {
+        // Create new ExtendedData block (insert before closing Placemark)
+        placemarkContent = placemarkContent.replace(
+          /(<\/Placemark>)/,
+          `    <ExtendedData>\n    <Data name="strokeDash"><value>${dashString}</value></Data>\n    </ExtendedData>\n$1`
+        );
+      }
+    }
+    // =======================================================
 
     // For text features, update the <name> element with the text content
     if (feature.get("isText")) {
@@ -391,6 +415,22 @@ export const applyKmlStylesToFeatures = (
   placemarkStyles: Map<number, string>
 ): void => {
   features.forEach((feature, index) => {
+    // =======================================================
+    // =======================================================
+    const rawDash = feature.get("strokeDash");
+    if (typeof rawDash === "string") {
+      // Convert "16,12" string to [16, 12] number array
+      const dashArray = rawDash.split(',').map(Number);
+      // Handle cases where parsing might fail (e.g., empty string)
+      if (dashArray.length >    // FIX: Parse strokeDash from ExtendedData ("16,12" -> [16, 12])
+        0 && !dashArray.some(isNaN)) {
+        feature.set("strokeDash", dashArray);
+      } else {
+        feature.set("strokeDash", null); // Clear invalid data
+      }
+    }
+    // =======================================================
+
     // Skip features that already have custom styles (from ExtendedData)
     if (feature.get("lineColor") || feature.get("strokeColor") || feature.get("fillColor")) {
       return;

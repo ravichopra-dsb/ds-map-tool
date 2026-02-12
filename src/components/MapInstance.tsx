@@ -328,7 +328,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
                 stroke: new Stroke({
                   color: stroke.getColor(),
                   width: scaledWidth,
-                  lineDash: stroke.getLineDash()?.map(v => v * baseScaleFactor) || undefined,
+                  lineDash: stroke.getLineDash()?.map(v => v * baseScaleFactor) || [],
                   lineCap: stroke.getLineCap() as CanvasLineCap || "butt",
                 }),
                 text: scaledText,

@@ -31,7 +31,7 @@ export const createStrokeStyle = (
   return {
     color: applyOpacityToColor(color, opacity),
     width,
-    lineDash: lineDash || undefined,
+    lineDash: lineDash || [],
     lineCap: "butt" as const,
   };
 };
