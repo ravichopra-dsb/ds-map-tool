@@ -65,7 +65,7 @@ export const LEGEND_TYPES: LegendType[] = [
     name: "Other Existing OFC Route",
     imagePath: "/Legends/OtherExistOfcRoute.png",
     style: {
-      strokeColor: "#0f0",
+      strokeColor: "#00ff00",
       strokeWidth: 4,
       strokeDash: [16, 5, 1, 5]
     }
@@ -75,7 +75,7 @@ export const LEGEND_TYPES: LegendType[] = [
     name: "Airtel Existing OFC Route (Tx)",
     imagePath: "/Legends/AirtelExistOfcRoute(Tx).png",
     style: {
-      strokeColor: "#00f",
+      strokeColor: "#0000ff",
       strokeWidth: 4,
       strokeDash: [16, 5, 1, 5]
     }
@@ -88,7 +88,7 @@ export const LEGEND_TYPES: LegendType[] = [
     textStyle: {
       font: "12px Arial",
       fill: "#ffffff",
-      stroke: "#00f",
+      stroke: "#0000ff",
       strokeWidth: 3,
       repeat: 30,
       offsetX: 0,
@@ -97,7 +97,7 @@ export const LEGEND_TYPES: LegendType[] = [
       maxAngle: Math.PI / 6
     },
     style: {
-      strokeColor: "#00f",
+      strokeColor: "#0000ff",
       strokeWidth: 4,
     }
   },
@@ -129,7 +129,7 @@ export const LEGEND_TYPES: LegendType[] = [
     text: "|",
     textStyle: {
       font: "14px Arial",
-      fill: "#f00",
+      fill: "#ff0000",
       stroke: "#f0000000",
       strokeWidth: 0,
       repeat: 45,
@@ -144,7 +144,7 @@ export const LEGEND_TYPES: LegendType[] = [
       wavelength: 24,
     },
     style: {
-      strokeColor: "#f00",
+      strokeColor: "#ff0000",
       strokeWidth: 2,
     }
   },
@@ -239,7 +239,7 @@ export const LEGEND_TYPES: LegendType[] = [
       maxAngle: Math.PI / 6
     },
     style: {
-      strokeColor: "#0ff",
+      strokeColor: "#00ffff",
       strokeWidth: 4,
       strokeDash: [16, 12],
     }
