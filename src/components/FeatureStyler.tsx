@@ -699,9 +699,23 @@ export const getFeatureStyle = (
       legendType = selectedLegend;
     }
 
-    // If no legend type is found, don't render the feature
+    // If no legend type is found, fall back to feature's own properties
     if (!legendType) {
-      return [];
+      const fallbackColor = feature.get("lineColor") || feature.get("strokeColor") || "#00ff00";
+      const fallbackWidth = feature.get("lineWidth") ?? 2;
+      const fallbackOpacity = feature.get("opacity") ?? feature.get("strokeOpacity") ?? 1;
+      const fallbackDash = feature.get("strokeDash") as number[] | undefined;
+
+      return [
+        new Style({
+          stroke: new Stroke({
+            color: applyOpacityToColor(fallbackColor, fallbackOpacity),
+            width: fallbackWidth,
+            lineDash: fallbackDash ?? [],
+            lineCap: "butt",
+          }),
+        }),
+      ];
     }
 
     // Check if legend has text or zigzag pattern configured
