@@ -117,6 +117,7 @@ const MapEditor: React.FC = () => {
     isTransitioning,
     osmLayerRef,
     satelliteLayerRef,
+    labelsLayerRef,
     handleMapViewChange,
   } = useMapState();
 
@@ -1235,6 +1236,7 @@ const MapEditor: React.FC = () => {
         satelliteLayerRef={satelliteLayerRef}
         vectorLayerRef={vectorLayerRef}
         vectorSourceRef={vectorSourceRef}
+        labelsLayerRef={labelsLayerRef}
       />
 
       {/* Search Control - integrated with the map */}

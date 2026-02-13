@@ -8,6 +8,7 @@ export interface UseMapStateReturn {
   isTransitioning: boolean;
   osmLayerRef: React.MutableRefObject<TileLayer<OSM> | null>;
   satelliteLayerRef: React.MutableRefObject<TileLayer<XYZ> | null>;
+  labelsLayerRef: React.MutableRefObject<TileLayer<XYZ> | null>;
   handleMapViewChange: (newView: MapViewType) => void;
 }
 
@@ -16,6 +17,7 @@ export const useMapState = (): UseMapStateReturn => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const osmLayerRef = useRef<TileLayer<OSM> | null>(null);
   const satelliteLayerRef = useRef<TileLayer<XYZ> | null>(null);
+  const labelsLayerRef = useRef<TileLayer<XYZ> | null>(null);
 
   const handleMapViewChange = (newView: MapViewType) => {
     if (!osmLayerRef.current || !satelliteLayerRef.current) return;
@@ -40,6 +42,7 @@ export const useMapState = (): UseMapStateReturn => {
 
       setTimeout(() => {
         satelliteLayerRef.current!.setVisible(false);
+        labelsLayerRef.current?.setVisible(false);
         setIsTransitioning(false);
       }, 250);
     } else {
@@ -47,6 +50,7 @@ export const useMapState = (): UseMapStateReturn => {
       osmLayerRef.current!.setOpacity(1);
       satelliteLayerRef.current!.setOpacity(0);
       satelliteLayerRef.current!.setVisible(true);
+      labelsLayerRef.current?.setVisible(true);
 
       // Simple opacity change with CSS transition
       setTimeout(() => {
@@ -66,6 +70,7 @@ export const useMapState = (): UseMapStateReturn => {
     isTransitioning,
     osmLayerRef,
     satelliteLayerRef,
+    labelsLayerRef,
     handleMapViewChange,
   };
 };
