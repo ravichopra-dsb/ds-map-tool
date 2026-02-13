@@ -28,18 +28,36 @@ const createCursor = (config: CursorConfig): string => {
  * Used for click-based tools like Triangle, Pit, etc.
  */
 const createCrosshairWithIcon = (toolIconSvg: string): string => {
-  // Create a larger canvas to composite the icons
+  // Extract the inner content of the SVG (strip the <svg> wrapper)
+  const innerContent = toolIconSvg.replace(/<svg[^>]*>|<\/svg>/g, "");
+
+  // Check if this is a Lucide icon (has fill="none" and stroke="currentColor" on root)
+  const isLucide =
+    toolIconSvg.includes('stroke="currentColor"') && toolIconSvg.includes('fill="none"');
+
+  // For Lucide icons: apply stroke/fill attributes that were on the stripped <svg> tag
+  // For custom icons: pass through as-is
+  const gAttrs = isLucide
+    ? 'fill="none" stroke="#000000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"'
+    : "";
+
+  // White outline behind the icon for visibility on any background
+  const gOutlineAttrs = isLucide
+    ? 'fill="none" stroke="#000000" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"'
+    : "";
+
   const composite = `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-    <!-- Crosshair in the background -->
+    <!-- Crosshair -->
     <line x1="16" y1="2" x2="16" y2="8" stroke="#ff0000" stroke-width="1.5"/>
     <line x1="16" y1="24" x2="16" y2="30" stroke="#ff0000" stroke-width="1.5"/>
     <line x1="2" y1="16" x2="8" y2="16" stroke="#ff0000" stroke-width="1.5"/>
     <line x1="24" y1="16" x2="30" y2="16" stroke="#ff0000" stroke-width="1.5"/>
     <circle cx="16" cy="16" r="2.5" fill="#ff0000"/>
 
-    <!-- Small tool icon in bottom-right corner -->
-    <g transform="translate(18, 18) scale(0.6)">
-      ${toolIconSvg.replace(/<svg[^>]*>|<\/svg>/g, "")}
+    <!-- Tool icon in bottom-right corner -->
+    ${gOutlineAttrs ? `<g transform="translate(17, 17) scale(0.55)" ${gOutlineAttrs}>${innerContent}</g>` : ""}
+    <g transform="translate(17, 17) scale(0.55)" ${gAttrs}>
+      ${innerContent}
     </g>
   </svg>`;
 
@@ -47,17 +65,6 @@ const createCrosshairWithIcon = (toolIconSvg: string): string => {
     svg: composite,
     hotspotX: 16,
     hotspotY: 16,
-  });
-};
-
-/**
- * Create cursor from just the tool icon
- */
-const createIconCursor = (toolIconSvg: string): string => {
-  return createCursor({
-    svg: toolIconSvg,
-    hotspotX: 12,
-    hotspotY: 12,
   });
 };
 
@@ -74,29 +81,29 @@ const TOOL_CURSORS: Record<string, string> = {};
 const initializeCursors = () => {
   if (Object.keys(TOOL_CURSORS).length > 0) return; // Already initialized
 
-  // Drawing Tools - Icon-based cursors
-  TOOL_CURSORS.point = createIconCursor(ICON_SVGS.point);
-  TOOL_CURSORS.polyline = createIconCursor(ICON_SVGS.polyline);
-  TOOL_CURSORS.freehand = createIconCursor(ICON_SVGS.freehand);
-  TOOL_CURSORS.arrow = createIconCursor(ICON_SVGS.arrow);
-  TOOL_CURSORS.text = createIconCursor(ICON_SVGS.text);
-  TOOL_CURSORS.measure = createIconCursor(ICON_SVGS.measure);
-  TOOL_CURSORS.box = createIconCursor(ICON_SVGS.box);
-  TOOL_CURSORS.circle = createIconCursor(ICON_SVGS.circle);
-  TOOL_CURSORS.arc = createIconCursor(ICON_SVGS.arc);
-  TOOL_CURSORS.revcloud = createIconCursor(ICON_SVGS.revcloud);
-  TOOL_CURSORS.legends = createIconCursor(ICON_SVGS.legends);
+  // Drawing Tools - Crosshair with tool icon overlay
+  TOOL_CURSORS.point = createCrosshairWithIcon(ICON_SVGS.point);
+  TOOL_CURSORS.polyline = createCrosshairWithIcon(ICON_SVGS.polyline);
+  TOOL_CURSORS.freehand = createCrosshairWithIcon(ICON_SVGS.freehand);
+  TOOL_CURSORS.arrow = createCrosshairWithIcon(ICON_SVGS.arrow);
+  TOOL_CURSORS.text = createCrosshairWithIcon(ICON_SVGS.text);
+  TOOL_CURSORS.measure = createCrosshairWithIcon(ICON_SVGS.measure);
+  TOOL_CURSORS.box = createCrosshairWithIcon(ICON_SVGS.box);
+  TOOL_CURSORS.circle = createCrosshairWithIcon(ICON_SVGS.circle);
+  TOOL_CURSORS.arc = createCrosshairWithIcon(ICON_SVGS.arc);
+  TOOL_CURSORS.revcloud = createCrosshairWithIcon(ICON_SVGS.revcloud);
+  TOOL_CURSORS.legends = createCrosshairWithIcon(ICON_SVGS.legends);
 
   // Click-based Symbol Tools - Crosshair with icon overlay
   TOOL_CURSORS.icons = createCrosshairWithIcon(ICON_SVGS.icons);
 
-  // Edit/Utility Tools - Standard CSS cursors
+  // Edit/Utility Tools
   TOOL_CURSORS.select = "pointer";
   TOOL_CURSORS.transform = "move";
   TOOL_CURSORS.hand = "grab";
-  TOOL_CURSORS.split = createIconCursor(ICON_SVGS.split);
-  TOOL_CURSORS.merge = createIconCursor(ICON_SVGS.merge);
-  TOOL_CURSORS.offset = createIconCursor(ICON_SVGS.offset);
+  TOOL_CURSORS.split = createCrosshairWithIcon(ICON_SVGS.split);
+  TOOL_CURSORS.merge = createCrosshairWithIcon(ICON_SVGS.merge);
+  TOOL_CURSORS.offset = createCrosshairWithIcon(ICON_SVGS.offset);
 };
 
 /**

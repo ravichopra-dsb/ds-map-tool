@@ -21,6 +21,7 @@ import {
   Merge,
   Cloud,
   HandGrab,
+  Circle,
 } from "lucide-static";
 
 // ============================================================================
@@ -91,7 +92,7 @@ export const LUCIDE_ICONS: Record<string, string> = {
   // Standard tools using Lucide icons
   select: MousePointer2,
   text: Type,
-  // point: Circle,
+  point: Circle,
   freehand: Pencil,
   polyline: Slash,
   arrow: ArrowUp,
