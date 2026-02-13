@@ -36,6 +36,8 @@ import {
 import { Link, useParams, useNavigate } from "react-router";
 import { useLayoutStore } from "@/stores/layoutStore";
 import { useShallow } from "zustand/react/shallow";
+import type { LegendMetadata } from "@/utils/legendMetadataUtils";
+import { buildFabricLegend } from "@/utils/fabricLegendUtils";
 
 export default function LayoutEditor() {
   const { layoutId } = useParams<{ layoutId: string }>();
@@ -51,6 +53,7 @@ export default function LayoutEditor() {
     pendingPageSize,
     pendingLayoutId,
     pendingLayoutName,
+    pendingLegendMetadata,
     clearPendingBackground,
   } = useLayoutStore(
     useShallow((state) => ({
@@ -62,6 +65,7 @@ export default function LayoutEditor() {
       pendingPageSize: state.pendingPageSize,
       pendingLayoutId: state.pendingLayoutId,
       pendingLayoutName: state.pendingLayoutName,
+      pendingLegendMetadata: state.pendingLegendMetadata,
       clearPendingBackground: state.clearPendingBackground,
     })),
   );
@@ -88,6 +92,8 @@ export default function LayoutEditor() {
   const fabricRef = useRef<fabric.Canvas | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [savedJobName, setSavedJobName] = useState<string | null>(null);
+  const [savedLegendMetadata, setSavedLegendMetadata] =
+    useState<LegendMetadata | null>(null);
 
   const currentLayout = currentLayoutId ? getLayout(currentLayoutId) : null;
 
@@ -96,12 +102,18 @@ export default function LayoutEditor() {
     setCurrentLayoutId(layoutId ?? null);
   }, [layoutId]);
 
-  // Capture pending job name before it gets cleared
+  // Capture pending job name and legend metadata before they get cleared
   useEffect(() => {
     if (pendingLayoutName && !savedJobName) {
       setSavedJobName(pendingLayoutName);
     }
   }, [pendingLayoutName, savedJobName]);
+
+  useEffect(() => {
+    if (pendingLegendMetadata && !savedLegendMetadata) {
+      setSavedLegendMetadata(pendingLegendMetadata);
+    }
+  }, [pendingLegendMetadata, savedLegendMetadata]);
 
   // Handle pending background image from map export
   useEffect(() => {
@@ -121,6 +133,36 @@ export default function LayoutEditor() {
     layoutId,
     clearPendingBackground,
   ]);
+
+  // Build and add legend group to canvas after background is loaded
+  useEffect(() => {
+    const canvas = fabricRef.current;
+    if (
+      !canvas ||
+      !savedLegendMetadata ||
+      savedLegendMetadata.items.length === 0
+    )
+      return;
+
+    // Wait for background to be set first
+    if (!backgroundImage) return;
+
+    let cancelled = false;
+
+    buildFabricLegend(savedLegendMetadata, {
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+    }).then((legendGroup) => {
+      if (cancelled || !legendGroup || !fabricRef.current) return;
+      fabricRef.current.add(legendGroup);
+      fabricRef.current.requestRenderAll();
+      setSavedLegendMetadata(null);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [savedLegendMetadata, backgroundImage]);
 
   // Load layout data when ID changes
   useEffect(() => {

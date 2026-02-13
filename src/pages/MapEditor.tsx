@@ -1304,6 +1304,7 @@ const MapEditor: React.FC = () => {
         onExport={handlePdfExport}
         isExporting={isExportingPdf}
         jobName={projects.find(p => p.id === currentProjectId)?.name}
+        vectorSource={vectorSourceRef.current}
       />
 
       <DragBoxInstruction isActive={isDragBoxActive} />

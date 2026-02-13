@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { PageSize } from '@/types/pdf'
+import type { LegendMetadata } from '@/utils/legendMetadataUtils'
 
 export interface Layout {
   id: string
@@ -20,6 +21,7 @@ interface LayoutStore {
   pendingPageSize: PageSize | null
   pendingLayoutId: string | null
   pendingLayoutName: string | null
+  pendingLegendMetadata: LegendMetadata | null
 
   addLayout: (layout: Omit<Layout, 'id' | 'createdAt' | 'updatedAt'>) => string
   updateLayout: (id: string, data: Partial<Omit<Layout, 'id' | 'createdAt'>>) => void
@@ -27,7 +29,7 @@ interface LayoutStore {
   getLayout: (id: string) => Layout | undefined
 
   // Pending background methods
-  setPendingBackground: (image: string, pageSize: PageSize, layoutId: string | null, layoutName?: string | null) => void
+  setPendingBackground: (image: string, pageSize: PageSize, layoutId: string | null, layoutName?: string | null, legendMetadata?: LegendMetadata | null) => void
   clearPendingBackground: () => void
 }
 
@@ -43,6 +45,7 @@ export const useLayoutStore = create<LayoutStore>()(
       pendingPageSize: null,
       pendingLayoutId: null,
       pendingLayoutName: null,
+      pendingLegendMetadata: null,
 
       addLayout: (layout) => {
         const currentLayouts = get().layouts
@@ -82,12 +85,13 @@ export const useLayoutStore = create<LayoutStore>()(
         return get().layouts.find((layout) => layout.id === id)
       },
 
-      setPendingBackground: (image, pageSize, layoutId, layoutName) => {
+      setPendingBackground: (image, pageSize, layoutId, layoutName, legendMetadata) => {
         set({
           pendingBackgroundImage: image,
           pendingPageSize: pageSize,
           pendingLayoutId: layoutId,
           pendingLayoutName: layoutName || null,
+          pendingLegendMetadata: legendMetadata || null,
         })
       },
 
@@ -97,6 +101,7 @@ export const useLayoutStore = create<LayoutStore>()(
           pendingPageSize: null,
           pendingLayoutId: null,
           pendingLayoutName: null,
+          pendingLegendMetadata: null,
         })
       },
     }),

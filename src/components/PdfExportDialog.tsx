@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useLayoutStore } from "@/stores/layoutStore";
+import { collectLegendMetadata } from "@/utils/legendMetadataUtils";
+import type VectorSource from "ol/source/Vector";
 import type { PageSize, PdfExportConfig, Resolution } from "@/types/pdf";
 import { DEFAULT_RESOLUTION, PAGE_SIZE_OPTIONS } from "@/types/pdf";
 import type {
@@ -27,6 +29,7 @@ interface PdfExportDialogProps {
   ) => Promise<MapImageExportResult>;
   isExporting: boolean;
   jobName?: string;
+  vectorSource?: VectorSource;
 }
 
 export function PdfExportDialog({
@@ -35,6 +38,7 @@ export function PdfExportDialog({
   onExport,
   isExporting,
   jobName,
+  vectorSource,
 }: PdfExportDialogProps) {
   const navigate = useNavigate();
   const [pageSize, setPageSize] = useState<PageSize>("a4");
@@ -68,8 +72,11 @@ export function PdfExportDialog({
         setProgress,
       );
 
-      // Store the image in Zustand with job name
-      setPendingBackground(result.dataURL, pageSize, selectedLayoutId || null, jobName);
+      // Collect legend/icon metadata from map features
+      const legendMetadata = vectorSource ? collectLegendMetadata(vectorSource) : null;
+
+      // Store the image and metadata in Zustand
+      setPendingBackground(result.dataURL, pageSize, selectedLayoutId || null, jobName, legendMetadata);
 
       // Navigate to layout editor
       const targetPath = selectedLayoutId
