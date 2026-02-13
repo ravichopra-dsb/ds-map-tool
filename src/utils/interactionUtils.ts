@@ -1,10 +1,11 @@
 import { Draw } from "ol/interaction";
 import { createBox } from "ol/interaction/Draw";
-import { Style } from "ol/style";
+import { Style, Text, Fill } from "ol/style";
+import Stroke from "ol/style/Stroke";
 import { createPointStyle, createLineStyle, createPolygonStyle } from "./styleUtils";
 import { getLength } from "ol/sphere";
 import { Feature } from "ol";
-import { Geometry, LineString, Circle as CircleGeom, Polygon, SimpleGeometry } from "ol/geom";
+import { Geometry, LineString, Circle as CircleGeom, Polygon, SimpleGeometry, Point } from "ol/geom";
 import { Vector as VectorSource } from "ol/source";
 import type { Coordinate } from "ol/coordinate";
 import { circleToPolygon } from "./geometryUtils";
@@ -666,6 +667,51 @@ export const createMeasureDraw = (
   // Create ortho geometry function helper
   const orthoHelper = createOrthoGeometryFunction();
 
+  // Format distance with auto unit switching (matches FeatureStyler formatDistance)
+  const formatDistance = (distance: number): string => {
+    if (distance < 1000) {
+      return `${Math.round(distance)}m`;
+    } else {
+      return `${(distance / 1000).toFixed(3)}km`;
+    }
+  };
+
+  // Style function that shows real-time distance while drawing
+  const baseStyles = Array.isArray(style) ? style : [style];
+  const measureDrawStyleFunction = (feature: any): Style[] => {
+    const geometry = feature.getGeometry();
+    if (!geometry || geometry.getType() !== 'LineString') return baseStyles;
+
+    const coords = (geometry as LineString).getCoordinates();
+    if (coords.length < 2) return baseStyles;
+
+    const distance = getLength(geometry);
+    if (distance === 0) return baseStyles;
+
+    const endPoint = coords[coords.length - 1];
+    const distanceLabel = new Style({
+      text: new Text({
+        text: formatDistance(distance),
+        font: "bold 12px Arial, sans-serif",
+        fill: new Fill({ color: "#000000" }),
+        stroke: new Stroke({
+          color: "#ffffff",
+          width: 3,
+        }),
+        backgroundFill: new Fill({ color: "rgba(255, 255, 255, 0.8)" }),
+        padding: [2, 4, 2, 4],
+        textAlign: "left",
+        textBaseline: "middle",
+        offsetX: 8,
+        offsetY: 0,
+      }),
+      geometry: new Point(endPoint),
+      zIndex: 11,
+    });
+
+    return [...baseStyles, distanceLabel];
+  };
+
   // Add measurement logic to the default handler
   const handleDrawEnd = (event: any) => {
     const geometry = event.feature.getGeometry() as LineString;
@@ -703,7 +749,7 @@ export const createMeasureDraw = (
   const drawInteraction = createDrawInteraction({
     type: "LineString",
     source,
-    style,
+    style: measureDrawStyleFunction,
     featureProperties: {
       isMeasure: true,
     },
