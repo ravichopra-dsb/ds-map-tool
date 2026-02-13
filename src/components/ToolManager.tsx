@@ -138,11 +138,12 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
     // Remove all click handlers using the hook
     removeAllClickHandlers(map);
 
-    // Apply cursor for the active tool
+    // Apply cursor for the active tool on the viewport element
+    // (not getTargetElement(), as the viewport is the actual event-capturing element)
     const cursor = getCursorForTool(activeTool);
-    const mapElement = map.getTargetElement();
-    if (mapElement) {
-      mapElement.style.cursor = cursor;
+    const viewport = map.getViewport();
+    if (viewport) {
+      viewport.style.cursor = cursor;
     }
 
     switch (activeTool) {
@@ -508,9 +509,9 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         snapInteractionRef.current = null;
       }
       // Reset cursor to default
-      const mapElement = map.getTargetElement();
-      if (mapElement) {
-        mapElement.style.cursor = "auto";
+      const viewport = map.getViewport();
+      if (viewport) {
+        viewport.style.cursor = "";
       }
     };
   }, [

@@ -106,6 +106,10 @@ const initializeCursors = () => {
  */
 export const getCursorForTool = (toolId: string): string => {
   initializeCursors();
+  // Quick-access icon tools (icon-tower, icon-chamber, etc.) use the same cursor as "icons"
+  if (toolId.startsWith("icon-") && TOOL_CURSORS["icons"]) {
+    return TOOL_CURSORS["icons"];
+  }
   return TOOL_CURSORS[toolId] || "auto";
 };
 
