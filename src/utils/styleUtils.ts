@@ -316,6 +316,7 @@ export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number
             anchorYUnits: "fraction",
             opacity: opacity,
             rotation: (iconRotation * Math.PI) / 180,
+            crossOrigin: "anonymous",
           }),
           zIndex: 0, // Icon on top
         }),
@@ -446,6 +447,7 @@ export const createSelectStyle = (feature: Feature<Geometry>, resolution?: numbe
             anchorYUnits: "fraction",
             opacity: opacity,
             rotation: (iconRotation * Math.PI) / 180,
+            crossOrigin: "anonymous",
           }),
           zIndex: 0, // Icon on top
         }),

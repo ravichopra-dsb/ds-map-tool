@@ -82,6 +82,7 @@ export const getFeatureTypeStyle = (feature: FeatureLike) => {
           anchorXUnits: "fraction",
           anchorYUnits: "fraction",
           opacity: opacity, // Apply opacity to icon
+          crossOrigin: "anonymous",
         }),
       });
     }

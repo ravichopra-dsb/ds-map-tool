@@ -163,6 +163,7 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
                     scale: finalIconScale,
                     opacity: iconOpacity,
                     rotation: (iconRotation * Math.PI) / 180, // Convert degrees to radians
+                    crossOrigin: "anonymous",
                   }),
                 }),
               ];
