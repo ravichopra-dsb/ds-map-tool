@@ -27,7 +27,20 @@ export interface ToolItem {
   name: string;
   icon: any;
   category: ToolCategory;
+  iconPath?: string;
 }
+
+const LANDMARK_ICONS_BASE = "/google_earth_icons/landmark-symbols";
+
+const QUICK_ACCESS_ICONS = [
+  { id: "icon-tower", name: "Tower", file: "TOWER.png" },
+  { id: "icon-chamber", name: "Chamber", file: "chamber.png" },
+  { id: "icon-ep-pole", name: "EP Pole", file: "EP POLE.png" },
+  { id: "icon-bridge", name: "Bridge", file: "BRIDGE.png" },
+  { id: "icon-bt", name: "BT", file: "BT.png" },
+  { id: "icon-gl", name: "GL", file: "GL.png" },
+  { id: "icon-cc", name: "CC", file: "CC.png" },
+] as const;
 
 export const TOOLS: ToolItem[] = [
   // EDIT TOOLS
@@ -140,7 +153,14 @@ export const TOOLS: ToolItem[] = [
     icon: Cloud,
     category: "draw",
   },
-  // SYMBOL TOOLS
+  // SYMBOL TOOLS - Quick Access Icons
+  ...QUICK_ACCESS_ICONS.map(({ id, name, file }) => ({
+    id,
+    name,
+    icon: null,
+    category: "symbols" as ToolCategory,
+    iconPath: `${LANDMARK_ICONS_BASE}/${file}`,
+  })),
   {
     id: 'icons',
     name: 'Icons',

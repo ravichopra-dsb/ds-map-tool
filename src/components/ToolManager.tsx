@@ -24,6 +24,7 @@ import { useClickHandlerManager } from "@/hooks/useClickHandlerManager";
 import { getCursorForTool } from "@/utils/cursorUtils";
 import { getTextAlongLineStyle } from "./FeatureStyler";
 import { handleIconClick } from "@/icons/IconPicker";
+import { TOOLS } from "@/tools/toolConfig";
 
 export interface ToolManagerProps {
   map: Map | null;
@@ -468,8 +469,32 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         // No draw interaction needed here
         break;
 
-      default:
+      default: {
+        // Handle quick-access icon tools (icon-tower, icon-chamber, etc.)
+        const quickIconTool = TOOLS.find(t => t.id === activeTool && t.iconPath);
+        if (quickIconTool?.iconPath) {
+          registerClickHandler(
+            map,
+            {
+              toolId: activeTool,
+              handlerKey: "QuickIconClickHandler",
+              onClick: (coordinate) => {
+                const feature = handleIconClick(vectorSource, coordinate, quickIconTool.iconPath!);
+                if (feature && onFeatureSelect) {
+                  useToolStore.getState().setIsNewlyCreatedFeature(true);
+                  useToolStore.getState().pauseDrawing(activeTool);
+                  onFeatureSelect(feature);
+                  window.dispatchEvent(new CustomEvent('featureDrawn', {
+                    detail: { feature }
+                  }));
+                }
+              },
+            },
+            vectorSource
+          );
+        }
         break;
+      }
     }
 
     return () => {

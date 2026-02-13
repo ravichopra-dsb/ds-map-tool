@@ -234,7 +234,11 @@ const Toolbar = ({
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  {tool.iconPath ? (
+                    <img src={tool.iconPath} alt={tool.name} className="w-5 h-5 object-contain" />
+                  ) : (
+                    <Icon className="w-4 h-4" />
+                  )}
                   <span className="text-xs font-medium">{tool.name}</span>
                 </button>
               );
