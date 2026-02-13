@@ -182,7 +182,8 @@ export const generateScallopArc = (
  */
 export const generateRevisionCloudCoordinates = (
   inputCoordinates: Coordinate[],
-  arcLength: number = REVISION_CLOUD_CONFIG.defaultArcLength
+  arcLength: number = REVISION_CLOUD_CONFIG.defaultArcLength,
+  bulgeRatio: number = REVISION_CLOUD_CONFIG.bulgeRatio
 ): Coordinate[] => {
   if (inputCoordinates.length < REVISION_CLOUD_CONFIG.minPathPoints) {
     return inputCoordinates;
@@ -210,7 +211,7 @@ export const generateRevisionCloudCoordinates = (
     const p1 = resampledPath[i];
     const p2 = resampledPath[i + 1];
 
-    const arcPoints = generateScallopArc(p1, p2, bulgeDirection);
+    const arcPoints = generateScallopArc(p1, p2, bulgeDirection, bulgeRatio);
 
     // Add all arc points except the last (to avoid duplicates at joints)
     if (i < resampledPath.length - 2) {
@@ -236,11 +237,13 @@ export const generateRevisionCloudCoordinates = (
  */
 export const createRevisionCloudPolygon = (
   inputCoordinates: Coordinate[],
-  arcLength?: number
+  arcLength?: number,
+  bulgeRatio?: number
 ): Polygon => {
   const cloudCoords = generateRevisionCloudCoordinates(
     inputCoordinates,
-    arcLength
+    arcLength,
+    bulgeRatio
   );
   return new Polygon([cloudCoords]);
 };
@@ -250,11 +253,12 @@ export const createRevisionCloudPolygon = (
  */
 export const generateRevisionCloudPreview = (
   coordinates: Coordinate[],
-  arcLength?: number
+  arcLength?: number,
+  bulgeRatio?: number
 ): Coordinate[] => {
   if (coordinates.length < 3) {
     return coordinates;
   }
 
-  return generateRevisionCloudCoordinates(coordinates, arcLength);
+  return generateRevisionCloudCoordinates(coordinates, arcLength, bulgeRatio);
 };

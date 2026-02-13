@@ -21,10 +21,13 @@ import {
   GripVertical,
   EllipsisVertical,
   Pencil,
+  NotepadText,
 } from "lucide-react";
 import type { Folder as FolderType } from "@/types/folders";
 import { useFolderStore } from "@/stores/useFolderStore";
 import { useHiddenFeaturesStore } from "@/stores/useHiddenFeaturesStore";
+import { FolderPropertiesDialog } from "./FolderPropertiesDialog";
+import type Map from "ol/Map";
 import type { Feature } from "ol";
 import type { Geometry } from "ol/geom";
 
@@ -35,6 +38,7 @@ interface FolderItemProps {
   depth: number;
   isOverTarget?: boolean;
   isActive?: boolean;
+  map: Map | null;
   onDeleteFolder: (folderId: string, featureIds: string[]) => void;
   onSaveMapState?: () => void;
   onSelect?: (folderId: string | null) => void;
@@ -54,6 +58,7 @@ export function FolderItem({
   depth,
   isOverTarget,
   isActive,
+  map,
   onDeleteFolder,
   onSaveMapState,
   onSelect,
@@ -62,6 +67,7 @@ export function FolderItem({
 }: FolderItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(folder.name);
+  const [isFolderPropertiesOpen, setIsFolderPropertiesOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { toggleFolderExpanded, getAllDescendantFolderIds, renameFolder } =
@@ -115,6 +121,16 @@ export function FolderItem({
     });
 
     return featureIds;
+  };
+
+  // Get all actual Feature objects in this folder and its descendants
+  const getAllFeaturesInFolder = (): Feature<Geometry>[] => {
+    const descendantFolderIds = getAllDescendantFolderIds(folder.id);
+    const folderIds = new Set([folder.id, ...descendantFolderIds]);
+    return allFeatures.filter((f) => {
+      const fFolderId = f.get("folderId");
+      return fFolderId && folderIds.has(fFolderId);
+    });
   };
 
   // Check if all features in folder are hidden
@@ -199,7 +215,11 @@ export function FolderItem({
     <div ref={setNodeRef} style={style}>
       <div
         className={`flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-accent group cursor-pointer transition-all duration-200 ${
-          someHidden && !allHidden ? "opacity-75" : allHidden ? "opacity-50" : ""
+          someHidden && !allHidden
+            ? "opacity-75"
+            : allHidden
+              ? "opacity-50"
+              : ""
         } ${isOverTarget ? "bg-primary/20 ring-2 ring-primary ring-inset" : ""} ${
           isActive ? "bg-primary/10 border-l-3 border-l-primary" : ""
         }`}
@@ -302,6 +322,16 @@ export function FolderItem({
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsFolderPropertiesOpen(true);
+                  }}
+                >
+                  <NotepadText className="size-4" />
+                  Properties
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
                   variant="destructive"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -319,6 +349,16 @@ export function FolderItem({
 
       {/* Render children (nested folders and features) when expanded */}
       {folder.isExpanded && children}
+
+      {/* Folder properties dialog */}
+      <FolderPropertiesDialog
+        isOpen={isFolderPropertiesOpen}
+        onClose={() => setIsFolderPropertiesOpen(false)}
+        folderName={folder.name}
+        features={getAllFeaturesInFolder()}
+        map={map}
+        onSaveMapState={onSaveMapState}
+      />
     </div>
   );
 }

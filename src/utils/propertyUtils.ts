@@ -126,7 +126,13 @@ const STYLE_PROPERTY_KEYS = [
   "textOffsetX",
   "textOffsetY",
   "iconUrl",
+  "iconPath",
   "showLabel",
+  "iconSrc",
+  // Legend/line type properties
+  "legendType",
+  // Revision Cloud properties
+  "bulgeRatio",
   // Text properties
   "text",
   "textScale",
@@ -278,17 +284,24 @@ export const applyPropertiesToFeature = (
     "lineWidth",
     "opacity",
     "strokeColor",
+    "strokeWidth",
     "strokeOpacity",
     "fillColor",
     "fillOpacity",
+    "bulgeRatio",
+    "legendType",
+    "originalPath",
+    "scallopRadius",
     // Icon properties (Google Earth icons)
     "iconScale",
     "labelScale",
     "iconRotation",
     "textOffsetX",
     "textOffsetY",
+    "iconPath",
     "iconUrl",
     "showLabel",
+    "iconSrc",
     // Text properties
     "text",
     "textScale",

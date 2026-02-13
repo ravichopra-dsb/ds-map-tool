@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { Draw, Snap } from "ol/interaction";
 import { Feature } from "ol";
-import { LineString } from "ol/geom";
 import type Map from "ol/Map";
 import { Vector as VectorSource } from "ol/source";
 import type { Geometry } from "ol/geom";
@@ -51,12 +50,13 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
 }) => {
   const drawInteractionRef = useRef<Draw | null>(null);
   const snapInteractionRef = useRef<Snap | null>(null);
+  const snapEnabled = useToolStore((state) => state.snapEnabled);
   const { registerClickHandler, removeAllClickHandlers } =
     useClickHandlerManager();
 
   // Helper to add snap interaction after draw - must be added AFTER draw for proper event ordering
   const addSnapInteraction = () => {
-    if (!map) return;
+    if (!map || !snapEnabled) return;
 
     // Remove existing snap interaction
     if (snapInteractionRef.current) {
@@ -73,6 +73,28 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
     });
     map.addInteraction(snapInteractionRef.current);
   };
+
+  // Toggle snap interaction on/off when snapEnabled changes (F7)
+  useEffect(() => {
+    if (!map) return;
+
+    if (snapEnabled && drawInteractionRef.current) {
+      // Add snap if a draw interaction is active
+      if (!snapInteractionRef.current) {
+        snapInteractionRef.current = new Snap({
+          source: vectorSource,
+          pixelTolerance: 15,
+          vertex: true,
+          edge: true,
+        });
+        map.addInteraction(snapInteractionRef.current);
+      }
+    } else if (!snapEnabled && snapInteractionRef.current) {
+      // Remove snap when disabled
+      map.removeInteraction(snapInteractionRef.current);
+      snapInteractionRef.current = null;
+    }
+  }, [snapEnabled, map, vectorSource]);
 
   // Auto-activate legends tool when selectedLegend changes
   useEffect(() => {
@@ -213,19 +235,16 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           return;
         }
 
-        // Use text styling for legends that have text, otherwise use standard style
-        let drawStyle;
-        if (selectedLegend.text) {
-          // Create a temporary feature to generate the proper text style
-          const tempFeature = new Feature({
-            geometry: new LineString([
-              [0, 0],
-              [1, 0],
-            ]),
-          });
-          tempFeature.set("legendType", selectedLegend.id);
-          tempFeature.set("islegends", true);
-          drawStyle = getTextAlongLineStyle(tempFeature, selectedLegend);
+        // Use text/zigzag styling for legends that have text or linePattern, otherwise use standard style
+        let drawStyle: any;
+        if (selectedLegend.text || selectedLegend.linePattern) {
+          // Use a style function so zigzag/text updates dynamically during drawing
+          const legendRef = selectedLegend;
+          drawStyle = (feature: any, resolution: number) => {
+            feature.set("legendType", legendRef.id, true);
+            feature.set("islegends", true, true);
+            return getTextAlongLineStyle(feature, legendRef, resolution);
+          };
         } else {
           const opacity = selectedLegend.style.opacity || 1;
           const strokeColor = selectedLegend.style.strokeColor || "#000000";

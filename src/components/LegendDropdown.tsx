@@ -19,6 +19,7 @@ export function LegendDropdown({
   onLegendSelect,
 }: LegendDropdownProps) {
   const legends = getAvailableLegends().filter(legend => legend.id !== 'measure');
+  console.log("legends", legends);
 
   return (
     <DropdownMenu>
@@ -40,13 +41,13 @@ export function LegendDropdown({
           <span className="text-xs font-medium">Line Types</span>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
+      <DropdownMenuContent align="start" className="w-50 h-40 custom-scrollbar">
         <div className="p-1">
           {legends.map((legend) => (
             <DropdownMenuItem
               key={legend.id}
               onClick={() => onLegendSelect(legend)}
-              className={`flex items-center gap-3 p-1 cursor-pointer ${
+              className={`flex items-center gap-3 p-1 pb-2 cursor-pointer ${
                 selectedLegend?.id === legend.id
                   ? "bg-blue-50 text-blue-700"
                   : "hover:bg-gray-50"
@@ -55,6 +56,7 @@ export function LegendDropdown({
               <img
                 src={legend.imagePath}
                 alt={legend.name}
+                title={legend.name}
                 className="w-full h-8 object-cover rounded border border-gray-200"
                 onError={(e) => {
                   // Fallback for broken images

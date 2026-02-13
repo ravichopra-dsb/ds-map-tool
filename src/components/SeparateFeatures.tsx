@@ -341,6 +341,7 @@ export function SeparateFeatures({
         } else {
           feature.unset("folderId");
         }
+        updateFeatures();
         onSaveMapState();
       }
     }
@@ -382,6 +383,7 @@ export function SeparateFeatures({
             depth={depth}
             isOverTarget={overFolderId === folder.id}
             isActive={activeFolderId === folder.id}
+            map={map}
             onDeleteFolder={handleDeleteFolder}
             onSaveMapState={onSaveMapState}
             onSelect={setActiveFolder}
@@ -539,6 +541,7 @@ export function SeparateFeatures({
                       depth={0}
                       isOverTarget={overFolderId === folder.id}
                       isActive={activeFolderId === folder.id}
+                      map={map}
                       onDeleteFolder={handleDeleteFolder}
                       onSaveMapState={onSaveMapState}
                       onSelect={setActiveFolder}

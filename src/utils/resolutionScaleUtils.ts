@@ -139,7 +139,7 @@ export const calculatePointRadius = (
  */
 export const shouldApplyResolutionScaling = (
   resolution: number,
-  threshold: number = 0.8
+  threshold: number = 0.3
 ): boolean => {
   return resolution >= threshold;
 };

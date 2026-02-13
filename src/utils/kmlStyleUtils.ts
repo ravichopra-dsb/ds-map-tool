@@ -2,6 +2,7 @@ import { Feature } from "ol";
 import type { Geometry } from "ol/geom";
 import type { Folder } from "@/types/folders";
 import { restructureKmlWithFolders, escapeXml } from "./kmlFolderUtils";
+import { getLegendById } from "@/tools/legendsConfig";
 
 // ============================================================================
 // COLOR CONVERSION UTILITIES
@@ -63,9 +64,11 @@ export const featureToKmlStyle = (feature: Feature<Geometry>, index: number): Km
   const geomType = feature.getGeometry()?.getType();
   const styleId = `style_${index}`;
 
-  // Get feature properties
-  const lineColor = feature.get("lineColor") || feature.get("strokeColor") || "#00ff00";
-  const lineWidth = feature.get("lineWidth") || 2;
+  // Get feature properties - resolve legend colors from config
+  const legendTypeId = feature.get("legendType");
+  const legendConfig = legendTypeId ? getLegendById(legendTypeId) : null;
+  const lineColor = feature.get("lineColor") || feature.get("strokeColor") || legendConfig?.style.strokeColor || "#00ff00";
+  const lineWidth = feature.get("lineWidth") || legendConfig?.style.strokeWidth || 2;
   const fillColor = feature.get("fillColor") || "#000000";
   const fillOpacity = feature.get("fillOpacity") ?? 0;
   const strokeOpacity = feature.get("strokeOpacity") ?? 1;
@@ -140,7 +143,7 @@ const convertIconPathToGoogleEarth = (iconPath: string): string => {
     return iconPath;
   }
 
-  return "https://ds-map-tool.vercel.app"+iconPath;
+  return "https://ds-map-tool.vercel.app" + iconPath;
 };
 
 /**
@@ -167,11 +170,23 @@ export const injectKmlStyles = (
   // Build styles XML block
   const stylesXml = styles.map(s => s.styleXml).join("\n");
 
-  // Find the position after <Document> to insert styles
-  const documentMatch = kmlString.match(/<Document[^>]*>/);
+  // Ensure <Document> wrapper exists (OpenLayers may omit it for single features)
+  let documentMatch = kmlString.match(/<Document[^>]*>/);
   if (!documentMatch) {
-    console.warn("Could not find <Document> tag in KML");
-    return kmlString;
+    // Wrap all content inside <kml> with a <Document> element
+    kmlString = kmlString.replace(
+      /(<kml[^>]*>)/,
+      "$1\n<Document>"
+    );
+    kmlString = kmlString.replace(
+      /<\/kml>/,
+      "</Document>\n</kml>"
+    );
+    documentMatch = kmlString.match(/<Document[^>]*>/);
+    if (!documentMatch) {
+      console.warn("Could not create <Document> tag in KML");
+      return kmlString;
+    }
   }
 
   const insertPos = (documentMatch.index || 0) + documentMatch[0].length;
@@ -196,6 +211,30 @@ export const injectKmlStyles = (
         `<Placemark>\n    <styleUrl>${styleUrl}</styleUrl>`
       );
     }
+
+    // =======================================================
+    // FIX: Inject strokeDash into KML ExtendedData
+    // =======================================================
+    const dashArray = feature.get("strokeDash");
+    if (Array.isArray(dashArray) && dashArray.length > 0) {
+      const dashString = dashArray.join(','); // Convert [16, 12] back to "16,12"
+
+      // Check if ExtendedData already exists
+      if (placemarkContent.includes("<ExtendedData>")) {
+        // Append to existing ExtendedData
+        placemarkContent = placemarkContent.replace(
+          /(<\/ExtendedData>)/,
+          `    <Data name="strokeDash"><value>${dashString}</value></Data>\n$1`
+        );
+      } else {
+        // Create new ExtendedData block (insert before closing Placemark)
+        placemarkContent = placemarkContent.replace(
+          /(<\/Placemark>)/,
+          `    <ExtendedData>\n    <Data name="strokeDash"><value>${dashString}</value></Data>\n    </ExtendedData>\n$1`
+        );
+      }
+    }
+    // =======================================================
 
     // For text features, update the <name> element with the text content
     if (feature.get("isText")) {
@@ -379,8 +418,29 @@ export const applyKmlStylesToFeatures = (
   placemarkStyles: Map<number, string>
 ): void => {
   features.forEach((feature, index) => {
+    // =======================================================
+    // =======================================================
+    const rawDash = feature.get("strokeDash");
+    if (typeof rawDash === "string") {
+      // Convert "16,12" string to [16, 12] number array
+      const dashArray = rawDash.split(',').map(Number);
+      // Handle cases where parsing might fail (e.g., empty string)
+      if (dashArray.length >    // FIX: Parse strokeDash from ExtendedData ("16,12" -> [16, 12])
+        0 && !dashArray.some(isNaN)) {
+        feature.set("strokeDash", dashArray);
+      } else {
+        feature.set("strokeDash", null); // Clear invalid data
+      }
+    }
+    // =======================================================
+
     // Skip features that already have custom styles (from ExtendedData)
     if (feature.get("lineColor") || feature.get("strokeColor") || feature.get("fillColor")) {
+      return;
+    }
+
+    // Skip legend features - their styles come from legendsConfig.ts via legendType
+    if (feature.get("islegends") && feature.get("legendType")) {
       return;
     }
 

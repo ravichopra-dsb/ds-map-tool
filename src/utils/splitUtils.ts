@@ -320,6 +320,39 @@ export const detectEndpointClick = (
 };
 
 /**
+ * Detect which mid vertex (if any) was clicked.
+ * Excludes the first (index 0) and last vertex — those are endpoints.
+ * @param feature - The LineString feature to check
+ * @param coordinate - The click coordinate
+ * @param tolerance - Distance tolerance in map units
+ * @returns The index of the closest mid vertex within tolerance, or null
+ */
+export const detectMidVertexClick = (
+  feature: Feature<Geometry>,
+  coordinate: Coordinate,
+  tolerance: number
+): number | null => {
+  const geometry = feature.getGeometry();
+  if (!geometry || geometry.getType() !== "LineString") return null;
+
+  const coords = (geometry as LineString).getCoordinates();
+  if (coords.length <= 2) return null;
+
+  let closestIndex: number | null = null;
+  let closestDist = Infinity;
+
+  for (let i = 1; i < coords.length - 1; i++) {
+    const dist = getCoordinateDistance(coordinate, coords[i]);
+    if (dist <= tolerance && dist < closestDist) {
+      closestDist = dist;
+      closestIndex = i;
+    }
+  }
+
+  return closestIndex;
+};
+
+/**
  * Get feature type for determining draw behavior and styling
  * @param feature - The LineString feature
  * @returns Feature type string or null

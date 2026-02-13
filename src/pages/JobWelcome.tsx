@@ -386,22 +386,6 @@ export default function JobWelcome() {
           </div>
         </DialogContent>
       </Dialog>
-
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 5px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e5e7eb;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #2b7fff;
-        }
-      `}</style>
     </div>
   );
 }

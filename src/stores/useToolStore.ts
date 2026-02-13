@@ -17,7 +17,9 @@ interface ToolState {
   lineColor: string;
   lineWidth: number;
   orthoMode: boolean;
+  snapEnabled: boolean;
   resolutionScalingEnabled: boolean;
+  modifyEnabled: boolean;
   // Drawing pause state
   isDrawingPaused: boolean;
   pausedTool: string | null;
@@ -34,7 +36,10 @@ interface ToolState {
   handleLegendSelect: (legend: LegendType) => void;
   handleIconSelect: (iconPath: string) => void;
   toggleOrthoMode: () => void;
+  toggleSnap: () => void;
   toggleResolutionScaling: () => void;
+  toggleModify: () => void;
+  setModifyEnabled: (enabled: boolean) => void;
   undo: () => void;
   redo: () => void;
   // Drawing pause actions
@@ -54,7 +59,9 @@ export const useToolStore = create<ToolState>((set, get) => ({
   lineColor: DEFAULT_LINE_COLOR,
   lineWidth: DEFAULT_LINE_WIDTH,
   orthoMode: false,
+  snapEnabled: false,
   resolutionScalingEnabled: true,
+  modifyEnabled: false,
   isDrawingPaused: false,
   pausedTool: null,
   isNewlyCreatedFeature: false,
@@ -87,7 +94,12 @@ export const useToolStore = create<ToolState>((set, get) => ({
 
   toggleOrthoMode: () => set((state) => ({ orthoMode: !state.orthoMode })),
 
+  toggleSnap: () => set((state) => ({ snapEnabled: !state.snapEnabled })),
+
   toggleResolutionScaling: () => set((state) => ({ resolutionScalingEnabled: !state.resolutionScalingEnabled })),
+
+  toggleModify: () => set((state) => ({ modifyEnabled: !state.modifyEnabled })),
+  setModifyEnabled: (enabled) => set({ modifyEnabled: enabled }),
 
   undo: () => get().undoRedoInteraction?.undo(),
   redo: () => get().undoRedoInteraction?.redo(),

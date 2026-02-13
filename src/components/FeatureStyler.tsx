@@ -1,7 +1,7 @@
 import { Style, Text, RegularShape, Circle } from "ol/style";
 import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
-import { Point, MultiLineString, LineString } from "ol/geom";
+import { Point, MultiLineString, LineString, Polygon } from "ol/geom";
 import { getCenter } from "ol/extent";
 import type { FeatureLike } from "ol/Feature";
 import type { LegendType } from "@/tools/legendsConfig";
@@ -21,6 +21,7 @@ import {
 
 export type FeatureStylerFunction = (
   feature: FeatureLike,
+  resolution?: number,
   selectedLegend?: LegendType,
 ) => Style | Style[] | null;
 
@@ -82,10 +83,158 @@ const getShapeTextStyle = (feature: FeatureLike): Style | null => {
   });
 };
 
+/**
+ * Build complete shape styles including legend strokeDash and zigzag patterns.
+ * Extracts polygon exterior ring as LineString for zigzag rendering.
+ */
+const getShapeStyles = (
+  feature: FeatureLike,
+  strokeColor: string,
+  strokeWidth: number,
+  strokeOpacity: number,
+  fillColor: string | undefined,
+  fillOpacity: number,
+  strokeDash: number[] | undefined,
+  resolution: number = 1,
+): Style | Style[] => {
+  const styles: Style[] = [];
+  const legendTypeId = feature.get("legendType");
+  const legendType = legendTypeId ? getLegendById(legendTypeId) : null;
+
+  // Resolve dash pattern: feature-level > legend-level
+  const lineDash = strokeDash ?? legendType?.style.strokeDash;
+
+  // Check for zigzag pattern
+  const isZigzag =
+    feature.get("linePattern") === "zigzag" ||
+    (legendType?.linePattern === "zigzag" && legendType?.zigzagConfig);
+  const zigzagConfig =
+    feature.get("zigzagConfig") || legendType?.zigzagConfig;
+
+  if (isZigzag && zigzagConfig) {
+    // For zigzag, render the fill separately and the zigzag stroke along the exterior ring
+    const geometry = feature.getGeometry();
+    if (geometry) {
+      // Fill style (no stroke)
+      if (fillColor) {
+        styles.push(
+          new Style({
+            fill: new Fill({
+              color: applyOpacityToColor(fillColor, fillOpacity),
+            }),
+          }),
+        );
+      }
+
+      // Extract exterior ring as LineString for zigzag
+      const geomType = geometry.getType();
+      let ring: LineString | null = null;
+      if (geomType === "Polygon") {
+        const coords = (geometry as Polygon).getLinearRing(0)?.getCoordinates();
+        if (coords) ring = new LineString(coords);
+      }
+
+      if (ring) {
+        const { amplitude, wavelength } = zigzagConfig;
+        const amplitudeMap = amplitude * resolution;
+        const halfWaveMap = (wavelength / 2) * resolution;
+        const zigzagGeom = createZigzagGeometry(ring, amplitudeMap, halfWaveMap);
+
+        styles.push(
+          new Style({
+            geometry: zigzagGeom,
+            stroke: new Stroke({
+              color: applyOpacityToColor(strokeColor, strokeOpacity),
+              width: strokeWidth,
+              lineCap: "butt",
+              lineJoin: "miter",
+            }),
+            zIndex: 1,
+          }),
+        );
+      }
+    }
+  } else {
+    // Standard polygon style with optional lineDash
+    const baseStyle = createPolygonStyle(
+      strokeColor,
+      strokeWidth,
+      strokeOpacity,
+      fillColor,
+      fillOpacity,
+      lineDash,
+    );
+    if (Array.isArray(baseStyle)) {
+      styles.push(...baseStyle);
+    } else {
+      styles.push(baseStyle);
+    }
+  }
+
+  // Add text label if legendType is set
+  const textStyle = getShapeTextStyle(feature);
+  if (textStyle) {
+    styles.push(textStyle);
+  }
+
+  return styles.length === 1 ? styles[0] : styles;
+};
+
+/**
+ * Create a zigzag geometry from a LineString
+ * Generates a triangular wave pattern along the line path
+ */
+export const createZigzagGeometry = (
+  lineGeom: LineString,
+  amplitudeMap: number,
+  halfWaveMap: number,
+): LineString => {
+  const totalLength = lineGeom.getLength();
+  if (totalLength === 0 || halfWaveMap === 0) return lineGeom;
+
+  const numPoints = Math.ceil(totalLength / halfWaveMap);
+  const zigzagCoords: number[][] = [];
+
+  for (let i = 0; i <= numPoints; i++) {
+    const fraction = Math.min((i * halfWaveMap) / totalLength, 1);
+    const coord = lineGeom.getCoordinateAt(fraction);
+
+    // Get direction by sampling nearby points
+    const f1 = Math.max(fraction - 0.001, 0);
+    const f2 = Math.min(fraction + 0.001, 1);
+    const p1 = lineGeom.getCoordinateAt(f1);
+    const p2 = lineGeom.getCoordinateAt(f2);
+
+    const dx = p2[0] - p1[0];
+    const dy = p2[1] - p1[1];
+    const len = Math.sqrt(dx * dx + dy * dy);
+
+    if (len === 0) {
+      zigzagCoords.push(coord);
+      continue;
+    }
+
+    // Perpendicular direction (left-hand normal)
+    const px = -dy / len;
+    const py = dx / len;
+
+    // Alternate sides: even = up, odd = down
+    const side = i % 2 === 0 ? 1 : -1;
+
+    zigzagCoords.push([
+      coord[0] + px * amplitudeMap * side,
+      coord[1] + py * amplitudeMap * side,
+    ]);
+  }
+
+  return new LineString(zigzagCoords);
+};
+
 // ✅ Reusable function for legends with text along line path
 export const getTextAlongLineStyle = (
   feature: FeatureLike,
   legendType: LegendType,
+  resolution: number = 1,
 ): Style[] => {
   const geometry = feature.getGeometry();
   if (!geometry) return [];
@@ -110,18 +259,48 @@ export const getTextAlongLineStyle = (
   const customStrokeDash = feature.get("strokeDash") as number[] | undefined;
   const lineDash = customStrokeDash ?? legendType.style.strokeDash;
 
-  // Base line style from legend configuration
-  styles.push(
-    new Style({
-      stroke: new Stroke({
-        color: applyOpacityToColor(strokeColor, opacity),
-        width: width,
-        lineDash: lineDash,
-        lineCap: "butt",
+  // Check if this legend uses a zigzag line pattern
+  const isZigzag = legendType.linePattern === "zigzag" && legendType.zigzagConfig;
+
+  if (isZigzag && geometry.getType() === "LineString") {
+    const { amplitude, wavelength } = legendType.zigzagConfig!;
+    // Convert pixel values to map units using resolution
+    const amplitudeMap = amplitude * resolution;
+    const halfWaveMap = (wavelength / 2) * resolution;
+
+    const zigzagGeom = createZigzagGeometry(
+      geometry as LineString,
+      amplitudeMap,
+      halfWaveMap,
+    );
+
+    // Zigzag stroke style
+    styles.push(
+      new Style({
+        geometry: zigzagGeom,
+        stroke: new Stroke({
+          color: applyOpacityToColor(strokeColor, opacity),
+          width: width,
+          lineCap: "butt",
+          lineJoin: "miter",
+        }),
+        zIndex: 1,
       }),
-      zIndex: 1, // Base line layer
-    }),
-  );
+    );
+  } else {
+    // Standard base line style from legend configuration
+    styles.push(
+      new Style({
+        stroke: new Stroke({
+          color: applyOpacityToColor(strokeColor, opacity),
+          width: width,
+          lineDash: lineDash,
+          lineCap: "butt",
+        }),
+        zIndex: 1, // Base line layer
+      }),
+    );
+  }
 
   // Add repeated text along the line if text is configured
   if (
@@ -132,8 +311,14 @@ export const getTextAlongLineStyle = (
   ) {
     const textStyle = legendType.textStyle;
 
-    // For dash centering, we need to account for text starting position
-    // Since OpenLayers doesn't support along-line offset, we use mathematical alignment
+    // For zigzag patterns, place text along the original straight line path
+    // so tick marks cross the zigzag at regular intervals
+    // Use custom strokeColor for text fill/stroke when the user changes the line color
+    const textFill = customColor && textStyle.fill === legendType.style.strokeColor
+      ? customColor : (textStyle.fill as string);
+    const textStroke = customColor && textStyle.stroke === legendType.style.strokeColor
+      ? customColor : (textStyle.stroke as string);
+
     styles.push(
       new Style({
         text: new Text({
@@ -142,16 +327,16 @@ export const getTextAlongLineStyle = (
           repeat: textStyle.repeat,
           font: textStyle.font,
           fill: new Fill({
-            color: textStyle.fill,
+            color: textFill,
           }),
           stroke: new Stroke({
-            color: textStyle.stroke,
+            color: textStroke,
             width: textStyle.strokeWidth,
           }),
           textAlign: "center",
           textBaseline: "middle",
           maxAngle: textStyle.maxAngle,
-          offsetX: textStyle.offsetX || 0, // Perpendicular offset only
+          offsetX: textStyle.offsetX || 0,
           offsetY: textStyle.offsetY || 0,
           scale: textStyle.scale,
         }),
@@ -166,7 +351,7 @@ export const getTextAlongLineStyle = (
 };
 
 // ✅ Arrow style function
-export const getArrowStyle = (feature: FeatureLike) => {
+export const getArrowStyle = (feature: FeatureLike, resolution: number) => {
   const geometry = feature.getGeometry();
   if (!geometry) return new Style();
 
@@ -204,19 +389,42 @@ export const getArrowStyle = (feature: FeatureLike) => {
   // Apply opacity to color
   const colorWithOpacity = applyOpacityToColor(customColor, opacity);
 
+  const arrowRadius = 8;
+
+  // --- FIX STARTS HERE ---
+
+  // Calculate how far back to shift the arrow (in map units)
+  // resolution = map_units / pixel. radius is in pixels.
+  const offset = arrowRadius * resolution;
+
+  // Calculate the new anchor point (center of the arrow shape)
+  // We move from endPoint towards startPoint by 'offset' distance
+  const anchorX = endPoint[0] - offset * Math.cos(angle);
+  const anchorY = endPoint[1] - offset * Math.sin(angle);
+
+  // Use this new point for the arrow geometry
+  const arrowAnchorPoint = new Point([anchorX, anchorY]);
+
+  // --- FIX ENDS HERE ---
+
   // Create arrow head using RegularShape
   const arrowHead = new RegularShape({
     points: 3,
-    radius: 8,
-    rotation: -angle,
-    angle: 10,
-    displacement: [0, 0],
+    radius: arrowRadius,
+    rotation: Math.PI / 2 - angle,
+    angle: 0,
     fill: new Fill({ color: colorWithOpacity }),
   });
 
+  // Create a shortened line that ends at the arrow center instead of endPoint
+  const shortenedCoords = [...coordinates];
+  shortenedCoords[shortenedCoords.length - 1] = [anchorX, anchorY];
+  const shortenedLine = new LineString(shortenedCoords);
+
   const styles: Style[] = [
-    // Line style
+    // Line style (shortened so it doesn't poke through the arrowhead)
     new Style({
+      geometry: shortenedLine,
       stroke: new Stroke({
         color: colorWithOpacity,
         width: width,
@@ -224,7 +432,7 @@ export const getArrowStyle = (feature: FeatureLike) => {
     }),
     // Arrow head style at the end point
     new Style({
-      geometry: new Point(endPoint),
+      geometry: arrowAnchorPoint,
       image: arrowHead,
     }),
   ];
@@ -367,13 +575,14 @@ const getLabelTextStyle = (feature: FeatureLike): Style | null => {
 // ✅ Custom feature styles (used for GeoJSON, KML, and KMZ)
 export const getFeatureStyle = (
   feature: FeatureLike,
+  resolution: number = 1,
   selectedLegend?: LegendType,
 ) => {
   const type = feature.getGeometry()?.getType();
   const isArrow = feature.get("isArrow");
 
   if (isArrow && (type === "LineString" || type === "MultiLineString")) {
-    return getArrowStyle(feature);
+    return getArrowStyle(feature, resolution);
   }
 
   // Handle measure features
@@ -393,7 +602,15 @@ export const getFeatureStyle = (
     const textFillColor = feature.get("textFillColor") || "#000000";
     const textStrokeColor = feature.get("textStrokeColor") || "#ffffff";
     const textAlign = feature.get("textAlign") || "center";
-    return getTextStyle(textContent, textScale, textRotation, textOpacity, textFillColor, textStrokeColor, textAlign);
+    return getTextStyle(
+      textContent,
+      textScale,
+      textRotation,
+      textOpacity,
+      textFillColor,
+      textStrokeColor,
+      textAlign,
+    );
   }
 
   // Handle icon features using utility
@@ -416,6 +633,8 @@ export const getFeatureStyle = (
   // Handle Box features
   if (feature.get("isBox") && (type === "Polygon" || type === "MultiPolygon")) {
     const strokeColor = feature.get("strokeColor") || "#000000";
+    const strokeWidth =
+      feature.get("strokeWidth") !== undefined ? feature.get("strokeWidth") : 2;
     const strokeOpacity =
       feature.get("strokeOpacity") !== undefined
         ? feature.get("strokeOpacity")
@@ -424,22 +643,7 @@ export const getFeatureStyle = (
     const fillOpacity =
       feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
     const strokeDash = feature.get("strokeDash") as number[] | undefined;
-    const baseStyle = createPolygonStyle(
-      strokeColor,
-      2,
-      strokeOpacity,
-      fillColor,
-      fillOpacity,
-      strokeDash,
-    );
-    // Add text label if legendType is set
-    const textStyle = getShapeTextStyle(feature);
-    if (textStyle) {
-      return Array.isArray(baseStyle)
-        ? [...baseStyle, textStyle]
-        : [baseStyle, textStyle];
-    }
-    return baseStyle;
+    return getShapeStyles(feature, strokeColor, strokeWidth, strokeOpacity, fillColor, fillOpacity, strokeDash, resolution);
   }
 
   // Handle Circle features
@@ -448,6 +652,8 @@ export const getFeatureStyle = (
     (type === "Polygon" || type === "MultiPolygon")
   ) {
     const strokeColor = feature.get("strokeColor") || "#000000";
+    const strokeWidth =
+      feature.get("strokeWidth") !== undefined ? feature.get("strokeWidth") : 2;
     const strokeOpacity =
       feature.get("strokeOpacity") !== undefined
         ? feature.get("strokeOpacity")
@@ -456,22 +662,7 @@ export const getFeatureStyle = (
     const fillOpacity =
       feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
     const strokeDash = feature.get("strokeDash") as number[] | undefined;
-    const baseStyle = createPolygonStyle(
-      strokeColor,
-      2,
-      strokeOpacity,
-      fillColor,
-      fillOpacity,
-      strokeDash,
-    );
-    // Add text label if legendType is set
-    const textStyle = getShapeTextStyle(feature);
-    if (textStyle) {
-      return Array.isArray(baseStyle)
-        ? [...baseStyle, textStyle]
-        : [baseStyle, textStyle];
-    }
-    return baseStyle;
+    return getShapeStyles(feature, strokeColor, strokeWidth, strokeOpacity, fillColor, fillOpacity, strokeDash, resolution);
   }
 
   // Handle Revision Cloud features
@@ -490,22 +681,7 @@ export const getFeatureStyle = (
     const fillOpacity =
       feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
     const strokeDash = feature.get("strokeDash") as number[] | undefined;
-    const baseStyle = createPolygonStyle(
-      strokeColor,
-      strokeWidth,
-      strokeOpacity,
-      fillColor,
-      fillOpacity,
-      strokeDash,
-    );
-    // Add text label if legendType is set
-    const textStyle = getShapeTextStyle(feature);
-    if (textStyle) {
-      return Array.isArray(baseStyle)
-        ? [...baseStyle, textStyle]
-        : [baseStyle, textStyle];
-    }
-    return baseStyle;
+    return getShapeStyles(feature, strokeColor, strokeWidth, strokeOpacity, fillColor, fillOpacity, strokeDash, resolution);
   }
 
   if (
@@ -523,14 +699,28 @@ export const getFeatureStyle = (
       legendType = selectedLegend;
     }
 
-    // If no legend type is found, don't render the feature
+    // If no legend type is found, fall back to feature's own properties
     if (!legendType) {
-      return [];
+      const fallbackColor = feature.get("lineColor") || feature.get("strokeColor") || "#00ff00";
+      const fallbackWidth = feature.get("lineWidth") ?? 2;
+      const fallbackOpacity = feature.get("opacity") ?? feature.get("strokeOpacity") ?? 1;
+      const fallbackDash = feature.get("strokeDash") as number[] | undefined;
+
+      return [
+        new Style({
+          stroke: new Stroke({
+            color: applyOpacityToColor(fallbackColor, fallbackOpacity),
+            width: fallbackWidth,
+            lineDash: fallbackDash ?? [],
+            lineCap: "butt",
+          }),
+        }),
+      ];
     }
 
-    // Check if legend has text configured and use text styling function
-    if (legendType.text) {
-      return getTextAlongLineStyle(feature, legendType);
+    // Check if legend has text or zigzag pattern configured
+    if (legendType.text || legendType.linePattern) {
+      return getTextAlongLineStyle(feature, legendType, resolution);
     }
 
     const styles: Style[] = [];

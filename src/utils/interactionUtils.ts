@@ -921,6 +921,9 @@ export const createRevisionCloudDraw = (
   const customFillColor = fillColor;
   const radius = scallopRadius || REVISION_CLOUD_CONFIG.defaultScallopRadius;
 
+  // Track raw freehand coordinates for later regeneration with different bulgeRatio
+  let lastRawCoordinates: Coordinate[] = [];
+
   const drawInteraction = new Draw({
     source: source,
     type: "Polygon",
@@ -935,6 +938,8 @@ export const createRevisionCloudDraw = (
       }
 
       if (coordArray.length > 0 && coordArray[0].length >= 3) {
+        // Capture raw coordinates before cloud transformation
+        lastRawCoordinates = coordArray[0].map((c) => [...c]);
         // Generate revision cloud preview
         const cloudCoords = generateRevisionCloudPreview(coordArray[0], radius);
         (geom as Polygon).setCoordinates([cloudCoords]);
@@ -954,13 +959,13 @@ export const createRevisionCloudDraw = (
   drawInteraction.on("drawend", (event) => {
     removeDrawKeyboardHandlers(drawInteraction);
 
-    // Get the original freehand coordinates and regenerate with full resolution
+    // Use captured raw freehand coordinates and regenerate with full resolution
     const polygon = event.feature.getGeometry() as Polygon;
-    const originalCoords = polygon.getCoordinates()[0];
+    const rawPath = lastRawCoordinates.length > 0 ? lastRawCoordinates : polygon.getCoordinates()[0];
 
     // Generate final revision cloud with full resolution
     const finalCloudCoords = generateRevisionCloudCoordinates(
-      originalCoords,
+      rawPath,
       radius
     );
     polygon.setCoordinates([finalCloudCoords]);
@@ -971,6 +976,8 @@ export const createRevisionCloudDraw = (
     event.feature.set("fillColor", customFillColor);
     event.feature.set("fillOpacity", 0);
     event.feature.set("scallopRadius", radius);
+    event.feature.set("bulgeRatio", REVISION_CLOUD_CONFIG.bulgeRatio);
+    event.feature.set("originalPath", JSON.stringify(rawPath));
 
     if (onDrawEnd) {
       onDrawEnd(event);
@@ -991,7 +998,8 @@ export const createRevisionCloudDraw = (
  */
 export interface ContinuationConfig {
   feature: Feature<Geometry>;
-  endpoint: "start" | "end";
+  endpoint: "start" | "end" | "mid";
+  midVertexIndex?: number;
   featureType: "polyline" | "freehand" | "arrow" | "measure";
   onComplete: (newCoordinates: Coordinate[]) => void;
   onCancel: () => void;
@@ -1033,15 +1041,19 @@ export const createContinuationDraw = (
   _source: VectorSource<Feature<Geometry>>,
   config: ContinuationConfig
 ): Draw => {
-  const { feature, endpoint, featureType, onComplete, onCancel } = config;
+  const { feature, endpoint, midVertexIndex, featureType, onComplete, onCancel } = config;
   const geometry = feature.getGeometry() as LineString;
   const existingCoords = geometry.getCoordinates();
 
-  // Determine starting point based on which endpoint is being extended
-  const startCoord =
-    endpoint === "end"
-      ? existingCoords[existingCoords.length - 1]
-      : existingCoords[0];
+  // Determine starting point based on which endpoint/vertex is being extended
+  let startCoord: Coordinate;
+  if (endpoint === "mid" && midVertexIndex !== undefined) {
+    startCoord = existingCoords[midVertexIndex];
+  } else if (endpoint === "end") {
+    startCoord = existingCoords[existingCoords.length - 1];
+  } else {
+    startCoord = existingCoords[0];
+  }
 
   // Freehand mode for freehand features
   const isFreehand = featureType === "freehand";

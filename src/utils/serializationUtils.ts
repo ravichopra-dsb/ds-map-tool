@@ -129,6 +129,8 @@ export const extractStyleMetadata = (feature: Feature<Geometry>): any => {
   if (feature.get("isArc")) properties.isArc = true;
   if (feature.get("isRevisionCloud")) properties.isRevisionCloud = true;
   if (feature.get("scallopRadius")) properties.scallopRadius = feature.get("scallopRadius");
+  if (feature.get("bulgeRatio") !== undefined) properties.bulgeRatio = feature.get("bulgeRatio");
+  if (feature.get("originalPath")) properties.originalPath = feature.get("originalPath");
 
   // Store arc control points for editing (start, through, end)
   if (feature.get("arcControlPoints")) {
@@ -157,6 +159,7 @@ export const extractStyleMetadata = (feature: Feature<Geometry>): any => {
   if (feature.get("textOffsetY") !== undefined) properties.textOffsetY = feature.get("textOffsetY");
   if (feature.get("iconRotation") !== undefined) properties.iconRotation = feature.get("iconRotation");
   if (feature.get("showLabel") !== undefined) properties.showLabel = feature.get("showLabel");
+  if (feature.get("iconSrc") !== undefined) properties.iconSrc = feature.get("iconSrc");
 
   return properties;
 };
