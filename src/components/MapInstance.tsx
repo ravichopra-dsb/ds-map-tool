@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 import Map from "ol/Map";
 import View from "ol/View";
 import { Feature } from "ol";
-import { Style, Text, Fill, Stroke, Icon } from "ol/style";
+import { Style, Text, Fill, Stroke, Icon, RegularShape } from "ol/style";
 import { Tile as TileLayer, Vector as VectorLayer } from "ol/layer";
 import { OSM, XYZ, Vector as VectorSource } from "ol/source";
 import { fromLonLat } from "ol/proj";
@@ -370,6 +370,21 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
                 }
               }
 
+              // Scale RegularShape images (e.g. arrowheads) by resolution
+              let scaledImage: any = style.getImage() ?? undefined;
+              const image = style.getImage();
+              if (image && image instanceof RegularShape) {
+                const originalRadius = image.getRadius();
+                scaledImage = new RegularShape({
+                  points: image.getPoints(),
+                  radius: originalRadius * baseScaleFactor,
+                  rotation: image.getRotation(),
+                  angle: image.getAngle(),
+                  fill: image.getFill() ?? undefined,
+                  stroke: image.getStroke() ?? undefined,
+                });
+              }
+
               if (stroke) {
                 const originalWidth = stroke.getWidth() || 2;
                 const scaledWidth = originalWidth * baseScaleFactor;
@@ -383,18 +398,18 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
                     lineCap: (stroke.getLineCap() as CanvasLineCap) || "butt",
                   }),
                   text: scaledText,
-                  image: style.getImage() ?? undefined,
+                  image: scaledImage,
                   fill: style.getFill() ?? undefined,
                   geometry: scaledGeometry,
                   zIndex: style.getZIndex(),
                 });
               }
 
-              // If no stroke but has text that was scaled, return new style with scaled text
-              if (scaledText !== text) {
+              // If no stroke but has text or image that was scaled, return new style
+              if (scaledText !== text || scaledImage !== (style.getImage() ?? undefined)) {
                 return new Style({
                   text: scaledText,
-                  image: style.getImage() ?? undefined,
+                  image: scaledImage,
                   fill: style.getFill() ?? undefined,
                   geometry: scaledGeometry,
                   zIndex: style.getZIndex(),
