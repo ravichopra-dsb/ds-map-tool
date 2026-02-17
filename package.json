@@ -6,8 +6,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "dev": "vite",
+    "dev:desktop": "electron-vite dev",
+    "build": "tsc -b && vite build",
+    "build:desktop": "electron-vite build",
+    "preview": "vite preview",
     "start": "electron-vite preview",
     "lint": "eslint .",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
