@@ -1,10 +1,11 @@
-import { createBrowserRouter, redirect } from "react-router";
+import { createBrowserRouter, createHashRouter, redirect } from "react-router";
 import MapEditor from "./pages/MapEditor";
 import LayoutEditor from "./pages/LayoutEditor";
 import LayoutsList from "./pages/LayoutsList";
 import JobWelcome from "./pages/JobWelcome";
+import { isDesktop } from "./utils/platformUtils";
 
-export const router = createBrowserRouter([
+const routes = [
   {
     path: "/",
     children: [
@@ -21,4 +22,8 @@ export const router = createBrowserRouter([
       { path: "layout/:layoutId", Component: LayoutEditor },
     ],
   },
-]);
+];
+
+export const router = isDesktop()
+  ? createHashRouter(routes)
+  : createBrowserRouter(routes);
