@@ -113,7 +113,11 @@ export function ToolCommand({ onToolSelect, onIconSelect, activeTool }: ToolComm
                   onSelect={() => handleSelect(tool.id)}
                   className={activeTool === tool.id ? "bg-accent" : ""}
                 >
-                  <Icon className="mr-2 h-4 w-4" />
+                  {Icon ? (
+                    <Icon className="mr-2 h-4 w-4" />
+                  ) : tool.iconPath ? (
+                    <img src={tool.iconPath} alt={tool.name} className="mr-2 h-4 w-4 object-contain" />
+                  ) : null}
                   <span>{tool.name}</span>
                   {activeTool === tool.id && (
                     <CommandShortcut>Active</CommandShortcut>

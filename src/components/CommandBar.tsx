@@ -161,7 +161,11 @@ export function CommandBar({ onToolSelect, onIconSelect, activeTool }: CommandBa
                             isActive && "bg-accent/50"
                           )}
                         >
-                          <Icon className="h-4 w-4" />
+                          {Icon ? (
+                            <Icon className="h-4 w-4" />
+                          ) : tool.iconPath ? (
+                            <img src={tool.iconPath} alt={tool.name} className="h-4 w-4 object-contain" />
+                          ) : null}
                           <span>{tool.name}</span>
                           {isActive && (
                             <span className="ml-auto text-xs text-muted-foreground">
