@@ -8,8 +8,8 @@
   "scripts": {
     "dev": "vite",
     "dev:desktop": "electron-vite dev",
-    "build": "tsc -b && vite build",
-    "build:desktop": "electron-vite build",
+    "build": "tsc -b tsconfig.app.json && vite build",
+    "build:desktop": "pnpm run typecheck && electron-vite build",
     "preview": "vite preview",
     "start": "electron-vite preview",
     "lint": "eslint .",

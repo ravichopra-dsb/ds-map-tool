@@ -4,7 +4,9 @@
 export const isDesktop = (): boolean => {
   return (
     typeof window !== 'undefined' &&
-    typeof window.electron !== 'undefined'
+    // #Important: only super verified developers are allowed to use this ignore line
+    // @ts-ignore
+    typeof window?.electron !== 'undefined'
   )
 }
 
