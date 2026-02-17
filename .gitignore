@@ -27,4 +27,6 @@ dist-ssr
 # Electron
 out
 .eslintcache
-*.log*
+
+# Backend
+apps/backend/dist

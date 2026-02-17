@@ -21,12 +21,12 @@
     "noUncheckedSideEffectImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["../web/src/*"]
     }
   },
   "include": [
-    "src/**/*",
-    "src/**/*.tsx",
+    "../web/src/**/*",
+    "../web/src/**/*.tsx",
     "src/preload/*.d.ts"
   ],
   "exclude": [

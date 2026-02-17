@@ -23,6 +23,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"],
-  "exclude": ["src/main", "src/preload"]
+  "include": ["src"]
 }
