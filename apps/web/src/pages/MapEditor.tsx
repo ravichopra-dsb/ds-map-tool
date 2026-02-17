@@ -383,9 +383,13 @@ const MapEditor: React.FC = () => {
         // Add features without clearing existing ones
         vectorSourceRef.current.addFeatures(features);
 
-        const extent: Extent = vectorSourceRef.current.getExtent();
-        if (mapRef.current) {
-          fitMapToFeatures(mapRef.current, extent);
+        const extent = vectorSourceRef.current.getExtent();
+        if(extent){
+          if (mapRef.current) {
+            fitMapToFeatures(mapRef.current, extent);
+          }
+        }else {
+          console.log("No extent found");
         }
 
         await saveMapState();
@@ -759,8 +763,12 @@ const MapEditor: React.FC = () => {
         vectorSourceRef.current.addFeatures(features);
 
         const extent = vectorSourceRef.current.getExtent();
-        if (!isEmptyExtent(extent) && mapRef.current) {
-          fitMapToFeatures(mapRef.current, extent);
+        if(extent){
+          if (!isEmptyExtent(extent) && mapRef.current) {
+            fitMapToFeatures(mapRef.current, extent);
+          }
+        }else {
+          console.log("No extent found");
         }
       }
       // Restore folder structure if available

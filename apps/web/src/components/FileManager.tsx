@@ -1,12 +1,11 @@
-import React from "react";
+import JSZip from "jszip";
 import { Feature } from "ol";
-import type { Geometry } from "ol/geom";
-import type { Extent } from "ol/extent";
-import type Map from "ol/Map";
-import { Vector as VectorSource } from "ol/source";
 import GeoJSON from "ol/format/GeoJSON";
 import KML from "ol/format/KML";
-import JSZip from "jszip";
+import type { Geometry } from "ol/geom";
+import type Map from "ol/Map";
+import { Vector as VectorSource } from "ol/source";
+import React from "react";
 
 export interface FileManagerProps {
   map: Map | null;
@@ -16,10 +15,10 @@ export interface FileManagerProps {
 
 export const useFileHandler = (
   map: Map | null,
-  vectorSource: VectorSource<Feature<Geometry>>
+  vectorSource: VectorSource<Feature<Geometry>>,
 ) => {
   const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -46,7 +45,7 @@ export const useFileHandler = (
         } else if (name.endsWith(".kmz")) {
           const zip = await JSZip.loadAsync(file);
           const kmlFile = Object.keys(zip.files).find((f) =>
-            f.toLowerCase().endsWith(".kml")
+            f.toLowerCase().endsWith(".kml"),
           );
           if (kmlFile) {
             const kmlText = await zip.file(kmlFile)?.async("text");
@@ -55,7 +54,7 @@ export const useFileHandler = (
                 kmlText,
                 {
                   featureProjection: "EPSG:3857",
-                }
+                },
               );
             }
           }
@@ -69,11 +68,15 @@ export const useFileHandler = (
         vectorSource.clear();
         vectorSource.addFeatures(features);
 
-        const extent: Extent = vectorSource.getExtent();
-        map?.getView().fit(extent, {
-          duration: 1000,
-          padding: [50, 50, 50, 50],
-        });
+        const extent = vectorSource.getExtent();
+        if (extent) {
+          map?.getView().fit(extent, {
+            duration: 1000,
+            padding: [50, 50, 50, 50],
+          });
+        } else {
+          console.log("No extent found");
+        }
       } catch (err) {
         alert("Invalid or unsupported file format.");
       }

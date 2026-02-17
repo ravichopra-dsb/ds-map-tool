@@ -30,3 +30,5 @@ out
 
 # Backend
 apps/backend/dist
+
+.env
