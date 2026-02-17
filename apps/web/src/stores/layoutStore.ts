@@ -1,0 +1,116 @@
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+import type { PageSize } from '@/types/pdf'
+import type { LegendMetadata } from '@/utils/legendMetadataUtils'
+
+export interface Layout {
+  id: string
+  name: string
+  canvasData: object // Fabric.js JSON data
+  backgroundImage?: string // Locked background image (full quality base64)
+  previewImage: string // Base64 data URL with transparent background
+  createdAt: number
+  updatedAt: number
+}
+
+interface LayoutStore {
+  layouts: Layout[]
+
+  // Pending background for layout editor (not persisted)
+  pendingBackgroundImage: string | null
+  pendingPageSize: PageSize | null
+  pendingLayoutId: string | null
+  pendingLayoutName: string | null
+  pendingLegendMetadata: LegendMetadata | null
+
+  addLayout: (layout: Omit<Layout, 'id' | 'createdAt' | 'updatedAt'>) => string
+  updateLayout: (id: string, data: Partial<Omit<Layout, 'id' | 'createdAt'>>) => void
+  deleteLayout: (id: string) => void
+  getLayout: (id: string) => Layout | undefined
+
+  // Pending background methods
+  setPendingBackground: (image: string, pageSize: PageSize, layoutId: string | null, layoutName?: string | null, legendMetadata?: LegendMetadata | null) => void
+  clearPendingBackground: () => void
+}
+
+const generateId = () => `layout_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+
+export const useLayoutStore = create<LayoutStore>()(
+  persist(
+    (set, get) => ({
+      layouts: [],
+
+      // Pending state (not persisted)
+      pendingBackgroundImage: null,
+      pendingPageSize: null,
+      pendingLayoutId: null,
+      pendingLayoutName: null,
+      pendingLegendMetadata: null,
+
+      addLayout: (layout) => {
+        const currentLayouts = get().layouts
+        if (currentLayouts.length >= 3) {
+          console.warn('Maximum layout limit (3) reached')
+          return ''
+        }
+        const id = generateId()
+        const now = Date.now()
+        const newLayout: Layout = {
+          ...layout,
+          id,
+          createdAt: now,
+          updatedAt: now,
+        }
+        set((state) => ({ layouts: [...state.layouts, newLayout] }))
+        return id
+      },
+
+      updateLayout: (id, data) => {
+        set((state) => ({
+          layouts: state.layouts.map((layout) =>
+            layout.id === id
+              ? { ...layout, ...data, updatedAt: Date.now() }
+              : layout
+          ),
+        }))
+      },
+
+      deleteLayout: (id) => {
+        set((state) => ({
+          layouts: state.layouts.filter((layout) => layout.id !== id),
+        }))
+      },
+
+      getLayout: (id) => {
+        return get().layouts.find((layout) => layout.id === id)
+      },
+
+      setPendingBackground: (image, pageSize, layoutId, layoutName, legendMetadata) => {
+        set({
+          pendingBackgroundImage: image,
+          pendingPageSize: pageSize,
+          pendingLayoutId: layoutId,
+          pendingLayoutName: layoutName || null,
+          pendingLegendMetadata: legendMetadata || null,
+        })
+      },
+
+      clearPendingBackground: () => {
+        set({
+          pendingBackgroundImage: null,
+          pendingPageSize: null,
+          pendingLayoutId: null,
+          pendingLayoutName: null,
+          pendingLegendMetadata: null,
+        })
+      },
+    }),
+    {
+      name: 'layout-storage',
+      // Exclude pending state from persistence
+      partialize: (state) => ({
+        layouts: state.layouts,
+      }),
+    }
+  )
+)

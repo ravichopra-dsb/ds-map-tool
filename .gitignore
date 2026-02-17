@@ -23,3 +23,12 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Electron
+out
+.eslintcache
+
+# Backend
+apps/backend/dist
+
+.env
