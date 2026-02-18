@@ -117,8 +117,8 @@ if (!gotTheLock) {
           const ext = extname(filePath).toLowerCase()
           const name = basename(filePath)
 
-          if (ext === '.kmz') {
-            // Binary read for KMZ — send as number array (serializable over IPC)
+          if (ext === '.kmz' || ext === '.ds') {
+            // Binary read for KMZ/DS — send as number array (serializable over IPC)
             const buffer = await fs.readFile(filePath)
             return { data: Array.from(buffer), name }
           } else {
