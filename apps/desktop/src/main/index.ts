@@ -5,7 +5,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../build/icon.ico?asset'
 
 // --- File association constants & state ---
-const SUPPORTED_EXTENSIONS = ['.kml', '.kmz', '.geojson', '.json']
+const SUPPORTED_EXTENSIONS = ['.kml', '.kmz', '.geojson', '.json', '.ds']
 let mainWindow: BrowserWindow | null = null
 let pendingFilePaths: string[] = []
 let rendererReady = false

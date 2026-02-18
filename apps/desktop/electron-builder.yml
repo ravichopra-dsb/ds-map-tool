@@ -3,13 +3,13 @@ productName: DS Map Tool
 directories:
   buildResources: build
 files:
-  - '!**/.vscode/*'
-  - '!src/*'
-  - '!electron.vite.config.{js,ts,mjs,cjs}'
-  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
-  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
-  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json,tsconfig.app.json}'
-  - '!electron-app'
+  - "!**/.vscode/*"
+  - "!src/*"
+  - "!electron.vite.config.{js,ts,mjs,cjs}"
+  - "!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}"
+  - "!{.env,.env.*,.npmrc,pnpm-lock.yaml}"
+  - "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json,tsconfig.app.json}"
+  - "!electron-app"
 asarUnpack:
   - resources/**
 fileAssociations:
@@ -27,6 +27,11 @@ fileAssociations:
     name: GeoJSON File
     description: GeoJSON Geographic Data
     mimeType: application/geo+json
+    role: Viewer
+  - ext: ds
+    name: DS Archive
+    description: Designing Solutions
+    mimeType: application/zip
     role: Viewer
 win:
   executableName: ds-map-tool

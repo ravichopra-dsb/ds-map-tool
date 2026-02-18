@@ -291,23 +291,40 @@ const MapEditor: React.FC = () => {
             alert("Failed to parse KML file. Check console for details.");
             return;
           }
-        } else if (name.endsWith(".kmz")) {
+        } else if (name.endsWith(".kmz") || name.endsWith(".ds")) {
           try {
-            console.log("kmz : ", data);
+            const format = name.endsWith(".ds") ? "DS" : "KMZ";
+            console.log(`${format} : `, data);
+
+            let kmzData: ArrayBuffer | string = data;
+
+            // .ds is a zip containing a .kmz — unwrap the outer layer
+            if (name.endsWith(".ds")) {
+              const dsZip = await JSZip.loadAsync(data);
+              const kmzEntry = Object.keys(dsZip.files).find((f) =>
+                f.toLowerCase().endsWith(".kmz")
+              );
+              if (!kmzEntry) {
+                alert("No KMZ file found in DS archive");
+                return;
+              }
+              kmzData = await dsZip.file(kmzEntry)!.async("arraybuffer");
+            }
+
             // data can be ArrayBuffer (from FileReader or Electron IPC)
-            const zip = await JSZip.loadAsync(data);
+            const zip = await JSZip.loadAsync(kmzData);
             const kmlFile = Object.keys(zip.files).find((f) =>
               f.toLowerCase().endsWith(".kml")
             );
 
             if (!kmlFile) {
-              alert("No KML file found in KMZ archive");
+              alert(`No KML file found in ${format} archive`);
               return;
             }
 
             const kmlText = await zip.file(kmlFile)?.async("text");
             if (!kmlText) {
-              alert("Failed to extract KML from KMZ file");
+              alert(`Failed to extract KML from ${format} file`);
               return;
             }
 
@@ -319,7 +336,7 @@ const MapEditor: React.FC = () => {
             const { folders: importedFolders, featureFolderMap } =
               parseKmlFolders(kmlText);
             console.log(
-              "Parsed KMZ folders:",
+              `Parsed ${format} folders:`,
               Object.keys(importedFolders).length,
               "folders found"
             );
@@ -328,7 +345,7 @@ const MapEditor: React.FC = () => {
             const kmlStyleMap = parseKmlStyles(kmlText);
             const placemarkStyles = parsePlacemarkStyles(kmlText);
             console.log(
-              "Parsed KMZ styles:",
+              `Parsed ${format} styles:`,
               kmlStyleMap.size,
               "styles found"
             );
@@ -370,16 +387,17 @@ const MapEditor: React.FC = () => {
             let geoJSONData = convertFeaturesToGeoJSON(tempSource);
             geoJSONData = normalizeImportedGeoJSON(geoJSONData);
             console.log(
-              "KMZ converted and normalized to GeoJSON:",
+              `${format} converted and normalized to GeoJSON:`,
               geoJSONData
             );
 
             // Step 3: Convert GeoJSON back to Features for map display
             features = convertGeoJSONToFeatures(geoJSONData);
-            console.log("KMZ features parsed and converted:", features.length);
+            console.log(`${format} features parsed and converted:`, features.length);
           } catch (error) {
-            console.error("Error parsing KMZ:", error);
-            alert("Failed to parse KMZ file. Check console for details.");
+            const format = name.endsWith(".ds") ? "DS" : "KMZ";
+            console.error(`Error parsing ${format}:`, error);
+            alert(`Failed to parse ${format} file. Check console for details.`);
             return;
           }
         }
@@ -438,7 +456,7 @@ const MapEditor: React.FC = () => {
       if (data) await importFileData(file.name, data);
     };
 
-    if (file.name.toLowerCase().endsWith(".kmz")) {
+    if (file.name.toLowerCase().endsWith(".kmz") || file.name.toLowerCase().endsWith(".ds")) {
       reader.readAsArrayBuffer(file);
     } else {
       reader.readAsText(file);
@@ -1480,7 +1498,7 @@ const MapEditor: React.FC = () => {
 
       <input
         type="file"
-        accept=".geojson,.json,.kml,.kmz"
+        accept=".geojson,.json,.kml,.kmz,.ds"
         ref={fileInputRef}
         onChange={handleFileChange}
         style={{ display: "none" }}
