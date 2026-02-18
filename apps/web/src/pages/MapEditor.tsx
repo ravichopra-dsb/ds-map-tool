@@ -616,6 +616,55 @@ const MapEditor: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleDsExportClick = async () => {
+    if (!mapRef.current) return;
+
+    try {
+      const mapData = await loadFromDb();
+
+      if (!mapData?.features || mapData.features.length === 0) {
+        alert("No features to export.");
+        return;
+      }
+
+      const currentProject = projects.find(p => p.id === currentProjectId);
+      const fileName = currentProject?.name || "map-export";
+
+      // Generate KMZ
+      const geojsonFormat = new GeoJSON();
+      const olFeatures = geojsonFormat.readFeatures(mapData.features, {
+        dataProjection: "EPSG:4326",
+        featureProjection: "EPSG:3857",
+      });
+
+      const kmlFormat = new KML();
+      let kmlString = kmlFormat.writeFeatures(olFeatures, {
+        featureProjection: "EPSG:3857",
+        dataProjection: "EPSG:4326",
+      });
+
+      kmlString = injectKmlStyles(
+        kmlString,
+        olFeatures,
+        mapData.folderStructure?.folders
+      );
+
+      const kmzZip = new JSZip();
+      kmzZip.file(`${fileName}.kml`, kmlString);
+      const kmzBlob = await kmzZip.generateAsync({ type: "blob" });
+
+      // Bundle KMZ into .ds zip
+      const dsZip = new JSZip();
+      dsZip.file(`${fileName}.kmz`, await kmzBlob.arrayBuffer());
+
+      const dsBlob = await dsZip.generateAsync({ type: "blob" });
+      downloadBlob(dsBlob, `${fileName}.ds`);
+    } catch (error) {
+      console.error("DS export failed:", error);
+      alert("DS export failed. Check console.");
+    }
+  };
+
   const handleExportClick = async (format: "geojson" | "kml" | "kmz") => {
     if (!mapRef.current) return;
 
@@ -1412,6 +1461,7 @@ const MapEditor: React.FC = () => {
         selectedLegend={selectedLegend}
         onLegendSelect={handleLegendSelect}
         onExportClick={handleExportClick}
+        onDsExportClick={handleDsExportClick}
         onPdfExportClick={handlePdfExportClick}
         lineColor={lineColor}
         lineWidth={lineWidth}

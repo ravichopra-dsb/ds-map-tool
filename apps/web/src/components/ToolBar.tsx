@@ -31,6 +31,7 @@ interface ToolbarProps {
   selectedLegend?: LegendType;
   onLegendSelect: (legend: LegendType) => void;
   onExportClick: (format: "geojson" | "kml" | "kmz") => void;
+  onDsExportClick: () => void;
   onPdfExportClick: () => void;
   lineColor: string;
   lineWidth: number;
@@ -54,6 +55,7 @@ const Toolbar = ({
   selectedLegend,
   onLegendSelect,
   onExportClick,
+  onDsExportClick,
   onPdfExportClick,
   projects = [],
   currentProjectId,
@@ -161,6 +163,9 @@ const Toolbar = ({
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onExportClick("kmz")}>
                     KMZ
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onDsExportClick}>
+                    DS
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={onPdfExportClick}>
                     PDF
