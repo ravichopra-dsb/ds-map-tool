@@ -70,6 +70,7 @@ import { useToolStore } from "@/stores/useToolStore";
 import { useFolderStore } from "@/stores/useFolderStore";
 import { SeparateFeatures } from "@/components/SeparateFeatures";
 import { TogglingObject } from "@/components/TogglingObject";
+import { usePendingFileStore } from "@/stores/usePendingFileStore";
 import { ToolCommand } from "@/components/ToolCommand";
 import { CommandBar } from "@/components/CommandBar";
 
@@ -483,6 +484,18 @@ const MapEditor: React.FC = () => {
 
     return cleanup;
   }, [importFileData, interactionReady]);
+
+  // Import pending file from JobWelcome (auto-created job from direct file open)
+  const pendingFile = usePendingFileStore((s) => s.pendingFile);
+  const clearPendingFile = usePendingFileStore((s) => s.clearPendingFile);
+
+  useEffect(() => {
+    if (!pendingFile || !interactionReady || !currentProjectId || !currentDb) return;
+
+    const { name, data } = pendingFile;
+    clearPendingFile();
+    importFileData(name, data);
+  }, [pendingFile, interactionReady, currentProjectId, currentDb, importFileData, clearPendingFile]);
 
   // Search location handler
   const handleLocationSelected = (

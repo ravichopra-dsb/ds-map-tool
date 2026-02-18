@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import {
   Plus,
   Loader2,
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { useMapProjects, type Project } from "@/hooks/useMapProjects";
 import { getMapUrl } from "@/utils/routeUtils";
+import { usePendingFileStore } from "@/stores/usePendingFileStore";
 
 export default function JobWelcome() {
   const navigate = useNavigate();
@@ -38,6 +39,44 @@ export default function JobWelcome() {
 
   const { projects, createProject, updateProject, deleteProject, loadProject } =
     useMapProjects();
+
+  const setPendingFile = usePendingFileStore((s) => s.setPendingFile);
+
+  // Electron: listen for files opened via OS file association when no job is active
+  useEffect(() => {
+    if (!window.api?.onFileOpen) return;
+
+    const cleanup = window.api.onFileOpen(async (filePath: string) => {
+      const fileData = await window.api.readFile(filePath);
+      if (!fileData) return;
+
+      // Convert KMZ binary data back to ArrayBuffer
+      const data = Array.isArray(fileData.data)
+        ? new Uint8Array(fileData.data).buffer
+        : fileData.data;
+
+      // Derive job name from filename (without extension)
+      const jobName = fileData.name.replace(/\.[^/.]+$/, "");
+
+      // Create a new project for this file
+      const projectId = await createProject(jobName);
+      if (!projectId) return;
+
+      // Store file data for MapEditor to pick up after mount
+      setPendingFile({ name: fileData.name, data });
+
+      // Load the project and navigate to it
+      const db = await loadProject(projectId);
+      if (db) {
+        navigate(getMapUrl(projectId, jobName));
+      }
+    });
+
+    // Signal to main process that renderer is ready — flushes any pending file paths
+    window.api.signalReady();
+
+    return cleanup;
+  }, [createProject, loadProject, navigate, setPendingFile]);
 
   const filteredProjects = useMemo(() => {
     return projects
