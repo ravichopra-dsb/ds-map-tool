@@ -184,20 +184,10 @@ const MapEditor: React.FC = () => {
   const [selectedExtent, setSelectedExtent] = useState<Extent | null>(null);
   const dragBoxRef = useRef<DragBox | null>(null);
 
-  // File import handler
-  const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const name = file.name.toLowerCase();
-    const reader = new FileReader();
-
-    reader.onload = async (e) => {
-      const data = e.target?.result;
-      if (!data) return;
-
+  // Core import logic — accepts raw file data (works for both browser FileReader and Electron IPC)
+  const importFileData = useCallback(
+    async (fileName: string, data: string | ArrayBuffer) => {
+      const name = fileName.toLowerCase();
       let features: Feature<Geometry>[] = [];
 
       try {
@@ -205,14 +195,22 @@ const MapEditor: React.FC = () => {
           const json = JSON.parse(data as string);
 
           // Check for folder structure from dsMapTool export
-          const importedFolderStructure = extractFolderStructureFromGeoJSON(json);
+          const importedFolderStructure =
+            extractFolderStructureFromGeoJSON(json);
           if (importedFolderStructure) {
             // Merge imported folders with existing folders
             const currentFolders = useFolderStore.getState().folders;
             useFolderStore.getState().loadFromStorage({
-              folders: { ...currentFolders, ...importedFolderStructure.folders },
+              folders: {
+                ...currentFolders,
+                ...importedFolderStructure.folders,
+              },
             });
-            console.log("Imported folder structure:", Object.keys(importedFolderStructure.folders).length, "folders");
+            console.log(
+              "Imported folder structure:",
+              Object.keys(importedFolderStructure.folders).length,
+              "folders"
+            );
           }
 
           features = new GeoJSON().readFeatures(json, {
@@ -227,26 +225,38 @@ const MapEditor: React.FC = () => {
             const processedKml = assignUniquePlacemarkIds(data as string);
 
             // Step 0.5: Parse folder structure from KML (use original to preserve hierarchy)
-            const { folders: importedFolders, featureFolderMap } = parseKmlFolders(data as string);
-            console.log("Parsed KML folders:", Object.keys(importedFolders).length, "folders found");
+            const { folders: importedFolders, featureFolderMap } =
+              parseKmlFolders(data as string);
+            console.log(
+              "Parsed KML folders:",
+              Object.keys(importedFolders).length,
+              "folders found"
+            );
 
             // Step 0.6: Parse standard KML styles (for Google Earth compatibility)
             const kmlStyleMap = parseKmlStyles(data as string);
             const placemarkStyles = parsePlacemarkStyles(data as string);
-            console.log("Parsed KML styles:", kmlStyleMap.size, "styles found");
+            console.log(
+              "Parsed KML styles:",
+              kmlStyleMap.size,
+              "styles found"
+            );
 
             // Step 1: Parse KML to OpenLayers Features with correct projections
             // Use processed KML with unique IDs to prevent merging
-            const kmlFeatures = new KML({ extractStyles: false }).readFeatures(
-              processedKml,
-              {
-                featureProjection: "EPSG:3857",
-                dataProjection: "EPSG:4326", // CRITICAL: KML is always in WGS84
-              }
-            );
+            const kmlFeatures = new KML({
+              extractStyles: false,
+            }).readFeatures(processedKml, {
+              featureProjection: "EPSG:3857",
+              dataProjection: "EPSG:4326", // CRITICAL: KML is always in WGS84
+            });
 
             // Step 1.5: Apply parsed KML styles to features (if no ExtendedData styles)
-            applyKmlStylesToFeatures(kmlFeatures, kmlStyleMap, placemarkStyles);
+            applyKmlStylesToFeatures(
+              kmlFeatures,
+              kmlStyleMap,
+              placemarkStyles
+            );
 
             // Step 1.6: Apply folder assignments from KML structure
             if (Object.keys(importedFolders).length > 0) {
@@ -284,7 +294,8 @@ const MapEditor: React.FC = () => {
         } else if (name.endsWith(".kmz")) {
           try {
             console.log("kmz : ", data);
-            const zip = await JSZip.loadAsync(file);
+            // data can be ArrayBuffer (from FileReader or Electron IPC)
+            const zip = await JSZip.loadAsync(data);
             const kmlFile = Object.keys(zip.files).find((f) =>
               f.toLowerCase().endsWith(".kml")
             );
@@ -305,26 +316,38 @@ const MapEditor: React.FC = () => {
             const processedKml = assignUniquePlacemarkIds(kmlText);
 
             // Step 0.5: Parse folder structure from KML (use original to preserve hierarchy)
-            const { folders: importedFolders, featureFolderMap } = parseKmlFolders(kmlText);
-            console.log("Parsed KMZ folders:", Object.keys(importedFolders).length, "folders found");
+            const { folders: importedFolders, featureFolderMap } =
+              parseKmlFolders(kmlText);
+            console.log(
+              "Parsed KMZ folders:",
+              Object.keys(importedFolders).length,
+              "folders found"
+            );
 
             // Step 0.6: Parse standard KML styles (for Google Earth compatibility)
             const kmlStyleMap = parseKmlStyles(kmlText);
             const placemarkStyles = parsePlacemarkStyles(kmlText);
-            console.log("Parsed KMZ styles:", kmlStyleMap.size, "styles found");
+            console.log(
+              "Parsed KMZ styles:",
+              kmlStyleMap.size,
+              "styles found"
+            );
 
             // Step 1: Parse KML to OpenLayers Features with correct projections
             // Use processed KML with unique IDs to prevent merging
-            const kmlFeatures = new KML({ extractStyles: false }).readFeatures(
-              processedKml,
-              {
-                featureProjection: "EPSG:3857",
-                dataProjection: "EPSG:4326", // CRITICAL: KML is always in WGS84
-              }
-            );
+            const kmlFeatures = new KML({
+              extractStyles: false,
+            }).readFeatures(processedKml, {
+              featureProjection: "EPSG:3857",
+              dataProjection: "EPSG:4326", // CRITICAL: KML is always in WGS84
+            });
 
             // Step 1.5: Apply parsed KML styles to features (if no ExtendedData styles)
-            applyKmlStylesToFeatures(kmlFeatures, kmlStyleMap, placemarkStyles);
+            applyKmlStylesToFeatures(
+              kmlFeatures,
+              kmlStyleMap,
+              placemarkStyles
+            );
 
             // Step 1.6: Apply folder assignments from KML structure
             if (Object.keys(importedFolders).length > 0) {
@@ -371,7 +394,7 @@ const MapEditor: React.FC = () => {
 
         // Only create wrapper folder if features don't already have folder assignments
         if (!hasExistingFolders) {
-          const filename = file.name.replace(/\.[^/.]+$/, "");
+          const filename = fileName.replace(/\.[^/.]+$/, "");
           const folderId = useFolderStore.getState().createFolder(filename);
 
           // Set folderId on all imported features
@@ -384,11 +407,11 @@ const MapEditor: React.FC = () => {
         vectorSourceRef.current.addFeatures(features);
 
         const extent = vectorSourceRef.current.getExtent();
-        if(extent){
+        if (extent) {
           if (mapRef.current) {
             fitMapToFeatures(mapRef.current, extent);
           }
-        }else {
+        } else {
           console.log("No extent found");
         }
 
@@ -397,14 +420,51 @@ const MapEditor: React.FC = () => {
         console.error(err);
         alert("Invalid or unsupported file format.");
       }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  // File input handler — reads browser File object then delegates to importFileData
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const data = e.target?.result;
+      if (data) await importFileData(file.name, data);
     };
 
-    if (name.endsWith(".kmz")) {
+    if (file.name.toLowerCase().endsWith(".kmz")) {
       reader.readAsArrayBuffer(file);
     } else {
       reader.readAsText(file);
     }
   };
+
+  // Electron file association: listen for files opened via OS double-click / "Open with"
+  useEffect(() => {
+    if (!window.api?.onFileOpen || !interactionReady) return;
+
+    const cleanup = window.api.onFileOpen(async (filePath: string) => {
+      const fileData = await window.api.readFile(filePath);
+      if (!fileData) return;
+      // For KMZ, main process sends number[] — convert back to ArrayBuffer
+      const data =
+        Array.isArray(fileData.data)
+          ? new Uint8Array(fileData.data).buffer
+          : fileData.data;
+      await importFileData(fileData.name, data);
+    });
+
+    // Signal to main process that renderer is ready — flushes any pending file paths
+    window.api.signalReady();
+
+    return cleanup;
+  }, [importFileData, interactionReady]);
 
   // Search location handler
   const handleLocationSelected = (
