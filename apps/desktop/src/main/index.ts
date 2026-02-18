@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join, extname, basename } from 'path'
 import { existsSync, promises as fs } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+import icon from '../../build/icon.ico?asset'
 
 // --- File association constants & state ---
 const SUPPORTED_EXTENSIONS = ['.kml', '.kmz', '.geojson', '.json']
@@ -37,7 +37,7 @@ function createWindow(): void {
     height: 800,
     show: false,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.cjs'),
       sandbox: false,
