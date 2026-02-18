@@ -102,7 +102,11 @@ export function HelpModal() {
                         >
                           {tool.name}
                           <span>
-                            <Icon className="w-4 h-4" />
+                            {Icon ? (
+                              <Icon className="w-4 h-4" />
+                            ) : tool.iconPath ? (
+                              <img src={tool.iconPath} alt={tool.name} className="w-4 h-4" />
+                            ) : null}
                           </span>
                         </li>
                       );
