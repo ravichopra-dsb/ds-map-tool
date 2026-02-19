@@ -319,6 +319,13 @@ export const getTextAlongLineStyle = (
     const textStroke = customColor && textStyle.stroke === legendType.style.strokeColor
       ? customColor : (textStyle.stroke as string);
 
+    // For "|" text legends (powerCabel, railwayMetroCrossing), smoothly scale text strokeWidth
+    // from 0 to 2.5 as line width goes from 0 to 10
+    const textStrokeWidth =
+      legendType.text === "|"
+        ? Math.min(((width ?? legendType.style.strokeWidth ?? 1) / 10) * 2.5, 2.5)
+        : textStyle.strokeWidth;
+
     styles.push(
       new Style({
         text: new Text({
@@ -331,7 +338,7 @@ export const getTextAlongLineStyle = (
           }),
           stroke: new Stroke({
             color: textStroke,
-            width: textStyle.strokeWidth,
+            width: textStrokeWidth,
           }),
           textAlign: "center",
           textBaseline: "middle",
