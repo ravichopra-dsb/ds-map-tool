@@ -95,7 +95,7 @@ export const useMatchProperties = ({
     useEffect(() => {
         if (!map) return;
 
-        const viewport = map.getTargetElement() as HTMLElement | null;
+        const viewport = map.getViewport() as HTMLElement | null;
 
         if (isActive) {
             // Remove any existing handler
