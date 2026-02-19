@@ -23,6 +23,7 @@ export type FeatureStylerFunction = (
   feature: FeatureLike,
   resolution?: number,
   selectedLegend?: LegendType,
+  scaleFactor?: number,
 ) => Style | Style[] | null;
 
 // Helper function to create text-along-edge style for shapes with legendType
@@ -358,7 +359,7 @@ export const getTextAlongLineStyle = (
 };
 
 // ✅ Arrow style function
-export const getArrowStyle = (feature: FeatureLike, resolution: number) => {
+export const getArrowStyle = (feature: FeatureLike, resolution: number, scaleFactor: number = 1) => {
   const geometry = feature.getGeometry();
   if (!geometry) return new Style();
 
@@ -396,7 +397,7 @@ export const getArrowStyle = (feature: FeatureLike, resolution: number) => {
   // Apply opacity to color
   const colorWithOpacity = applyOpacityToColor(customColor, opacity);
 
-  const arrowRadius = 8;
+  const arrowRadius = 8 * scaleFactor;
 
   // --- FIX STARTS HERE ---
 
@@ -584,12 +585,13 @@ export const getFeatureStyle = (
   feature: FeatureLike,
   resolution: number = 1,
   selectedLegend?: LegendType,
+  scaleFactor: number = 1,
 ) => {
   const type = feature.getGeometry()?.getType();
   const isArrow = feature.get("isArrow");
 
   if (isArrow && (type === "LineString" || type === "MultiLineString")) {
-    return getArrowStyle(feature, resolution);
+    return getArrowStyle(feature, resolution, scaleFactor);
   }
 
   // Handle measure features
