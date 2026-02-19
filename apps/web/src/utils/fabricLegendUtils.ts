@@ -195,9 +195,9 @@ export async function buildFabricLegend(
     }),
   );
 
-  // Title
+  // Title (editable)
   objects.push(
-    new fabric.FabricText("LEGEND:-", {
+    new fabric.IText("LEGEND:-", {
       left: PADDING - cx,
       top: PADDING - cy,
       fontSize: TITLE_FONT_SIZE,
@@ -207,8 +207,8 @@ export async function buildFabricLegend(
       underline: true,
       originX: "left",
       originY: "top",
-      selectable: false,
-      evented: false,
+      selectable: true,
+      evented: true,
     }),
   );
 
@@ -228,9 +228,9 @@ export async function buildFabricLegend(
     });
     objects.push(icon);
 
-    // Label text
+    // Label text (editable)
     objects.push(
-      new fabric.FabricText(item.label, {
+      new fabric.IText(item.label, {
         left: PADDING + ICON_WIDTH + COL_GAP - cx,
         top: iconCenterY - cy,
         fontSize: LABEL_FONT_SIZE,
@@ -238,8 +238,8 @@ export async function buildFabricLegend(
         fill: "#000000",
         originX: "left",
         originY: "center",
-        selectable: false,
-        evented: false,
+        selectable: true,
+        evented: true,
       }),
     );
   }
@@ -254,12 +254,14 @@ export async function buildFabricLegend(
     legendTop = options.top ?? (options.canvasHeight - totalHeight - margin);
   }
 
-  // Create the legend group
+  // Create the legend group with interactive sub-objects for text editing
   const group = new fabric.Group(objects, {
     left: legendLeft,
     top: legendTop,
     selectable: true,
     evented: true,
+    subTargetCheck: true,
+    interactive: true,
   });
 
   // Mark for identification (same pattern as isMapImage in LayoutCanvas)
