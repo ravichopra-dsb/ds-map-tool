@@ -119,7 +119,7 @@ export const LEGEND_TYPES: LegendType[] = [
     },
     style: {
       strokeColor: "#ff0c0c",
-      strokeWidth: 1,
+      strokeWidth: 2.5,
     }
   },
   {
