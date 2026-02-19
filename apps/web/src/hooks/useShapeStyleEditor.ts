@@ -76,6 +76,9 @@ export const useShapeStyleEditor = (
   const [originalBulgeRatio, setOriginalBulgeRatio] = useState<number>(
     DEFAULT_BULGE_RATIO
   );
+  const [originalScallopRadius, setOriginalScallopRadius] = useState<number>(
+    REVISION_CLOUD_CONFIG.defaultScallopRadius
+  );
   const [originalLegendType, setOriginalLegendType] = useState<string | null>(null);
   const [isEditingShapeStyle, setIsEditingShapeStyle] = useState(false);
 
@@ -127,6 +130,9 @@ export const useShapeStyleEditor = (
             : DEFAULT_BULGE_RATIO;
 
       const featureLegendType = selectedFeature.get("legendType") || null;
+      const featureScallopRadius =
+        selectedFeature.get("scallopRadius") ||
+        REVISION_CLOUD_CONFIG.defaultScallopRadius;
 
       setStrokeColor(featureStrokeColor);
       setStrokeWidth(featureStrokeWidth);
@@ -141,6 +147,7 @@ export const useShapeStyleEditor = (
       setOriginalFillColor(featureFillColor);
       setOriginalFillOpacity(featureFillOpacity);
       setOriginalBulgeRatio(featureBulgeRatio);
+      setOriginalScallopRadius(featureScallopRadius);
       setOriginalLegendType(featureLegendType);
     } else {
       setStrokeColor(DEFAULT_STROKE_COLOR);
@@ -156,6 +163,7 @@ export const useShapeStyleEditor = (
       setOriginalFillColor(DEFAULT_FILL_COLOR);
       setOriginalFillOpacity(DEFAULT_FILL_OPACITY);
       setOriginalBulgeRatio(DEFAULT_BULGE_RATIO);
+      setOriginalScallopRadius(REVISION_CLOUD_CONFIG.defaultScallopRadius);
       setOriginalLegendType(null);
     }
     setIsEditingShapeStyle(false);
@@ -254,6 +262,9 @@ export const useShapeStyleEditor = (
   );
 
   // Handle bulge ratio change with live preview (regenerates cloud geometry)
+  // Scales the scallopRadius (arc chord length) so curves grow uniformly in both
+  // horizontal and vertical directions. bulgeRatio for arc shape stays constant
+  // so that height scales proportionally with chord width (no quadratic growth).
   const handleBulgeRatioChange = useCallback(
     (ratio: number) => {
       setBulgeRatio(ratio);
@@ -264,13 +275,16 @@ export const useShapeStyleEditor = (
         const originalPathStr = selectedFeature.get("originalPath");
         if (originalPathStr) {
           const originalPath = JSON.parse(originalPathStr) as number[][];
-          const scallopRadius =
-            selectedFeature.get("scallopRadius") ||
-            REVISION_CLOUD_CONFIG.defaultScallopRadius;
+          // Scale scallopRadius based on slider value for uniform curve sizing
+          const scaleFactor = ratio / originalBulgeRatio;
+          const newScallopRadius = originalScallopRadius * scaleFactor;
+          selectedFeature.set("scallopRadius", newScallopRadius);
+          // Keep bulgeRatio constant for arc generation so curves scale
+          // uniformly (height = chord * fixedRatio, both grow with chord)
           const newCloudCoords = generateRevisionCloudCoordinates(
             originalPath,
-            scallopRadius,
-            ratio
+            newScallopRadius,
+            REVISION_CLOUD_CONFIG.bulgeRatio
           );
           const polygon = selectedFeature.getGeometry() as Polygon;
           polygon.setCoordinates([newCloudCoords]);
@@ -280,7 +294,7 @@ export const useShapeStyleEditor = (
         map?.render();
       }
     },
-    [selectedFeature, map]
+    [selectedFeature, map, originalBulgeRatio, originalScallopRadius]
   );
 
   // Handle legend type change with live preview
@@ -365,16 +379,14 @@ export const useShapeStyleEditor = (
       // Restore original cloud geometry if revision cloud
       if (selectedFeature.get("isRevisionCloud")) {
         selectedFeature.set("bulgeRatio", originalBulgeRatio);
+        selectedFeature.set("scallopRadius", originalScallopRadius);
         const originalPathStr = selectedFeature.get("originalPath");
         if (originalPathStr) {
           const originalPath = JSON.parse(originalPathStr) as number[][];
-          const scallopRadius =
-            selectedFeature.get("scallopRadius") ||
-            REVISION_CLOUD_CONFIG.defaultScallopRadius;
           const newCloudCoords = generateRevisionCloudCoordinates(
             originalPath,
-            scallopRadius,
-            originalBulgeRatio
+            originalScallopRadius,
+            REVISION_CLOUD_CONFIG.bulgeRatio
           );
           const polygon = selectedFeature.getGeometry() as Polygon;
           polygon.setCoordinates([newCloudCoords]);
@@ -384,7 +396,7 @@ export const useShapeStyleEditor = (
       selectedFeature.changed();
       map?.render();
     }
-  }, [selectedFeature, map, originalStrokeColor, originalStrokeWidth, originalStrokeOpacity, originalFillColor, originalFillOpacity, originalBulgeRatio, originalLegendType]);
+  }, [selectedFeature, map, originalStrokeColor, originalStrokeWidth, originalStrokeOpacity, originalFillColor, originalFillOpacity, originalBulgeRatio, originalScallopRadius, originalLegendType]);
 
   // Commit current values as new originals (call on save)
   const commitShapeStyle = useCallback(() => {
@@ -395,7 +407,14 @@ export const useShapeStyleEditor = (
     setOriginalFillOpacity(fillOpacity);
     setOriginalBulgeRatio(bulgeRatio);
     setOriginalLegendType(legendType);
-  }, [strokeColor, strokeWidth, strokeOpacity, fillColor, fillOpacity, bulgeRatio, legendType]);
+    // Update originalScallopRadius from the feature's current value
+    if (selectedFeature && selectedFeature.get("isRevisionCloud")) {
+      const currentScallopRadius =
+        selectedFeature.get("scallopRadius") ||
+        REVISION_CLOUD_CONFIG.defaultScallopRadius;
+      setOriginalScallopRadius(currentScallopRadius);
+    }
+  }, [strokeColor, strokeWidth, strokeOpacity, fillColor, fillOpacity, bulgeRatio, legendType, selectedFeature]);
 
   return {
     strokeColor,
