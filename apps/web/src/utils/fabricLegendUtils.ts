@@ -36,6 +36,24 @@ async function loadSvg(
 }
 
 /**
+ * Load a PNG/raster image and return it as a Fabric.js Image.
+ * Returns null if the image fails to load.
+ */
+async function loadImage(
+  imagePath: string,
+): Promise<fabric.FabricImage | null> {
+  try {
+    const response = await fetch(imagePath, { method: "HEAD" });
+    if (!response.ok) return null;
+
+    const img = await fabric.FabricImage.fromURL(imagePath);
+    return img;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Create a colored/dashed line sample as fallback for legend types without SVGs.
  */
 function createLineSample(
@@ -68,24 +86,41 @@ function createPlaceholderIcon(): fabric.Rect {
 }
 
 /**
- * Build the visual element for a single legend row (SVG or fallback).
+ * Build the visual element for a single legend row (SVG, PNG, or fallback).
  */
 async function buildRowIcon(
   item: LegendMetadataItem,
 ): Promise<fabric.FabricObject> {
-  const svgGroup = await loadSvg(item.svgPath);
+  const isSvg = item.imagePath.toLowerCase().endsWith(".svg");
 
-  if (svgGroup) {
-    const svgWidth = svgGroup.width || ICON_WIDTH;
-    const svgHeight = svgGroup.height || ICON_HEIGHT;
-    const scale = Math.min(ICON_WIDTH / svgWidth, ICON_HEIGHT / svgHeight);
-    svgGroup.set({
-      scaleX: scale,
-      scaleY: scale,
-      selectable: false,
-      evented: false,
-    });
-    return svgGroup;
+  if (isSvg) {
+    const svgGroup = await loadSvg(item.imagePath);
+    if (svgGroup) {
+      const svgWidth = svgGroup.width || ICON_WIDTH;
+      const svgHeight = svgGroup.height || ICON_HEIGHT;
+      const scale = Math.min(ICON_WIDTH / svgWidth, ICON_HEIGHT / svgHeight);
+      svgGroup.set({
+        scaleX: scale,
+        scaleY: scale,
+        selectable: false,
+        evented: false,
+      });
+      return svgGroup;
+    }
+  } else {
+    const img = await loadImage(item.imagePath);
+    if (img) {
+      const imgWidth = img.width || ICON_WIDTH;
+      const imgHeight = img.height || ICON_HEIGHT;
+      const scale = Math.min(ICON_WIDTH / imgWidth, ICON_HEIGHT / imgHeight);
+      img.set({
+        scaleX: scale,
+        scaleY: scale,
+        selectable: false,
+        evented: false,
+      });
+      return img;
+    }
   }
 
   // Fallback
