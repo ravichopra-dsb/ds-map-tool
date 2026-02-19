@@ -567,6 +567,13 @@ export const useSelectModify = ({
         if (hasLineString) {
           translate.setActive(state.modifyEnabled);
           dragPanRef.current?.setActive(!state.modifyEnabled);
+
+          // Update viewport cursor: clear it so Translate's grab cursor works,
+          // or restore the select tool cursor when translate mode is off
+          const viewport = map.getViewport();
+          if (viewport) {
+            viewport.style.cursor = state.modifyEnabled ? '' : 'pointer';
+          }
         }
       }
     });

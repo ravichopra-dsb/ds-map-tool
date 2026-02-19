@@ -7,7 +7,8 @@ export interface LegendMetadataItem {
   type: "legend" | "icon";
   id: string;
   label: string;
-  svgPath: string;
+  /** Path to the visual asset – may be .svg or .png */
+  imagePath: string;
   strokeColor?: string;
   strokeDash?: number[];
 }
@@ -39,7 +40,7 @@ export function collectLegendMetadata(
         type: "legend",
         id: legendId,
         label: config?.name || legendId,
-        svgPath: `/svgs/${legendId}.svg`,
+        imagePath: config?.imagePath || `/svgs/${legendId}.svg`,
         strokeColor: config?.style.strokeColor,
         strokeDash: config?.style.strokeDash,
       });
@@ -48,7 +49,8 @@ export function collectLegendMetadata(
 
     // Icon features (from icon picker)
     if (feature.get("isIcon") && feature.get("iconPath")) {
-      const iconName = getIconNameFromPath(feature.get("iconPath") as string);
+      const iconPath = feature.get("iconPath") as string;
+      const iconName = getIconNameFromPath(iconPath);
       const key = `icon:${iconName}`;
       if (seen.has(key)) return;
       seen.add(key);
@@ -57,7 +59,7 @@ export function collectLegendMetadata(
         type: "icon",
         id: iconName,
         label: iconName,
-        svgPath: `/svgs/${iconName}.svg`,
+        imagePath: iconPath,
       });
     }
   });

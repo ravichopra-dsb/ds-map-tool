@@ -31,6 +31,10 @@ const shortcuts = [
   { title: "Deleting-Vertex", value: "Alt Left-Click", symbol: "+" },
   { title: "Add-Vertex", value: "Right-Click", symbol: null },
   { title: "New Text-Line", value: "Alt Enter", symbol: "+" },
+  { title: "Line Move", value: "F6", symbol: null },
+  { title: "Snap", value: "F7", symbol: null },
+  { title: "Vertex Continuity-Add-Mid", value: "e Left-Click", symbol: "+" },
+  { title: "Vertex Continuity-Delete-End", value: "Right-Click", symbol: null },
 ];
 
 const toolCategories = [
@@ -57,7 +61,7 @@ export function HelpModal() {
               <CircleQuestionMark />
             </Button>
           </DialogTrigger>
-          <DialogContent className="md:max-w-2xl lg:max-w-[900px] h-[91%] md:h-[550px] overflow-auto ">
+          <DialogContent className="md:max-w-2xl lg:max-w-[900px] h-[91%] md:h-[550px] overflow-auto custom-scrollbar">
             <DialogHeader>
               <DialogTitle className="text-xl font-semibold">
                 Keyboard shortcuts and Tools
@@ -98,7 +102,11 @@ export function HelpModal() {
                         >
                           {tool.name}
                           <span>
-                            <Icon className="w-4 h-4" />
+                            {Icon ? (
+                              <Icon className="w-4 h-4" />
+                            ) : tool.iconPath ? (
+                              <img src={tool.iconPath} alt={tool.name} className="w-4 h-4" />
+                            ) : null}
                           </span>
                         </li>
                       );
@@ -107,9 +115,9 @@ export function HelpModal() {
                 </div>
 
                 {/* Shortcuts Section */}
-                <div id="shortcuts" className="w-full md:w-1/2 ">
+                <div id="shortcuts" className="w-full md:w-1/2">
                   <h3 className="text-lg font-medium mb-3">Shortcuts</h3>
-                  <ul className="border border-zinc-300 rounded-md divide-y divide-zinc-200">
+                  <ul className="border border-zinc-300 rounded-md divide-y divide-zinc-200 h-[500px] overflow-y-scroll custom-scrollbar">
                     {shortcuts.map((shortcut) => (
                       <li
                         key={shortcut.title}
