@@ -489,9 +489,9 @@ export const getDimensionStyle = (
   if (coordinates.length < 2) return new Style();
 
   // Get custom color, width, and opacity
-  const customColor = "#ff0c0c";
-  // const customWidth = feature.get("lineWidth");
-  const width = 0.2;
+  const customColor = feature.get("lineColor") || "#ff0c0c";
+  const customWidth = feature.get("lineWidth");
+  const width = customWidth !== undefined ? customWidth : 0.2;
   const opacity =
     feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
   const colorWithOpacity = applyOpacityToColor(customColor, opacity);

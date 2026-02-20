@@ -245,8 +245,6 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
               }));
             }
           },
-          lineColor,
-          lineWidth
         );
         map.addInteraction(drawInteractionRef.current);
         addSnapInteraction();

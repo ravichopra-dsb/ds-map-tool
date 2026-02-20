@@ -72,7 +72,7 @@ export const DRAW_CONFIGS = {
   },
   dimension: {
     type: "LineString" as const,
-    style: createLineStyle("#000000", 4),
+    style: createLineStyle("#ff0c0c", 0.2),
     featureProperties: {
       isDimension: true,
     },
@@ -500,8 +500,8 @@ export const createDimensionDraw = (
   color?: string,
   width?: number
 ): Draw => {
-  const customColor = color || "#000000";
-  const customWidth = width || 4;
+  const customColor = color || "#ff0c0c";
+  const customWidth = width ?? 0.2;
 
   const orthoHelper = createOrthoGeometryFunction();
 
