@@ -391,7 +391,8 @@ const LabelSelector: React.FC<LabelSelectorProps> = ({
     propertyKey === "long" ||
     propertyKey === "lat" ||
     propertyKey === "length" ||
-    propertyKey === "vertex"
+    propertyKey === "vertex" ||
+    propertyKey === "dimensionText"
   ) {
     return <div className="" />; // Spacer
   }

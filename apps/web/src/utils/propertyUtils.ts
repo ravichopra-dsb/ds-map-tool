@@ -60,7 +60,7 @@ export const parseHtmlDescription = (htmlDescription: unknown): Record<string, s
 };
 
 /** Properties that cannot have their key changed */
-export const PROTECTED_PROPERTY_KEYS = ["name", "long", "lat", "label"] as const;
+export const PROTECTED_PROPERTY_KEYS = ["name", "long", "lat", "label", "dimensionText"] as const;
 
 /**
  * Check if a property key is protected (cannot be deleted or renamed)
@@ -161,6 +161,7 @@ const shouldExcludeProperty = (key: string): boolean => {
   if (key === "label") return true;
   if (key === "lengthUnit") return true;
   if (key === "scallopRadius") return true;
+  if (key === "dimensionText") return true;
   // Style properties have their own UI section in the panel
   if (isStyleProperty(key)) return true;
   return false;
@@ -211,6 +212,16 @@ export const extractAllProperties = (feature: Feature): CustomProperty[] => {
       { id: "prop-length", key: "length", value: formatLengthWithUnit(lengthMeters, lengthUnit) },
       { id: "prop-vertex", key: "vertex", value: String(coords.length) }
     );
+  }
+
+  // Add editable dimension text for dimension features
+  if (feature.get("isDimension")) {
+    const dimensionText = feature.get("dimensionText") || "";
+    allProperties.push({
+      id: "prop-dimensionText",
+      key: "dimensionText",
+      value: String(dimensionText),
+    });
   }
 
   // Add parsed description fields as individual properties (if HTML description exists)
@@ -292,6 +303,7 @@ export const applyPropertiesToFeature = (
     "legendType",
     "originalPath",
     "scallopRadius",
+    "dimensionText",
     // Icon properties (Google Earth icons)
     "iconScale",
     "labelScale",
@@ -327,6 +339,17 @@ export const applyPropertiesToFeature = (
   const labelProp = properties.find((p) => p.key === "label");
   if (labelProp) {
     feature.set("label", labelProp.value.trim() || "name");
+  }
+
+  // Handle dimensionText property
+  const dimensionTextProp = properties.find((p) => p.key === "dimensionText");
+  if (dimensionTextProp) {
+    const val = dimensionTextProp.value.trim();
+    if (val) {
+      feature.set("dimensionText", val);
+    } else {
+      feature.unset("dimensionText");
+    }
   }
 
   // Set new custom properties (skip protected and style properties)

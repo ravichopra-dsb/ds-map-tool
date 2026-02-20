@@ -544,12 +544,17 @@ export const getDimensionStyle = (
   shortenedCoords[shortenedCoords.length - 1] = [endAnchorX, endAnchorY];
   const shortenedLine = new LineString(shortenedCoords);
 
-  // Calculate length for display
-  const length = getLength(geometry as LineString);
-  console.log("* length", length);
-  const lengthText = length < 1000
-  ? `${Math.floor(length)}`
-  : `${Math.floor(length / 1000)}`;
+  // Use custom dimension text if set, otherwise calculate from geometry
+  const customDimensionText = (feature as any).get?.("dimensionText");
+  let lengthText: string;
+  if (customDimensionText !== undefined && customDimensionText !== null && customDimensionText !== "") {
+    lengthText = String(customDimensionText);
+  } else {
+    const length = getLength(geometry as LineString);
+    lengthText = length < 1000
+      ? `${Math.floor(length)}`
+      : `${Math.floor(length / 1000)}`;
+  }
 
   const styles: Style[] = [
     // Line style (shortened at both ends)
