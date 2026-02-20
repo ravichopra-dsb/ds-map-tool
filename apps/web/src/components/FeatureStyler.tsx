@@ -577,13 +577,13 @@ export const getDimensionStyle = (
         placement: "line",
         font: "bold 1px Arial",
         fill: new Fill({ color: customColor }),
-        // stroke: new Stroke({
-        //   color: "#ffffff",
-        //   width: 3,
-        // }),
+        stroke: new Stroke({
+          color: "#ffffff",
+          width: 0.4,
+        }),
         textAlign: "center",
         textBaseline: "middle",
-        offsetY: -10,
+        offsetY: 0,
         maxAngle: Math.PI / 4,
       }),
       zIndex: 100,
