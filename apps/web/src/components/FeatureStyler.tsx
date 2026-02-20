@@ -2,6 +2,7 @@ import { Style, Text, RegularShape, Circle } from "ol/style";
 import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
 import { Point, MultiLineString, LineString, Polygon } from "ol/geom";
+import { getLength } from "ol/sphere";
 import { getCenter } from "ol/extent";
 import type { FeatureLike } from "ol/Feature";
 import type { LegendType } from "@/tools/legendsConfig";
@@ -543,6 +544,13 @@ export const getDimensionStyle = (
   shortenedCoords[shortenedCoords.length - 1] = [endAnchorX, endAnchorY];
   const shortenedLine = new LineString(shortenedCoords);
 
+  // Calculate length for display
+  const length = getLength(geometry as LineString);
+  console.log("* length", length);
+  const lengthText = length < 1000
+  ? `${Math.floor(length)}`
+  : `${Math.floor(length / 1000)}`;
+
   const styles: Style[] = [
     // Line style (shortened at both ends)
     new Style({
@@ -561,6 +569,24 @@ export const getDimensionStyle = (
     new Style({
       geometry: startAnchorPoint,
       image: startArrowHead,
+    }),
+    // Length text along line at midpoint (rotates with line like indianOilPipeLine)
+    new Style({
+      text: new Text({
+        text: lengthText,
+        placement: "line",
+        font: "bold 1px Arial",
+        fill: new Fill({ color: customColor }),
+        // stroke: new Stroke({
+        //   color: "#ffffff",
+        //   width: 3,
+        // }),
+        textAlign: "center",
+        textBaseline: "middle",
+        offsetY: -10,
+        maxAngle: Math.PI / 4,
+      }),
+      zIndex: 100,
     }),
   ];
 

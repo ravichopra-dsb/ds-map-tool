@@ -528,7 +528,7 @@ export const createDimensionDraw = (
   const drawInteraction = createDrawInteraction({
     ...DRAW_CONFIGS.dimension,
     source,
-    style: createLineStyle(customColor, customWidth),
+    style: createLineStyle(customColor, 4),
     featureProperties: {
       isDimension: true,
       lineColor: customColor,
