@@ -1,4 +1,4 @@
-import { Style, Circle as CircleStyle, Text, Icon } from "ol/style";
+import { Style, Circle as CircleStyle, Text, Icon, RegularShape } from "ol/style";
 import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
 import { Feature } from "ol";
@@ -12,6 +12,7 @@ import {
   calculatePointRadius,
   RESOLUTION_SCALE_DEFAULTS,
 } from "./resolutionScaleUtils";
+import { computeAlignedDimensionGeometry } from "./alignedDimensionUtils";
 
 /**
  * Basic style configuration interface
@@ -378,6 +379,59 @@ export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number
     });
   }
 
+  // For Aligned Dimension features - re-render with hover color
+  if (feature.get("isAlignedDimension") && geometryType === "LineString" && resolution) {
+    const coords = (geometry as LineString).getCoordinates();
+    if (coords.length >= 2) {
+      const p1 = coords[0];
+      const p2 = coords[1];
+      const offsetDistance = feature.get("offsetDistance") || 0;
+      if (Math.abs(offsetDistance) > 1e-6) {
+        const dimGeom = computeAlignedDimensionGeometry(p1, p2, offsetDistance, resolution);
+        return [
+          new Style({
+            geometry: new LineString(dimGeom.extensionLine1),
+            stroke: hoverStroke,
+          }),
+          new Style({
+            geometry: new LineString(dimGeom.extensionLine2),
+            stroke: hoverStroke,
+          }),
+          new Style({
+            geometry: new LineString(dimGeom.dimensionLine),
+            stroke: hoverStroke,
+          }),
+          new Style({
+            geometry: new Point(dimGeom.dimensionLine[0]),
+            image: new RegularShape({
+              points: 3,
+              radius: 6,
+              rotation: Math.PI / 2 - Math.atan2(
+                dimGeom.dimensionLine[1][1] - dimGeom.dimensionLine[0][1],
+                dimGeom.dimensionLine[1][0] - dimGeom.dimensionLine[0][0]
+              ) + Math.PI,
+              angle: 0,
+              fill: new Fill({ color: HOVER_HIGHLIGHT_COLOR }),
+            }),
+          }),
+          new Style({
+            geometry: new Point(dimGeom.dimensionLine[1]),
+            image: new RegularShape({
+              points: 3,
+              radius: 6,
+              rotation: Math.PI / 2 - Math.atan2(
+                dimGeom.dimensionLine[1][1] - dimGeom.dimensionLine[0][1],
+                dimGeom.dimensionLine[1][0] - dimGeom.dimensionLine[0][0]
+              ),
+              angle: 0,
+              fill: new Fill({ color: HOVER_HIGHLIGHT_COLOR }),
+            }),
+          }),
+        ];
+      }
+    }
+  }
+
   // For LineString, MultiLineString, GeometryCollection (most common)
   // Only show stroke highlight on hover - vertices are shown only on selection
   return new Style({
@@ -517,6 +571,57 @@ export const createSelectStyle = (feature: Feature<Geometry>, resolution?: numbe
     return new Style({
       stroke: selectStroke,
     });
+  }
+
+  // For Aligned Dimension features - re-render with selection color
+  if (feature.get("isAlignedDimension") && geometryType === "LineString" && resolution) {
+    const coords = (geometry as LineString).getCoordinates();
+    if (coords.length >= 2) {
+      const p1 = coords[0];
+      const p2 = coords[1];
+      const offsetDistance = feature.get("offsetDistance") || 0;
+      if (Math.abs(offsetDistance) > 1e-6) {
+        const dimGeom = computeAlignedDimensionGeometry(p1, p2, offsetDistance, resolution);
+        const dimAngle = Math.atan2(
+          dimGeom.dimensionLine[1][1] - dimGeom.dimensionLine[0][1],
+          dimGeom.dimensionLine[1][0] - dimGeom.dimensionLine[0][0]
+        );
+        return [
+          new Style({
+            geometry: new LineString(dimGeom.extensionLine1),
+            stroke: selectStroke,
+          }),
+          new Style({
+            geometry: new LineString(dimGeom.extensionLine2),
+            stroke: selectStroke,
+          }),
+          new Style({
+            geometry: new LineString(dimGeom.dimensionLine),
+            stroke: selectStroke,
+          }),
+          new Style({
+            geometry: new Point(dimGeom.dimensionLine[0]),
+            image: new RegularShape({
+              points: 3,
+              radius: 6,
+              rotation: Math.PI / 2 - dimAngle + Math.PI,
+              angle: 0,
+              fill: new Fill({ color: "#0099ff" }),
+            }),
+          }),
+          new Style({
+            geometry: new Point(dimGeom.dimensionLine[1]),
+            image: new RegularShape({
+              points: 3,
+              radius: 6,
+              rotation: Math.PI / 2 - dimAngle,
+              angle: 0,
+              fill: new Fill({ color: "#0099ff" }),
+            }),
+          }),
+        ];
+      }
+    }
   }
 
   // For LineString, MultiLineString, GeometryCollection

@@ -152,6 +152,13 @@ export const TOOLS_CONFIG: Record<string, ToolConfig> = {
     freehand: true,
     description: "Draw freehand revision cloud with scalloped edges",
   },
+  alignedDimension: {
+    id: "alignedDimension",
+    name: "Aligned Dimension",
+    description: "AutoCAD-style dimension with extension lines. Click point 1, point 2, then set offset.",
+    selectDisabled: true,
+    modifyDisabled: true,
+  },
 };
 
 /**

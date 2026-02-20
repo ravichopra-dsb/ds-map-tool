@@ -9,6 +9,7 @@ import {
   Minus,
   Move,
   RulerDimensionLine,
+  Ruler,
   MapPin,
   Scissors,
   Spline,
@@ -117,6 +118,12 @@ export const TOOLS: ToolItem[] = [
     id: "dimension",
     name: "Dimension",
     icon: MoveVertical,
+    category: "draw",
+  },
+  {
+    id: "alignedDimension",
+    name: "Aligned Dim",
+    icon: Ruler,
     category: "draw",
   },
   {

@@ -8,3 +8,4 @@ export { useBreakTool } from './useBreakTool';
 export { useMergeTool, type MergeRequestDetail } from './useMergeTool';
 export { useSnapInteraction } from './useSnapInteraction';
 export { useArcModify } from './useArcModify';
+export { useAlignedDimensionTool } from './useAlignedDimensionTool';

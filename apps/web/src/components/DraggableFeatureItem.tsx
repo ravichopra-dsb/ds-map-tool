@@ -17,6 +17,7 @@ import {
   Cloud,
   RulerDimensionLine,
   MoveVertical,
+  Ruler,
 } from "lucide-react";
 
 interface DraggableFeatureItemProps {
@@ -33,6 +34,7 @@ interface DraggableFeatureItemProps {
 function getFeatureIconColor(feature: Feature<Geometry>): string {
   if (feature.get("isArrow")) return "text-blue-500";
   if (feature.get("isDimension")) return "text-blue-500";
+  if (feature.get("isAlignedDimension")) return "text-blue-500";
   if (feature.get("isMeasure")) return "text-gray-600";
   if (feature.get("isBox")) return "text-blue-500";
   if (feature.get("isCircle")) return "text-blue-500";
@@ -48,6 +50,7 @@ function getFeatureIcon(feature: Feature<Geometry>): LucideIcon {
   // Drawing tools
   if (feature.get("isArrow")) return ArrowUp;
   if (feature.get("isDimension")) return MoveVertical;
+  if (feature.get("isAlignedDimension")) return Ruler;
   if (feature.get("isPolyline")) return Slash;
   if (feature.get("isFreehand")) return Pencil;
   if (feature.get("isText")) return Type;
@@ -76,6 +79,7 @@ function getFeatureIcon(feature: Feature<Geometry>): LucideIcon {
 function getFeatureTypeName(feature: Feature<Geometry>): string {
   if (feature.get("isArrow")) return "Arrow";
   if (feature.get("isDimension")) return "Dimension";
+  if (feature.get("isAlignedDimension")) return "Aligned Dim";
   if (feature.get("isPolyline")) return "Polyline";
   if (feature.get("isFreehand")) return "Freehand";
   if (feature.get("isText")) return "Text";
