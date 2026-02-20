@@ -19,6 +19,7 @@ import {
   Cloud,
   Pipette,
   MoveVertical,
+  ScissorsLineDashed,
 } from "lucide-react";
 
 export type ToolCategory = "edit" | "draw" | "symbols";
@@ -67,6 +68,12 @@ export const TOOLS: ToolItem[] = [
     id: 'split',
     name: 'Split',
     icon: Scissors,
+    category: "edit",
+  },
+  {
+    id: 'break',
+    name: 'Break',
+    icon: ScissorsLineDashed,
     category: "edit",
   },
   {

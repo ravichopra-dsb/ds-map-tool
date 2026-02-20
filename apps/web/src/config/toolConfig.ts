@@ -93,6 +93,13 @@ export const TOOLS_CONFIG: Record<string, ToolConfig> = {
     selectDisabled: true,
     modifyDisabled: true,
   },
+  break: {
+    id: "break",
+    name: "Break",
+    description: "Break LineString features by clicking on them",
+    selectDisabled: true,
+    modifyDisabled: true,
+  },
   merge: {
     id: "merge",
     name: "Merge",

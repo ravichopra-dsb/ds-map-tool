@@ -4,6 +4,7 @@ export { useSelectModify, type MultiSelectMode } from './useSelectModify';
 export { useDragBoxSelection } from './useDragBoxSelection';
 export { useTransformTool } from './useTransformTool';
 export { useSplitTool } from './useSplitTool';
+export { useBreakTool } from './useBreakTool';
 export { useMergeTool, type MergeRequestDetail } from './useMergeTool';
 export { useSnapInteraction } from './useSnapInteraction';
 export { useArcModify } from './useArcModify';

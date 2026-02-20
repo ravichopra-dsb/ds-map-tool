@@ -22,6 +22,7 @@ import {
   useDragBoxSelection,
   useTransformTool,
   useSplitTool,
+  useBreakTool,
   useMergeTool,
   useArcModify,
   type MultiSelectMode,
@@ -131,6 +132,15 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     map,
     vectorLayer,
     isActive: activeTool === "split",
+    selectInteraction,
+    modifyInteraction,
+  });
+
+  // Handle break tool activation/deactivation
+  useBreakTool({
+    map,
+    vectorLayer,
+    isActive: activeTool === "break",
     selectInteraction,
     modifyInteraction,
   });
