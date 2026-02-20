@@ -194,7 +194,14 @@ export default function LayoutEditor() {
       if (e.key === "Delete" || e.key === "Backspace") {
         const activeObjects = fabricRef.current.getActiveObjects();
         if (activeObjects.length) {
-          activeObjects.forEach((obj) => fabricRef.current?.remove(obj));
+          activeObjects.forEach((obj) => {
+            if (obj.group) {
+              // Sub-object inside an interactive group — remove from the group
+              obj.group.remove(obj);
+            } else {
+              fabricRef.current?.remove(obj);
+            }
+          });
           fabricRef.current.discardActiveObject();
           fabricRef.current.requestRenderAll();
           setSelectedObject(null);
@@ -218,7 +225,13 @@ export default function LayoutEditor() {
     const canvas = fabricRef.current;
     const activeObjects = canvas?.getActiveObjects();
     if (activeObjects?.length) {
-      activeObjects.forEach((obj) => canvas?.remove(obj));
+      activeObjects.forEach((obj) => {
+        if (obj.group) {
+          obj.group.remove(obj);
+        } else {
+          canvas?.remove(obj);
+        }
+      });
       canvas?.discardActiveObject();
       canvas?.requestRenderAll();
       setSelectedObject(null);

@@ -225,6 +225,8 @@ export async function buildFabricLegend(
       top: iconCenterY - cy,
       originX: "left",
       originY: "center",
+      selectable: true,
+      evented: true,
     });
     objects.push(icon);
 
