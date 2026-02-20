@@ -107,6 +107,7 @@ export const extractStyleMetadata = (feature: Feature<Geometry>): any => {
 
   // Store icon type identifiers
   if (feature.get("isArrow")) properties.isArrow = true;
+  if (feature.get("isDimension")) properties.isDimension = true;
   if (feature.get("isMeasure")) properties.isMeasure = true;
   if (feature.get("islegends")) properties.islegends = true;
   if (feature.get("isPoint")) properties.isPoint = true;

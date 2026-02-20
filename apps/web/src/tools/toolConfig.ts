@@ -18,6 +18,7 @@ import {
   Merge,
   Cloud,
   Pipette,
+  MoveVertical,
 } from "lucide-react";
 
 export type ToolCategory = "edit" | "draw" | "symbols";
@@ -103,6 +104,12 @@ export const TOOLS: ToolItem[] = [
     id: "arrow",
     name: "Arrow",
     icon: ArrowUp,
+    category: "draw",
+  },
+  {
+    id: "dimension",
+    name: "Dimension",
+    icon: MoveVertical,
     category: "draw",
   },
   {

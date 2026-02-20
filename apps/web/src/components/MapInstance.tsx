@@ -374,7 +374,8 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
               let scaledImage: any = style.getImage() ?? undefined;
               const image = style.getImage();
               const isArrowFeature = feature.get("isArrow");
-              if (image && image instanceof RegularShape && !isArrowFeature) {
+              const isDimensionFeature = feature.get("isDimension");
+              if (image && image instanceof RegularShape && !isArrowFeature && !isDimensionFeature) {
                 const originalRadius = image.getRadius();
                 scaledImage = new RegularShape({
                   points: image.getPoints(),

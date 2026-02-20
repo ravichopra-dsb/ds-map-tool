@@ -17,8 +17,8 @@ export const isSplittableFeature = (feature: Feature<Geometry>): boolean => {
     return false;
   }
 
-  // Exclude arrow features
-  if (feature.get("isArrow")) {
+  // Exclude arrow and dimension features
+  if (feature.get("isArrow") || feature.get("isDimension")) {
     return false;
   }
 
@@ -39,9 +39,9 @@ export const isOffsettableFeature = (feature: Feature<Geometry>): boolean => {
 
   const geometryType = geometry.getType();
 
-  // LineString features (except arrows) can be offset
+  // LineString features (except arrows and dimensions) can be offset
   if (geometryType === "LineString") {
-    return !feature.get("isArrow");
+    return !feature.get("isArrow") && !feature.get("isDimension");
   }
 
   // Polygon shapes (box, circle) can be offset
@@ -359,10 +359,11 @@ export const detectMidVertexClick = (
  */
 export const getLineStringType = (
   feature: Feature<Geometry>
-): "polyline" | "freehand" | "arrow" | "measure" | null => {
+): "polyline" | "freehand" | "arrow" | "dimension" | "measure" | null => {
   if (feature.get("isPolyline")) return "polyline";
   if (feature.get("isFreehand")) return "freehand";
   if (feature.get("isArrow")) return "arrow";
+  if (feature.get("isDimension")) return "dimension";
   if (feature.get("isMeasure")) return "measure";
   // Default to polyline for unmarked LineStrings
   return "polyline";

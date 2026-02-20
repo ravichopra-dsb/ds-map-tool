@@ -12,6 +12,7 @@ import {
   createPolylineDraw,
   createFreehandDraw,
   createArrowDraw,
+  createDimensionDraw,
   createLegendDraw,
   createMeasureDraw,
   createBoxDraw,
@@ -219,6 +220,26 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
               useToolStore.getState().pauseDrawing('arrow');
               onFeatureSelect(event.feature);
               // Dispatch event to sync Select interaction for blue highlight
+              window.dispatchEvent(new CustomEvent('featureDrawn', {
+                detail: { feature: event.feature }
+              }));
+            }
+          },
+          lineColor,
+          lineWidth
+        );
+        map.addInteraction(drawInteractionRef.current);
+        addSnapInteraction();
+        break;
+
+      case "dimension":
+        drawInteractionRef.current = createDimensionDraw(
+          vectorSource,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              useToolStore.getState().setIsNewlyCreatedFeature(true);
+              useToolStore.getState().pauseDrawing('dimension');
+              onFeatureSelect(event.feature);
               window.dispatchEvent(new CustomEvent('featureDrawn', {
                 detail: { feature: event.feature }
               }));
