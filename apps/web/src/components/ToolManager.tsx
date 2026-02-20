@@ -76,7 +76,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
     map.addInteraction(snapInteractionRef.current);
   };
 
-  // Toggle snap interaction on/off when snapEnabled changes (F7)
+  // Toggle snap interaction on/off when snapEnabled changes (F3)
   useEffect(() => {
     if (!map) return;
 
@@ -154,12 +154,14 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           if (onFeatureSelect && event.feature) {
             // Pause drawing and open properties panel in edit mode
             useToolStore.getState().setIsNewlyCreatedFeature(true);
-            useToolStore.getState().pauseDrawing('point');
+            useToolStore.getState().pauseDrawing("point");
             onFeatureSelect(event.feature);
             // Dispatch event to sync Select interaction for blue highlight
-            window.dispatchEvent(new CustomEvent('featureDrawn', {
-              detail: { feature: event.feature }
-            }));
+            window.dispatchEvent(
+              new CustomEvent("featureDrawn", {
+                detail: { feature: event.feature },
+              }),
+            );
           }
         });
         map.addInteraction(drawInteractionRef.current);
@@ -173,16 +175,18 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
             if (onFeatureSelect && event.feature) {
               // Pause drawing and open properties panel in edit mode
               useToolStore.getState().setIsNewlyCreatedFeature(true);
-              useToolStore.getState().pauseDrawing('polyline');
+              useToolStore.getState().pauseDrawing("polyline");
               onFeatureSelect(event.feature);
               // Dispatch event to sync Select interaction for blue highlight
-              window.dispatchEvent(new CustomEvent('featureDrawn', {
-                detail: { feature: event.feature }
-              }));
+              window.dispatchEvent(
+                new CustomEvent("featureDrawn", {
+                  detail: { feature: event.feature },
+                }),
+              );
             }
           },
           lineColor,
-          lineWidth
+          lineWidth,
         );
         map.addInteraction(drawInteractionRef.current);
         addSnapInteraction();
@@ -195,16 +199,18 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
             if (onFeatureSelect && event.feature) {
               // Pause drawing and open properties panel in edit mode
               useToolStore.getState().setIsNewlyCreatedFeature(true);
-              useToolStore.getState().pauseDrawing('freehand');
+              useToolStore.getState().pauseDrawing("freehand");
               onFeatureSelect(event.feature);
               // Dispatch event to sync Select interaction for blue highlight
-              window.dispatchEvent(new CustomEvent('featureDrawn', {
-                detail: { feature: event.feature }
-              }));
+              window.dispatchEvent(
+                new CustomEvent("featureDrawn", {
+                  detail: { feature: event.feature },
+                }),
+              );
             }
           },
           lineColor,
-          lineWidth
+          lineWidth,
         );
         map.addInteraction(drawInteractionRef.current);
         addSnapInteraction();
@@ -217,16 +223,18 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
             if (onFeatureSelect && event.feature) {
               // Pause drawing and open properties panel in edit mode
               useToolStore.getState().setIsNewlyCreatedFeature(true);
-              useToolStore.getState().pauseDrawing('arrow');
+              useToolStore.getState().pauseDrawing("arrow");
               onFeatureSelect(event.feature);
               // Dispatch event to sync Select interaction for blue highlight
-              window.dispatchEvent(new CustomEvent('featureDrawn', {
-                detail: { feature: event.feature }
-              }));
+              window.dispatchEvent(
+                new CustomEvent("featureDrawn", {
+                  detail: { feature: event.feature },
+                }),
+              );
             }
           },
           lineColor,
-          lineWidth
+          lineWidth,
         );
         map.addInteraction(drawInteractionRef.current);
         addSnapInteraction();
@@ -238,11 +246,13 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           (event) => {
             if (onFeatureSelect && event.feature) {
               useToolStore.getState().setIsNewlyCreatedFeature(true);
-              useToolStore.getState().pauseDrawing('dimension');
+              useToolStore.getState().pauseDrawing("dimension");
               onFeatureSelect(event.feature);
-              window.dispatchEvent(new CustomEvent('featureDrawn', {
-                detail: { feature: event.feature }
-              }));
+              window.dispatchEvent(
+                new CustomEvent("featureDrawn", {
+                  detail: { feature: event.feature },
+                }),
+              );
             }
           },
         );
@@ -274,7 +284,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
             strokeColor,
             selectedLegend.style.strokeWidth,
             opacity,
-            selectedLegend.style.strokeDash
+            selectedLegend.style.strokeDash,
           );
         }
 
@@ -286,14 +296,16 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
             if (onFeatureSelect && event.feature) {
               // Pause drawing and open properties panel in edit mode
               useToolStore.getState().setIsNewlyCreatedFeature(true);
-              useToolStore.getState().pauseDrawing('legends');
+              useToolStore.getState().pauseDrawing("legends");
               onFeatureSelect(event.feature);
               // Dispatch event to sync Select interaction for blue highlight
-              window.dispatchEvent(new CustomEvent('featureDrawn', {
-                detail: { feature: event.feature }
-              }));
+              window.dispatchEvent(
+                new CustomEvent("featureDrawn", {
+                  detail: { feature: event.feature },
+                }),
+              );
             }
-          }
+          },
         );
         map.addInteraction(drawInteractionRef.current);
         addSnapInteraction();
@@ -307,13 +319,13 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
             handlerKey: "TextClickHandler",
             onClick: (coordinate) => {
               // Trigger custom event for text dialog
-              const event = new CustomEvent('textToolClick', {
-                detail: { coordinate }
+              const event = new CustomEvent("textToolClick", {
+                detail: { coordinate },
               });
               window.dispatchEvent(event);
             },
           },
-          vectorSource
+          vectorSource,
         );
         break;
 
@@ -321,7 +333,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         // Only open picker when not resuming from a drawing pause
         const { isResumingDrawing } = useToolStore.getState();
         if (!isResumingDrawing) {
-          const iconPickerEvent = new CustomEvent('iconPickerOpen');
+          const iconPickerEvent = new CustomEvent("iconPickerOpen");
           window.dispatchEvent(iconPickerEvent);
         }
         // Clear the resuming flag after use
@@ -337,20 +349,26 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
               toolId: "icons",
               handlerKey: "IconClickHandler",
               onClick: (coordinate) => {
-                const feature = handleIconClick(vectorSource, coordinate, selectedIconPath);
+                const feature = handleIconClick(
+                  vectorSource,
+                  coordinate,
+                  selectedIconPath,
+                );
                 if (feature && onFeatureSelect) {
                   // Pause drawing and open properties panel in edit mode
                   useToolStore.getState().setIsNewlyCreatedFeature(true);
-                  useToolStore.getState().pauseDrawing('icons');
+                  useToolStore.getState().pauseDrawing("icons");
                   onFeatureSelect(feature);
                   // Dispatch event to sync Select interaction for blue highlight
-                  window.dispatchEvent(new CustomEvent('featureDrawn', {
-                    detail: { feature }
-                  }));
+                  window.dispatchEvent(
+                    new CustomEvent("featureDrawn", {
+                      detail: { feature },
+                    }),
+                  );
                 }
               },
             },
-            vectorSource
+            vectorSource,
           );
         }
         break;
@@ -367,7 +385,7 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
             strokeColor,
             measureLegend.style.strokeWidth,
             opacity,
-            measureLegend.style.strokeDash
+            measureLegend.style.strokeDash,
           );
 
           drawInteractionRef.current = createMeasureDraw(
@@ -377,14 +395,16 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
               if (onFeatureSelect && event.feature) {
                 // Pause drawing and open properties panel in edit mode
                 useToolStore.getState().setIsNewlyCreatedFeature(true);
-                useToolStore.getState().pauseDrawing('measure');
+                useToolStore.getState().pauseDrawing("measure");
                 onFeatureSelect(event.feature);
                 // Dispatch event to sync Select interaction for blue highlight
-                window.dispatchEvent(new CustomEvent('featureDrawn', {
-                  detail: { feature: event.feature }
-                }));
+                window.dispatchEvent(
+                  new CustomEvent("featureDrawn", {
+                    detail: { feature: event.feature },
+                  }),
+                );
               }
-            }
+            },
           );
           map.addInteraction(drawInteractionRef.current);
           addSnapInteraction();
@@ -392,41 +412,39 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         break;
 
       case "box":
-        drawInteractionRef.current = createBoxDraw(
-          vectorSource,
-          (event) => {
-            if (onFeatureSelect && event.feature) {
-              // Pause drawing and open properties panel in edit mode
-              useToolStore.getState().setIsNewlyCreatedFeature(true);
-              useToolStore.getState().pauseDrawing('box');
-              onFeatureSelect(event.feature);
-              // Dispatch event to sync Select interaction for blue highlight
-              window.dispatchEvent(new CustomEvent('featureDrawn', {
-                detail: { feature: event.feature }
-              }));
-            }
+        drawInteractionRef.current = createBoxDraw(vectorSource, (event) => {
+          if (onFeatureSelect && event.feature) {
+            // Pause drawing and open properties panel in edit mode
+            useToolStore.getState().setIsNewlyCreatedFeature(true);
+            useToolStore.getState().pauseDrawing("box");
+            onFeatureSelect(event.feature);
+            // Dispatch event to sync Select interaction for blue highlight
+            window.dispatchEvent(
+              new CustomEvent("featureDrawn", {
+                detail: { feature: event.feature },
+              }),
+            );
           }
-        );
+        });
         map.addInteraction(drawInteractionRef.current);
         addSnapInteraction();
         break;
 
       case "circle":
-        drawInteractionRef.current = createCircleDraw(
-          vectorSource,
-          (event) => {
-            if (onFeatureSelect && event.feature) {
-              // Pause drawing and open properties panel in edit mode
-              useToolStore.getState().setIsNewlyCreatedFeature(true);
-              useToolStore.getState().pauseDrawing('circle');
-              onFeatureSelect(event.feature);
-              // Dispatch event to sync Select interaction for blue highlight
-              window.dispatchEvent(new CustomEvent('featureDrawn', {
-                detail: { feature: event.feature }
-              }));
-            }
+        drawInteractionRef.current = createCircleDraw(vectorSource, (event) => {
+          if (onFeatureSelect && event.feature) {
+            // Pause drawing and open properties panel in edit mode
+            useToolStore.getState().setIsNewlyCreatedFeature(true);
+            useToolStore.getState().pauseDrawing("circle");
+            onFeatureSelect(event.feature);
+            // Dispatch event to sync Select interaction for blue highlight
+            window.dispatchEvent(
+              new CustomEvent("featureDrawn", {
+                detail: { feature: event.feature },
+              }),
+            );
           }
-        );
+        });
         map.addInteraction(drawInteractionRef.current);
         addSnapInteraction();
         break;
@@ -438,16 +456,18 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
             if (onFeatureSelect && event.feature) {
               // Pause drawing and open properties panel in edit mode
               useToolStore.getState().setIsNewlyCreatedFeature(true);
-              useToolStore.getState().pauseDrawing('arc');
+              useToolStore.getState().pauseDrawing("arc");
               onFeatureSelect(event.feature);
               // Dispatch event to sync Select interaction for blue highlight
-              window.dispatchEvent(new CustomEvent('featureDrawn', {
-                detail: { feature: event.feature }
-              }));
+              window.dispatchEvent(
+                new CustomEvent("featureDrawn", {
+                  detail: { feature: event.feature },
+                }),
+              );
             }
           },
           lineColor,
-          lineWidth
+          lineWidth,
         );
         map.addInteraction(drawInteractionRef.current);
         addSnapInteraction();
@@ -460,15 +480,17 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
             if (onFeatureSelect && event.feature) {
               // Pause drawing and open properties panel in edit mode
               useToolStore.getState().setIsNewlyCreatedFeature(true);
-              useToolStore.getState().pauseDrawing('revcloud');
+              useToolStore.getState().pauseDrawing("revcloud");
               onFeatureSelect(event.feature);
               // Dispatch event to sync Select interaction for blue highlight
-              window.dispatchEvent(new CustomEvent('featureDrawn', {
-                detail: { feature: event.feature }
-              }));
+              window.dispatchEvent(
+                new CustomEvent("featureDrawn", {
+                  detail: { feature: event.feature },
+                }),
+              );
             }
           },
-          lineColor
+          lineColor,
         );
         map.addInteraction(drawInteractionRef.current);
         addSnapInteraction();
@@ -496,7 +518,9 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
 
       default: {
         // Handle quick-access icon tools (icon-tower, icon-chamber, etc.)
-        const quickIconTool = TOOLS.find(t => t.id === activeTool && t.iconPath);
+        const quickIconTool = TOOLS.find(
+          (t) => t.id === activeTool && t.iconPath,
+        );
         if (quickIconTool?.iconPath) {
           registerClickHandler(
             map,
@@ -504,18 +528,24 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
               toolId: activeTool,
               handlerKey: "QuickIconClickHandler",
               onClick: (coordinate) => {
-                const feature = handleIconClick(vectorSource, coordinate, quickIconTool.iconPath!);
+                const feature = handleIconClick(
+                  vectorSource,
+                  coordinate,
+                  quickIconTool.iconPath!,
+                );
                 if (feature && onFeatureSelect) {
                   useToolStore.getState().setIsNewlyCreatedFeature(true);
                   useToolStore.getState().pauseDrawing(activeTool);
                   onFeatureSelect(feature);
-                  window.dispatchEvent(new CustomEvent('featureDrawn', {
-                    detail: { feature }
-                  }));
+                  window.dispatchEvent(
+                    new CustomEvent("featureDrawn", {
+                      detail: { feature },
+                    }),
+                  );
                 }
               },
             },
-            vectorSource
+            vectorSource,
           );
         }
         break;

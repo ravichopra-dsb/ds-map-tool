@@ -32,7 +32,7 @@ const shortcuts = [
   { title: "Add-Vertex", value: "Right-Click", symbol: null },
   { title: "New Text-Line", value: "Alt Enter", symbol: "+" },
   { title: "Line Move", value: "F6", symbol: null },
-  { title: "Snap", value: "F7", symbol: null },
+  { title: "Snap", value: "F3", symbol: null },
   { title: "Vertex Continuity-Add-Mid", value: "e Left-Click", symbol: "+" },
   { title: "Vertex Continuity-Delete-End", value: "Right-Click", symbol: null },
 ];
@@ -105,7 +105,11 @@ export function HelpModal() {
                             {Icon ? (
                               <Icon className="w-4 h-4" />
                             ) : tool.iconPath ? (
-                              <img src={tool.iconPath} alt={tool.name} className="w-4 h-4" />
+                              <img
+                                src={tool.iconPath}
+                                alt={tool.name}
+                                className="w-4 h-4"
+                              />
                             ) : null}
                           </span>
                         </li>

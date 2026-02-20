@@ -63,8 +63,8 @@ export const useKeyboardShortcuts = ({
         return;
       }
 
-      // Handle F7 key for Snap toggle
-      if (event.key === 'F7') {
+      // Handle F3 key for Snap toggle
+      if (event.key === 'F3') {
         event.preventDefault();
         onSnapToggle?.();
         return;
