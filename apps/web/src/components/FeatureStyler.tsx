@@ -10,6 +10,7 @@ import { getLegendById } from "@/tools/legendsConfig";
 import { applyOpacityToColor } from "@/utils/colorUtils";
 import { getFeatureTypeStyle } from "@/utils/featureUtils";
 import { computeAlignedDimensionGeometry } from "@/utils/alignedDimensionUtils";
+import { computeLinearDimensionGeometry } from "@/utils/linearDimensionUtils";
 import {
   createPointStyle,
   createLineStyle,
@@ -715,6 +716,132 @@ export const getAlignedDimensionStyle = (
   return styles;
 };
 
+export const getLinearDimensionStyle = (
+  feature: FeatureLike,
+  resolution: number,
+  scaleFactor: number = 1,
+) => {
+  const geometry = feature.getGeometry();
+  if (!geometry || geometry.getType() !== "LineString") return new Style();
+
+  const coords = (geometry as LineString).getCoordinates();
+  if (coords.length < 2) return new Style();
+
+  const p1 = coords[0];
+  const p2 = coords[1];
+  const direction = feature.get("dimensionDirection") || "horizontal";
+  const dimLinePosition = feature.get("dimLinePosition");
+
+  if (dimLinePosition === undefined || dimLinePosition === null) return new Style();
+
+  const customColor = feature.get("lineColor") || "#ff0c0c";
+  const customWidth = feature.get("lineWidth") ?? 0.2;
+  const opacity = feature.get("opacity") ?? 1;
+  const colorWithOpacity = applyOpacityToColor(customColor, opacity);
+
+  const dimGeom = computeLinearDimensionGeometry(
+    p1, p2, direction, dimLinePosition, resolution
+  );
+  const arrowRadius = 0.5 * scaleFactor;
+  const arrowOffset = arrowRadius * resolution;
+
+  // Text: custom or calculated
+  const customDimensionText = feature.get("dimensionText");
+  let lengthText: string;
+  if (customDimensionText !== undefined && customDimensionText !== null && customDimensionText !== "") {
+    lengthText = String(customDimensionText);
+  } else {
+    // Measure only the horizontal or vertical component
+    let measureLine: LineString;
+    if (direction === "horizontal") {
+      measureLine = new LineString([[p1[0], p1[1]], [p2[0], p1[1]]]);
+    } else {
+      measureLine = new LineString([[p1[0], p1[1]], [p1[0], p2[1]]]);
+    }
+    const length = getLength(measureLine);
+    lengthText = length < 1000
+      ? `${Math.floor(length)}`
+      : `${Math.floor(length / 1000)}`;
+  }
+
+  const [dimP1, dimP2] = dimGeom.dimensionLine;
+  const dimDx = dimP2[0] - dimP1[0];
+  const dimDy = dimP2[1] - dimP1[1];
+  const dimAngle = Math.atan2(dimDy, dimDx);
+
+  // Shorten dimension line at both ends for arrowheads
+  const shortenedDimP1: number[] = [
+    dimP1[0] + arrowOffset * Math.cos(dimAngle),
+    dimP1[1] + arrowOffset * Math.sin(dimAngle),
+  ];
+  const shortenedDimP2: number[] = [
+    dimP2[0] - arrowOffset * Math.cos(dimAngle),
+    dimP2[1] - arrowOffset * Math.sin(dimAngle),
+  ];
+
+  // Text rotation: keep text readable (not upside-down)
+  let textRotation = -dimGeom.textRotation;
+  if (dimGeom.textRotation > Math.PI / 2) textRotation += Math.PI;
+  if (dimGeom.textRotation < -Math.PI / 2) textRotation -= Math.PI;
+
+  const styles: Style[] = [
+    // Extension line 1
+    new Style({
+      geometry: new LineString(dimGeom.extensionLine1),
+      stroke: new Stroke({ color: colorWithOpacity, width: customWidth }),
+    }),
+    // Extension line 2
+    new Style({
+      geometry: new LineString(dimGeom.extensionLine2),
+      stroke: new Stroke({ color: colorWithOpacity, width: customWidth }),
+    }),
+    // Dimension line (shortened)
+    new Style({
+      geometry: new LineString([shortenedDimP1, shortenedDimP2]),
+      stroke: new Stroke({ color: colorWithOpacity, width: customWidth }),
+    }),
+    // Arrow at start of dimension line (pointing outward)
+    new Style({
+      geometry: new Point(dimP1),
+      image: new RegularShape({
+        points: 3,
+        radius: arrowRadius,
+        rotation: Math.PI / 2 - dimAngle + Math.PI,
+        angle: 0,
+        fill: new Fill({ color: colorWithOpacity }),
+      }),
+    }),
+    // Arrow at end of dimension line
+    new Style({
+      geometry: new Point(dimP2),
+      image: new RegularShape({
+        points: 3,
+        radius: arrowRadius,
+        rotation: Math.PI / 2 - dimAngle,
+        angle: 0,
+        fill: new Fill({ color: colorWithOpacity }),
+      }),
+    }),
+    // Distance text at midpoint
+    new Style({
+      geometry: new Point(dimGeom.textPosition),
+      text: new Text({
+        text: lengthText,
+        font: "bold 1px Arial",
+        fill: new Fill({ color: customColor }),
+        stroke: new Stroke({ color: "#ffffff", width: 0.4 }),
+        rotation: textRotation,
+        textAlign: "center",
+        textBaseline: "bottom",
+        offsetY: -1,
+      }),
+      zIndex: 100,
+    }),
+  ];
+
+  return styles;
+};
+
 // Vertex colors for start and end points
 const VERTEX_START_COLOR = "#7ccf00"; // Green for starting vertex
 const VERTEX_END_COLOR = "#fb2c36"; // Red for ending vertex
@@ -783,6 +910,7 @@ const shouldShowLabel = (feature: FeatureLike): boolean => {
     feature.get("isArrow") ||
     feature.get("isDimension") ||
     feature.get("isAlignedDimension") ||
+    feature.get("isLinearDimension") ||
     feature.get("isText") ||
     feature.get("islegends") ||
     feature.get("isMeasure")
@@ -858,9 +986,14 @@ export const getFeatureStyle = (
   const isArrow = feature.get("isArrow");
   const isDimension = feature.get("isDimension");
   const isAlignedDimension = feature.get("isAlignedDimension");
+  const isLinearDimension = feature.get("isLinearDimension");
 
   if (isAlignedDimension && type === "LineString") {
     return getAlignedDimensionStyle(feature, resolution, scaleFactor);
+  }
+
+  if (isLinearDimension && type === "LineString") {
+    return getLinearDimensionStyle(feature, resolution, scaleFactor);
   }
 
   if (isArrow && (type === "LineString" || type === "MultiLineString")) {

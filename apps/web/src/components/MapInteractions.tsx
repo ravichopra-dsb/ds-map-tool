@@ -26,6 +26,7 @@ import {
   useMergeTool,
   useArcModify,
   useAlignedDimensionTool,
+  useLinearDimensionTool,
   type MultiSelectMode,
 } from "@/hooks/interactions";
 
@@ -151,6 +152,15 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     map,
     vectorLayer,
     isActive: activeTool === "alignedDimension",
+    selectInteraction,
+    modifyInteraction,
+  });
+
+  // Handle linear dimension tool activation/deactivation
+  useLinearDimensionTool({
+    map,
+    vectorLayer,
+    isActive: activeTool === "linearDimension",
     selectInteraction,
     modifyInteraction,
   });

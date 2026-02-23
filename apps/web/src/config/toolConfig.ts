@@ -159,6 +159,13 @@ export const TOOLS_CONFIG: Record<string, ToolConfig> = {
     selectDisabled: true,
     modifyDisabled: true,
   },
+  linearDimension: {
+    id: "linearDimension",
+    name: "Linear Dimension",
+    description: "AutoCAD-style linear dimension. Click point 1, point 2, then move cursor to set horizontal/vertical dimension line.",
+    selectDisabled: true,
+    modifyDisabled: true,
+  },
 };
 
 /**

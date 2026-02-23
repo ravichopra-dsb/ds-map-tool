@@ -111,6 +111,9 @@ export const extractStyleMetadata = (feature: Feature<Geometry>): any => {
   if (feature.get("dimensionText")) properties.dimensionText = feature.get("dimensionText");
   if (feature.get("isAlignedDimension")) properties.isAlignedDimension = true;
   if (feature.get("offsetDistance") !== undefined) properties.offsetDistance = feature.get("offsetDistance");
+  if (feature.get("isLinearDimension")) properties.isLinearDimension = true;
+  if (feature.get("dimensionDirection")) properties.dimensionDirection = feature.get("dimensionDirection");
+  if (feature.get("dimLinePosition") !== undefined) properties.dimLinePosition = feature.get("dimLinePosition");
   if (feature.get("isMeasure")) properties.isMeasure = true;
   if (feature.get("islegends")) properties.islegends = true;
   if (feature.get("isPoint")) properties.isPoint = true;

@@ -40,6 +40,11 @@ export const isEditableFeature = (feature: FeatureLike): boolean => {
     return true;
   }
 
+  // Editable: Linear Dimension features
+  if (feature.get("isLinearDimension")) {
+    return true;
+  }
+
   // Editable: Legend features
   if (isLegends) {
     return true;
@@ -127,13 +132,14 @@ export const supportsCustomLineStyle = (feature: FeatureLike): boolean => {
   const isArrow = feature.get("isArrow");
   const isDimension = feature.get("isDimension");
   const isAlignedDimension = feature.get("isAlignedDimension");
+  const isLinearDimension = feature.get("isLinearDimension");
   const isLegends = feature.get("islegends");
   const isArc = feature.get("isArc");
 
   // Exclude: Measure
   const isMeasure = feature.get("isMeasure");
 
-  return (isPolyline || isFreehand || isArrow || isDimension || isAlignedDimension || isLegends || isArc) && !isMeasure;
+  return (isPolyline || isFreehand || isArrow || isDimension || isAlignedDimension || isLinearDimension || isLegends || isArc) && !isMeasure;
 };
 
 /**
