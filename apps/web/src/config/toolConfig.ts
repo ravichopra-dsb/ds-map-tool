@@ -166,6 +166,13 @@ export const TOOLS_CONFIG: Record<string, ToolConfig> = {
     selectDisabled: true,
     modifyDisabled: true,
   },
+  radiusDimension: {
+    id: "radiusDimension",
+    name: "Radius Dimension",
+    description: "Click on a circle to annotate its radius.",
+    selectDisabled: true,
+    modifyDisabled: true,
+  },
 };
 
 /**

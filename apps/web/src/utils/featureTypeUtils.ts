@@ -45,6 +45,11 @@ export const isEditableFeature = (feature: FeatureLike): boolean => {
     return true;
   }
 
+  // Editable: Radius Dimension features
+  if (feature.get("isRadiusDimension")) {
+    return true;
+  }
+
   // Editable: Legend features
   if (isLegends) {
     return true;

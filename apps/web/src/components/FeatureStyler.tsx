@@ -901,6 +901,54 @@ export const getLineStringVertexStyle = (feature: FeatureLike): Style[] => {
 };
 
 /**
+ * Style for radius dimension features (line + text label showing radius)
+ */
+export const getRadiusDimensionStyle = (feature: FeatureLike): Style[] => {
+  const geometry = feature.getGeometry();
+  if (!geometry || geometry.getType() !== "LineString") return [];
+
+  const coords = (geometry as any).getCoordinates();
+  if (coords.length < 2) return [];
+
+  const endPoint = coords[coords.length - 1];
+  const radiusText = feature.get("radiusText") as string | undefined;
+
+  const styles: Style[] = [
+    new Style({
+      stroke: new Stroke({
+        color: "#ff0c0c",
+        width: 2,
+        lineDash: [0, 0],
+        lineCap: "round",
+      }),
+      zIndex: 10,
+    }),
+  ];
+
+  if (radiusText) {
+    styles.push(
+      new Style({
+        geometry: new Point(endPoint),
+        text: new Text({
+          text: `R${radiusText.slice(0, -1)}`,
+          font: "bold 12px Arial, sans-serif",
+          fill: new Fill({ color: "#ff0c0c" }),
+          backgroundFill: new Fill({ color: "rgba(255, 255, 255, 0.8)" }),
+          padding: [2, 4, 2, 4],
+          textAlign: "left",
+          textBaseline: "middle",
+          offsetX: 8,
+          offsetY: 0,
+        }),
+        zIndex: 11,
+      }),
+    );
+  }
+
+  return styles;
+};
+
+/**
  * Check if a feature should display a label
  * Supports Point features and icon features (GP, Tower, Junction, Triangle, Pit)
  */
@@ -911,6 +959,7 @@ const shouldShowLabel = (feature: FeatureLike): boolean => {
     feature.get("isDimension") ||
     feature.get("isAlignedDimension") ||
     feature.get("isLinearDimension") ||
+    feature.get("isRadiusDimension") ||
     feature.get("isText") ||
     feature.get("islegends") ||
     feature.get("isMeasure")
@@ -994,6 +1043,10 @@ export const getFeatureStyle = (
 
   if (isLinearDimension && type === "LineString") {
     return getLinearDimensionStyle(feature, resolution, scaleFactor);
+  }
+
+  if (feature.get("isRadiusDimension") && type === "LineString") {
+    return getRadiusDimensionStyle(feature);
   }
 
   if (isArrow && (type === "LineString" || type === "MultiLineString")) {

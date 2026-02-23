@@ -629,11 +629,13 @@ export const createCircleDraw = (
 
     // Convert Circle geometry to Polygon for GeoJSON compatibility
     const circleGeometry = event.feature.getGeometry() as CircleGeom;
+    const radius = circleGeometry.getRadius();
     const polygonGeometry = circleToPolygon(circleGeometry, 64);
     event.feature.setGeometry(polygonGeometry);
 
     // Set feature properties
     event.feature.set("isCircle", true);
+    event.feature.set("radius", radius);
     event.feature.set("strokeColor", customStrokeColor);
     event.feature.set("fillColor", customFillColor);
     event.feature.set("fillOpacity", 0);

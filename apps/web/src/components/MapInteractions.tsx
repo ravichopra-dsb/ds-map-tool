@@ -27,6 +27,7 @@ import {
   useArcModify,
   useAlignedDimensionTool,
   useLinearDimensionTool,
+  useRadiusDimensionTool,
   type MultiSelectMode,
 } from "@/hooks/interactions";
 
@@ -161,6 +162,15 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     map,
     vectorLayer,
     isActive: activeTool === "linearDimension",
+    selectInteraction,
+    modifyInteraction,
+  });
+
+  // Handle radius dimension tool activation/deactivation
+  useRadiusDimensionTool({
+    map,
+    vectorLayer,
+    isActive: activeTool === "radiusDimension",
     selectInteraction,
     modifyInteraction,
   });

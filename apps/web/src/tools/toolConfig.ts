@@ -134,6 +134,13 @@ export const TOOLS: ToolItem[] = [
     iconPath: "/Tool-Icons/LinearDim.png",
   },
   {
+    id: "radiusDimension",
+    name: "Radius Dim",
+    icon: null,
+    category: "draw",
+    iconPath: "/Tool-Icons/RadiusDim.png",
+  },
+  {
     id: "point",
     name: "Point",
     icon: Circle,

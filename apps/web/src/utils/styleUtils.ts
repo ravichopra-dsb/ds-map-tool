@@ -485,6 +485,13 @@ export const createHoverStyle = (feature: Feature<Geometry>, resolution?: number
     }
   }
 
+  // For Radius Dimension features - simple stroke re-render on hover
+  if (feature.get("isRadiusDimension") && geometryType === "LineString") {
+    return new Style({
+      stroke: hoverStroke,
+    });
+  }
+
   // For LineString, MultiLineString, GeometryCollection (most common)
   // Only show stroke highlight on hover - vertices are shown only on selection
   return new Style({
@@ -727,6 +734,13 @@ export const createSelectStyle = (feature: Feature<Geometry>, resolution?: numbe
         ];
       }
     }
+  }
+
+  // For Radius Dimension features - simple stroke re-render on selection
+  if (feature.get("isRadiusDimension") && geometryType === "LineString") {
+    return new Style({
+      stroke: selectStroke,
+    });
   }
 
   // For LineString, MultiLineString, GeometryCollection
