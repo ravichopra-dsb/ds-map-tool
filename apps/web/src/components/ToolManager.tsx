@@ -521,6 +521,11 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         // No draw interaction needed here
         break;
 
+      case "linearDimension":
+        // Linear Dimension interaction is managed in MapInteractions.tsx
+        // No draw interaction needed here
+        break;
+
       default: {
         // Handle quick-access icon tools (icon-tower, icon-chamber, etc.)
         const quickIconTool = TOOLS.find(
