@@ -377,14 +377,15 @@ export const applyPropertiesToFeature = (
     }
   }
 
-  // Set new custom properties (skip protected and style properties)
+  // Set new custom properties (skip protected, style, and calculated properties)
   properties.forEach((prop) => {
     const key = prop.key.trim();
     if (
       key &&
       prop.value.trim() &&
       !isProtectedProperty(key) &&
-      !isStyleProperty(key)
+      !isStyleProperty(key) &&
+      !isCalculatedProperty(key)
     ) {
       feature.set(key, prop.value.trim());
     }
