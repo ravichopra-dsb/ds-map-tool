@@ -1655,7 +1655,7 @@ const IconStyleDisplay: React.FC<IconStyleDisplayProps> = ({
         Icon Scale:
       </span>
       <span className="text-gray-600 dark:text-gray-400">
-        {iconScale.toFixed(1)}x
+        {(Number(iconScale) || 1).toFixed(1)}x
       </span>
     </div>
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
@@ -1671,7 +1671,7 @@ const IconStyleDisplay: React.FC<IconStyleDisplayProps> = ({
         Label Scale:
       </span>
       <span className="text-gray-600 dark:text-gray-400">
-        {labelScale.toFixed(1)}x
+        {(Number(labelScale) || 1).toFixed(1)}x
       </span>
     </div>
     <div className="flex justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
