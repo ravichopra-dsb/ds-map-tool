@@ -37,16 +37,26 @@ async function loadSvg(
 
 /**
  * Load a PNG/raster image and return it as a Fabric.js Image.
+ * Fetches the image as a blob and converts to data URL to avoid CORS issues
+ * and handle paths with special characters (spaces, etc.).
  * Returns null if the image fails to load.
  */
 async function loadImage(
   imagePath: string,
 ): Promise<fabric.FabricImage | null> {
   try {
-    const response = await fetch(imagePath, { method: "HEAD" });
+    const response = await fetch(imagePath);
     if (!response.ok) return null;
 
-    const img = await fabric.FabricImage.fromURL(imagePath);
+    const blob = await response.blob();
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    const img = await fabric.FabricImage.fromURL(dataUrl, { crossOrigin: "anonymous" });
     return img;
   } catch {
     return null;
