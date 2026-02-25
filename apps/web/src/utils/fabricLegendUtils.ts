@@ -37,16 +37,26 @@ async function loadSvg(
 
 /**
  * Load a PNG/raster image and return it as a Fabric.js Image.
+ * Fetches the image as a blob and converts to data URL to avoid CORS issues
+ * and handle paths with special characters (spaces, etc.).
  * Returns null if the image fails to load.
  */
 async function loadImage(
   imagePath: string,
 ): Promise<fabric.FabricImage | null> {
   try {
-    const response = await fetch(imagePath, { method: "HEAD" });
+    const response = await fetch(imagePath);
     if (!response.ok) return null;
 
-    const img = await fabric.FabricImage.fromURL(imagePath);
+    const blob = await response.blob();
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    const img = await fabric.FabricImage.fromURL(dataUrl, { crossOrigin: "anonymous" });
     return img;
   } catch {
     return null;
@@ -195,9 +205,9 @@ export async function buildFabricLegend(
     }),
   );
 
-  // Title
+  // Title (editable)
   objects.push(
-    new fabric.FabricText("LEGEND:-", {
+    new fabric.IText("LEGEND:-", {
       left: PADDING - cx,
       top: PADDING - cy,
       fontSize: TITLE_FONT_SIZE,
@@ -207,8 +217,8 @@ export async function buildFabricLegend(
       underline: true,
       originX: "left",
       originY: "top",
-      selectable: false,
-      evented: false,
+      selectable: true,
+      evented: true,
     }),
   );
 
@@ -225,12 +235,14 @@ export async function buildFabricLegend(
       top: iconCenterY - cy,
       originX: "left",
       originY: "center",
+      selectable: true,
+      evented: true,
     });
     objects.push(icon);
 
-    // Label text
+    // Label text (editable)
     objects.push(
-      new fabric.FabricText(item.label, {
+      new fabric.IText(item.label, {
         left: PADDING + ICON_WIDTH + COL_GAP - cx,
         top: iconCenterY - cy,
         fontSize: LABEL_FONT_SIZE,
@@ -238,8 +250,8 @@ export async function buildFabricLegend(
         fill: "#000000",
         originX: "left",
         originY: "center",
-        selectable: false,
-        evented: false,
+        selectable: true,
+        evented: true,
       }),
     );
   }
@@ -254,12 +266,14 @@ export async function buildFabricLegend(
     legendTop = options.top ?? (options.canvasHeight - totalHeight - margin);
   }
 
-  // Create the legend group
+  // Create the legend group with interactive sub-objects for text editing
   const group = new fabric.Group(objects, {
     left: legendLeft,
     top: legendTop,
     selectable: true,
     evented: true,
+    subTargetCheck: true,
+    interactive: true,
   });
 
   // Mark for identification (same pattern as isMapImage in LayoutCanvas)

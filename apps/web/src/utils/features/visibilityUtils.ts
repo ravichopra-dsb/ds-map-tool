@@ -5,6 +5,7 @@ import type { GeometryTypeName } from '@/types/features';
 export interface HiddenTypesState {
   measure: boolean;
   arrow: boolean;
+  dimension: boolean;
   freehand: boolean;
   polyline: boolean;
   legends: boolean;
@@ -23,6 +24,7 @@ interface VisibilityConfig {
 const VISIBILITY_CONFIGS: VisibilityConfig[] = [
   { hiddenKey: 'measure', flag: 'isMeasure', types: ['LineString', 'MultiLineString'] },
   { hiddenKey: 'arrow', flag: 'isArrow', types: ['LineString', 'MultiLineString'] },
+  { hiddenKey: 'dimension', flag: 'isDimension', types: ['LineString', 'MultiLineString'] },
   { hiddenKey: 'freehand', flag: 'isFreehand', types: ['LineString', 'MultiLineString'] },
   { hiddenKey: 'polyline', flag: 'isPolyline', types: ['LineString', 'MultiLineString'] },
   { hiddenKey: 'legends', flag: 'islegends', types: ['LineString', 'MultiLineString'] },

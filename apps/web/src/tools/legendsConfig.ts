@@ -109,8 +109,8 @@ export const LEGEND_TYPES: LegendType[] = [
     textStyle: {
       font: "12px Arial",
       fill: "#ff0c0c",
-      stroke: "#ff0c0c00",
-      strokeWidth: 1,
+      stroke: "#ff0c0c",
+      strokeWidth: 0.01,
       repeat: 20,
       offsetX: 0,
       offsetY: 0,
@@ -119,7 +119,7 @@ export const LEGEND_TYPES: LegendType[] = [
     },
     style: {
       strokeColor: "#ff0c0c",
-      strokeWidth: 1,
+      strokeWidth: 2.5,
     }
   },
   {
@@ -130,8 +130,8 @@ export const LEGEND_TYPES: LegendType[] = [
     textStyle: {
       font: "14px Arial",
       fill: "#ff0000",
-      stroke: "#f0000000",
-      strokeWidth: 0,
+      stroke: "#ff0000",
+      strokeWidth: 0.01,
       repeat: 45,
       offsetX: 0,
       offsetY: 0,

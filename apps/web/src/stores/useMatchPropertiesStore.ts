@@ -171,7 +171,7 @@ const resolveOpacity = (styles: CapturedStyles): number | undefined => {
 const applyStylesToFeature = (feature: Feature<Geometry>, styles: CapturedStyles): void => {
     // Feature type detection - ALL types included
     const isLineFeature = feature.get('isPolyline') || feature.get('isFreehand') ||
-        feature.get('isArrow') || feature.get('islegends') || feature.get('isArc');
+        feature.get('isArrow') || feature.get('isDimension') || feature.get('islegends') || feature.get('isArc');
     const isMeasureFeature = feature.get('isMeasure');
     const isShapeFeature = feature.get('isBox') || feature.get('isCircle') || feature.get('isRevisionCloud');
     const isTextFeature = feature.get('isText');

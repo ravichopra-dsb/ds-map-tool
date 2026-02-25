@@ -70,6 +70,13 @@ export const DRAW_CONFIGS = {
       isArrow: true,
     },
   },
+  dimension: {
+    type: "LineString" as const,
+    style: createLineStyle("#ff0c0c", 0.2),
+    featureProperties: {
+      isDimension: true,
+    },
+  },
   box: {
     type: "Circle" as const, // Uses Circle type with createBox() geometry function
     style: createPolygonStyle("#ffffff", 2, 1, "#000000", 0),
@@ -484,6 +491,61 @@ export const createArrowDraw = (
 };
 
 /**
+ * Create a dimension draw interaction with ortho mode support
+ * Same as arrow but will render arrowheads on both ends
+ */
+export const createDimensionDraw = (
+  source: any,
+  onDrawEnd?: (event: any) => void,
+  color?: string,
+  width?: number
+): Draw => {
+  const customColor = color || "#ff0c0c";
+  const customWidth = width ?? 0.2;
+
+  const orthoHelper = createOrthoGeometryFunction();
+
+  const handleDrawEnd = (event: any) => {
+    const geometry = event.feature.getGeometry() as LineString;
+    const coords = geometry.getCoordinates();
+
+    const orthoStates = orthoHelper.getOrthoStates();
+    if (orthoStates.length < coords.length - 1) {
+      orthoHelper.recordFinalSegment();
+    }
+
+    const constrainedCoords = applyOrthoToMarkedCoordinates(coords, orthoHelper.getOrthoStates());
+    geometry.setCoordinates(constrainedCoords);
+
+    event.feature.set('orthoStates', orthoHelper.getOrthoStates());
+    orthoHelper.reset();
+
+    if (onDrawEnd) {
+      onDrawEnd(event);
+    }
+  };
+
+  const drawInteraction = createDrawInteraction({
+    ...DRAW_CONFIGS.dimension,
+    source,
+    style: createLineStyle(customColor, 4),
+    featureProperties: {
+      isDimension: true,
+      lineColor: customColor,
+      lineWidth: customWidth,
+    },
+    geometryFunction: orthoHelper.geometryFunction,
+    onDrawEnd: handleDrawEnd,
+  });
+
+  drawInteraction.on('drawabort', () => {
+    orthoHelper.reset();
+  });
+
+  return drawInteraction;
+};
+
+/**
  * Create a box draw interaction
  * @param source - Vector source to draw on
  * @param onDrawEnd - Optional callback for when drawing ends
@@ -567,11 +629,13 @@ export const createCircleDraw = (
 
     // Convert Circle geometry to Polygon for GeoJSON compatibility
     const circleGeometry = event.feature.getGeometry() as CircleGeom;
+    const radius = circleGeometry.getRadius();
     const polygonGeometry = circleToPolygon(circleGeometry, 64);
     event.feature.setGeometry(polygonGeometry);
 
     // Set feature properties
     event.feature.set("isCircle", true);
+    event.feature.set("radius", radius);
     event.feature.set("strokeColor", customStrokeColor);
     event.feature.set("fillColor", customFillColor);
     event.feature.set("fillOpacity", 0);
@@ -1046,7 +1110,7 @@ export interface ContinuationConfig {
   feature: Feature<Geometry>;
   endpoint: "start" | "end" | "mid";
   midVertexIndex?: number;
-  featureType: "polyline" | "freehand" | "arrow" | "measure";
+  featureType: "polyline" | "freehand" | "arrow" | "dimension" | "measure";
   onComplete: (newCoordinates: Coordinate[]) => void;
   onCancel: () => void;
 }

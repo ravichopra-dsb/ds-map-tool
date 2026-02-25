@@ -2,12 +2,15 @@ import { Style, Text, RegularShape, Circle } from "ol/style";
 import Stroke from "ol/style/Stroke";
 import Fill from "ol/style/Fill";
 import { Point, MultiLineString, LineString, Polygon } from "ol/geom";
+import { getLength } from "ol/sphere";
 import { getCenter } from "ol/extent";
 import type { FeatureLike } from "ol/Feature";
 import type { LegendType } from "@/tools/legendsConfig";
 import { getLegendById } from "@/tools/legendsConfig";
 import { applyOpacityToColor } from "@/utils/colorUtils";
 import { getFeatureTypeStyle } from "@/utils/featureUtils";
+import { computeAlignedDimensionGeometry } from "@/utils/alignedDimensionUtils";
+import { computeLinearDimensionGeometry } from "@/utils/linearDimensionUtils";
 import {
   createPointStyle,
   createLineStyle,
@@ -23,6 +26,7 @@ export type FeatureStylerFunction = (
   feature: FeatureLike,
   resolution?: number,
   selectedLegend?: LegendType,
+  scaleFactor?: number,
 ) => Style | Style[] | null;
 
 // Helper function to create text-along-edge style for shapes with legendType
@@ -108,8 +112,7 @@ const getShapeStyles = (
   const isZigzag =
     feature.get("linePattern") === "zigzag" ||
     (legendType?.linePattern === "zigzag" && legendType?.zigzagConfig);
-  const zigzagConfig =
-    feature.get("zigzagConfig") || legendType?.zigzagConfig;
+  const zigzagConfig = feature.get("zigzagConfig") || legendType?.zigzagConfig;
 
   if (isZigzag && zigzagConfig) {
     // For zigzag, render the fill separately and the zigzag stroke along the exterior ring
@@ -138,7 +141,11 @@ const getShapeStyles = (
         const { amplitude, wavelength } = zigzagConfig;
         const amplitudeMap = amplitude * resolution;
         const halfWaveMap = (wavelength / 2) * resolution;
-        const zigzagGeom = createZigzagGeometry(ring, amplitudeMap, halfWaveMap);
+        const zigzagGeom = createZigzagGeometry(
+          ring,
+          amplitudeMap,
+          halfWaveMap,
+        );
 
         styles.push(
           new Style({
@@ -260,7 +267,8 @@ export const getTextAlongLineStyle = (
   const lineDash = customStrokeDash ?? legendType.style.strokeDash;
 
   // Check if this legend uses a zigzag line pattern
-  const isZigzag = legendType.linePattern === "zigzag" && legendType.zigzagConfig;
+  const isZigzag =
+    legendType.linePattern === "zigzag" && legendType.zigzagConfig;
 
   if (isZigzag && geometry.getType() === "LineString") {
     const { amplitude, wavelength } = legendType.zigzagConfig!;
@@ -314,10 +322,24 @@ export const getTextAlongLineStyle = (
     // For zigzag patterns, place text along the original straight line path
     // so tick marks cross the zigzag at regular intervals
     // Use custom strokeColor for text fill/stroke when the user changes the line color
-    const textFill = customColor && textStyle.fill === legendType.style.strokeColor
-      ? customColor : (textStyle.fill as string);
-    const textStroke = customColor && textStyle.stroke === legendType.style.strokeColor
-      ? customColor : (textStyle.stroke as string);
+    const textFill =
+      customColor && textStyle.fill === legendType.style.strokeColor
+        ? customColor
+        : (textStyle.fill as string);
+    const textStroke =
+      customColor && textStyle.stroke === legendType.style.strokeColor
+        ? customColor
+        : (textStyle.stroke as string);
+
+    // For "|" text legends (powerCabel, railwayMetroCrossing), smoothly scale text strokeWidth
+    // from 0 to 2.5 as line width goes from 0 to 10
+    const textStrokeWidth =
+      legendType.text === "|"
+        ? Math.min(
+            ((width ?? legendType.style.strokeWidth ?? 1) / 10) * 2.5,
+            2.5,
+          )
+        : textStyle.strokeWidth;
 
     styles.push(
       new Style({
@@ -331,7 +353,7 @@ export const getTextAlongLineStyle = (
           }),
           stroke: new Stroke({
             color: textStroke,
-            width: textStyle.strokeWidth,
+            width: textStrokeWidth,
           }),
           textAlign: "center",
           textBaseline: "middle",
@@ -351,7 +373,11 @@ export const getTextAlongLineStyle = (
 };
 
 // ✅ Arrow style function
-export const getArrowStyle = (feature: FeatureLike, resolution: number) => {
+export const getArrowStyle = (
+  feature: FeatureLike,
+  resolution: number,
+  scaleFactor: number = 1,
+) => {
   const geometry = feature.getGeometry();
   if (!geometry) return new Style();
 
@@ -389,7 +415,7 @@ export const getArrowStyle = (feature: FeatureLike, resolution: number) => {
   // Apply opacity to color
   const colorWithOpacity = applyOpacityToColor(customColor, opacity);
 
-  const arrowRadius = 8;
+  const arrowRadius = 8 * scaleFactor;
 
   // --- FIX STARTS HERE ---
 
@@ -438,6 +464,380 @@ export const getArrowStyle = (feature: FeatureLike, resolution: number) => {
   ];
 
   // Vertices are only shown on hover/selection, not in default style
+
+  return styles;
+};
+
+// ✅ Dimension style function (arrowheads on both ends)
+export const getDimensionStyle = (
+  feature: FeatureLike,
+  resolution: number,
+  scaleFactor: number = 1,
+) => {
+  const geometry = feature.getGeometry();
+  if (!geometry) return new Style();
+
+  let coordinates: number[][];
+
+  if (geometry.getType() === "LineString") {
+    coordinates = (geometry as any).getCoordinates();
+  } else if (geometry.getType() === "MultiLineString") {
+    const lineStrings = (geometry as any).getLineStrings();
+    if (lineStrings.length === 0) return new Style();
+    coordinates = lineStrings[lineStrings.length - 1].getCoordinates();
+  } else {
+    return new Style();
+  }
+
+  if (coordinates.length < 2) return new Style();
+
+  // Get custom color, width, and opacity
+  const customColor = feature.get("lineColor") || "#ff0c0c";
+  const customWidth = feature.get("lineWidth");
+  const width = customWidth !== undefined ? customWidth : 0.2;
+  const opacity =
+    feature.get("opacity") !== undefined ? feature.get("opacity") : 1;
+  const colorWithOpacity = applyOpacityToColor(customColor, opacity);
+
+  const arrowRadius = 0.5 * scaleFactor;
+  const offset = arrowRadius * resolution;
+
+  // --- END arrowhead (last segment) ---
+  const endStart = coordinates[coordinates.length - 2];
+  const endPoint = coordinates[coordinates.length - 1];
+  const endDx = endPoint[0] - endStart[0];
+  const endDy = endPoint[1] - endStart[1];
+  const endAngle = Math.atan2(endDy, endDx);
+
+  const endAnchorX = endPoint[0] - offset * Math.cos(endAngle);
+  const endAnchorY = endPoint[1] - offset * Math.sin(endAngle);
+  const endAnchorPoint = new Point([endAnchorX, endAnchorY]);
+
+  const endArrowHead = new RegularShape({
+    points: 3,
+    radius: arrowRadius,
+    rotation: Math.PI / 2 - endAngle,
+    angle: 0,
+    fill: new Fill({ color: colorWithOpacity }),
+  });
+
+  // --- START arrowhead (first segment, pointing backward) ---
+  const startPoint = coordinates[0];
+  const startNext = coordinates[1];
+  const startDx = startPoint[0] - startNext[0];
+  const startDy = startPoint[1] - startNext[1];
+  const startAngle = Math.atan2(startDy, startDx);
+
+  const startAnchorX = startPoint[0] - offset * Math.cos(startAngle);
+  const startAnchorY = startPoint[1] - offset * Math.sin(startAngle);
+  const startAnchorPoint = new Point([startAnchorX, startAnchorY]);
+
+  const startArrowHead = new RegularShape({
+    points: 3,
+    radius: arrowRadius,
+    rotation: Math.PI / 2 - startAngle,
+    angle: 0,
+    fill: new Fill({ color: colorWithOpacity }),
+  });
+
+  // Create a shortened line that doesn't poke through either arrowhead
+  const shortenedCoords = [...coordinates];
+  shortenedCoords[0] = [startAnchorX, startAnchorY];
+  shortenedCoords[shortenedCoords.length - 1] = [endAnchorX, endAnchorY];
+  const shortenedLine = new LineString(shortenedCoords);
+
+  // Use custom dimension text if set, otherwise calculate from geometry
+  const customDimensionText = (feature as any).get?.("dimensionText");
+  let lengthText: string;
+  if (customDimensionText !== undefined && customDimensionText !== null && customDimensionText !== "") {
+    lengthText = String(customDimensionText);
+  } else {
+    const length = getLength(geometry as LineString);
+    lengthText = length < 1000
+      ? `${Math.floor(length)}`
+      : `${Math.floor(length / 1000)}`;
+  }
+
+  const styles: Style[] = [
+    // Line style (shortened at both ends)
+    new Style({
+      geometry: shortenedLine,
+      stroke: new Stroke({
+        color: colorWithOpacity,
+        width: width,
+      }),
+    }),
+    // Arrow head at the end
+    new Style({
+      geometry: endAnchorPoint,
+      image: endArrowHead,
+    }),
+    // Arrow head at the start
+    new Style({
+      geometry: startAnchorPoint,
+      image: startArrowHead,
+    }),
+    // Length text along line at midpoint (rotates with line like indianOilPipeLine)
+    new Style({
+      text: new Text({
+        text: lengthText,
+        placement: "line",
+        font: "bold 1px Arial",
+        fill: new Fill({ color: customColor }),
+        stroke: new Stroke({
+          color: "#ffffff",
+          width: 0.4,
+        }),
+        textAlign: "center",
+        textBaseline: "middle",
+        offsetY: 0,
+        maxAngle: Math.PI / 4,
+      }),
+      zIndex: 100,
+    }),
+  ];
+
+  return styles;
+};
+
+export const getAlignedDimensionStyle = (
+  feature: FeatureLike,
+  resolution: number,
+  scaleFactor: number = 1,
+) => {
+  const geometry = feature.getGeometry();
+  if (!geometry || geometry.getType() !== "LineString") return new Style();
+
+  const coords = (geometry as LineString).getCoordinates();
+  if (coords.length < 2) return new Style();
+
+  const p1 = coords[0];
+  const p2 = coords[1];
+  const offsetDistance = feature.get("offsetDistance") || 0;
+
+  if (Math.abs(offsetDistance) < 1e-6) return new Style();
+
+  const customColor = feature.get("lineColor") || "#ff0c0c";
+  const customWidth = feature.get("lineWidth") ?? 0.2;
+  const opacity = feature.get("opacity") ?? 1;
+  const colorWithOpacity = applyOpacityToColor(customColor, opacity);
+
+  const dimGeom = computeAlignedDimensionGeometry(p1, p2, offsetDistance, resolution);
+  const arrowRadius = 0.5 * scaleFactor;
+  const arrowOffset = arrowRadius * resolution;
+
+  // Text: custom or calculated
+  const customDimensionText = feature.get("dimensionText");
+  let lengthText: string;
+  if (customDimensionText !== undefined && customDimensionText !== null && customDimensionText !== "") {
+    lengthText = String(customDimensionText);
+  } else {
+    const length = getLength(new LineString([p1, p2]));
+    lengthText = length < 1000
+      ? `${Math.floor(length)}`
+      : `${Math.floor(length / 1000)}`;
+  }
+
+  const [dimP1, dimP2] = dimGeom.dimensionLine;
+  const dimDx = dimP2[0] - dimP1[0];
+  const dimDy = dimP2[1] - dimP1[1];
+  const dimAngle = Math.atan2(dimDy, dimDx);
+
+  // Shorten dimension line at both ends for arrowheads
+  const shortenedDimP1: number[] = [
+    dimP1[0] + arrowOffset * Math.cos(dimAngle),
+    dimP1[1] + arrowOffset * Math.sin(dimAngle),
+  ];
+  const shortenedDimP2: number[] = [
+    dimP2[0] - arrowOffset * Math.cos(dimAngle),
+    dimP2[1] - arrowOffset * Math.sin(dimAngle),
+  ];
+
+  // Text rotation: keep text readable (not upside-down)
+  let textRotation = -dimGeom.textRotation;
+  if (dimGeom.textRotation > Math.PI / 2) textRotation += Math.PI;
+  if (dimGeom.textRotation < -Math.PI / 2) textRotation -= Math.PI;
+
+  const styles: Style[] = [
+    // Extension line 1
+    new Style({
+      geometry: new LineString(dimGeom.extensionLine1),
+      stroke: new Stroke({ color: colorWithOpacity, width: customWidth }),
+    }),
+    // Extension line 2
+    new Style({
+      geometry: new LineString(dimGeom.extensionLine2),
+      stroke: new Stroke({ color: colorWithOpacity, width: customWidth }),
+    }),
+    // Dimension line (shortened)
+    new Style({
+      geometry: new LineString([shortenedDimP1, shortenedDimP2]),
+      stroke: new Stroke({ color: colorWithOpacity, width: customWidth }),
+    }),
+    // Arrow at start of dimension line (pointing outward)
+    new Style({
+      geometry: new Point(dimP1),
+      image: new RegularShape({
+        points: 3,
+        radius: arrowRadius,
+        rotation: Math.PI / 2 - dimAngle + Math.PI,
+        angle: 0,
+        fill: new Fill({ color: colorWithOpacity }),
+      }),
+    }),
+    // Arrow at end of dimension line
+    new Style({
+      geometry: new Point(dimP2),
+      image: new RegularShape({
+        points: 3,
+        radius: arrowRadius,
+        rotation: Math.PI / 2 - dimAngle,
+        angle: 0,
+        fill: new Fill({ color: colorWithOpacity }),
+      }),
+    }),
+    // Distance text at midpoint
+    new Style({
+      geometry: new Point(dimGeom.textPosition),
+      text: new Text({
+        text: lengthText,
+        font: "bold 1px Arial",
+        fill: new Fill({ color: customColor }),
+        stroke: new Stroke({ color: "#ffffff", width: 0.4 }),
+        rotation: textRotation,
+        textAlign: "center",
+        textBaseline: "bottom",
+        offsetY: -1,
+      }),
+      zIndex: 100,
+    }),
+  ];
+
+  return styles;
+};
+
+export const getLinearDimensionStyle = (
+  feature: FeatureLike,
+  resolution: number,
+  scaleFactor: number = 1,
+) => {
+  const geometry = feature.getGeometry();
+  if (!geometry || geometry.getType() !== "LineString") return new Style();
+
+  const coords = (geometry as LineString).getCoordinates();
+  if (coords.length < 2) return new Style();
+
+  const p1 = coords[0];
+  const p2 = coords[1];
+  const direction = feature.get("dimensionDirection") || "horizontal";
+  const dimLinePosition = feature.get("dimLinePosition");
+
+  if (dimLinePosition === undefined || dimLinePosition === null) return new Style();
+
+  const customColor = feature.get("lineColor") || "#ff0c0c";
+  const customWidth = feature.get("lineWidth") ?? 0.2;
+  const opacity = feature.get("opacity") ?? 1;
+  const colorWithOpacity = applyOpacityToColor(customColor, opacity);
+
+  const dimGeom = computeLinearDimensionGeometry(
+    p1, p2, direction, dimLinePosition, resolution
+  );
+  const arrowRadius = 0.5 * scaleFactor;
+  const arrowOffset = arrowRadius * resolution;
+
+  // Text: custom or calculated
+  const customDimensionText = feature.get("dimensionText");
+  let lengthText: string;
+  if (customDimensionText !== undefined && customDimensionText !== null && customDimensionText !== "") {
+    lengthText = String(customDimensionText);
+  } else {
+    // Measure only the horizontal or vertical component
+    let measureLine: LineString;
+    if (direction === "horizontal") {
+      measureLine = new LineString([[p1[0], p1[1]], [p2[0], p1[1]]]);
+    } else {
+      measureLine = new LineString([[p1[0], p1[1]], [p1[0], p2[1]]]);
+    }
+    const length = getLength(measureLine);
+    lengthText = length < 1000
+      ? `${Math.floor(length)}`
+      : `${Math.floor(length / 1000)}`;
+  }
+
+  const [dimP1, dimP2] = dimGeom.dimensionLine;
+  const dimDx = dimP2[0] - dimP1[0];
+  const dimDy = dimP2[1] - dimP1[1];
+  const dimAngle = Math.atan2(dimDy, dimDx);
+
+  // Shorten dimension line at both ends for arrowheads
+  const shortenedDimP1: number[] = [
+    dimP1[0] + arrowOffset * Math.cos(dimAngle),
+    dimP1[1] + arrowOffset * Math.sin(dimAngle),
+  ];
+  const shortenedDimP2: number[] = [
+    dimP2[0] - arrowOffset * Math.cos(dimAngle),
+    dimP2[1] - arrowOffset * Math.sin(dimAngle),
+  ];
+
+  // Text rotation: keep text readable (not upside-down)
+  let textRotation = -dimGeom.textRotation;
+  if (dimGeom.textRotation > Math.PI / 2) textRotation += Math.PI;
+  if (dimGeom.textRotation < -Math.PI / 2) textRotation -= Math.PI;
+
+  const styles: Style[] = [
+    // Extension line 1
+    new Style({
+      geometry: new LineString(dimGeom.extensionLine1),
+      stroke: new Stroke({ color: colorWithOpacity, width: customWidth }),
+    }),
+    // Extension line 2
+    new Style({
+      geometry: new LineString(dimGeom.extensionLine2),
+      stroke: new Stroke({ color: colorWithOpacity, width: customWidth }),
+    }),
+    // Dimension line (shortened)
+    new Style({
+      geometry: new LineString([shortenedDimP1, shortenedDimP2]),
+      stroke: new Stroke({ color: colorWithOpacity, width: customWidth }),
+    }),
+    // Arrow at start of dimension line (pointing outward)
+    new Style({
+      geometry: new Point(dimP1),
+      image: new RegularShape({
+        points: 3,
+        radius: arrowRadius,
+        rotation: Math.PI / 2 - dimAngle + Math.PI,
+        angle: 0,
+        fill: new Fill({ color: colorWithOpacity }),
+      }),
+    }),
+    // Arrow at end of dimension line
+    new Style({
+      geometry: new Point(dimP2),
+      image: new RegularShape({
+        points: 3,
+        radius: arrowRadius,
+        rotation: Math.PI / 2 - dimAngle,
+        angle: 0,
+        fill: new Fill({ color: colorWithOpacity }),
+      }),
+    }),
+    // Distance text at midpoint
+    new Style({
+      geometry: new Point(dimGeom.textPosition),
+      text: new Text({
+        text: lengthText,
+        font: "bold 1px Arial",
+        fill: new Fill({ color: customColor }),
+        stroke: new Stroke({ color: "#ffffff", width: 0.4 }),
+        rotation: textRotation,
+        textAlign: "center",
+        textBaseline: "bottom",
+        offsetY: -1,
+      }),
+      zIndex: 100,
+    }),
+  ];
 
   return styles;
 };
@@ -501,6 +901,54 @@ export const getLineStringVertexStyle = (feature: FeatureLike): Style[] => {
 };
 
 /**
+ * Style for radius dimension features (line + text label showing radius)
+ */
+export const getRadiusDimensionStyle = (feature: FeatureLike): Style[] => {
+  const geometry = feature.getGeometry();
+  if (!geometry || geometry.getType() !== "LineString") return [];
+
+  const coords = (geometry as any).getCoordinates();
+  if (coords.length < 2) return [];
+
+  const endPoint = coords[coords.length - 1];
+  const radiusText = feature.get("radiusText") as string | undefined;
+
+  const styles: Style[] = [
+    new Style({
+      stroke: new Stroke({
+        color: "#ff0c0c",
+        width: 2,
+        lineDash: [0, 0],
+        lineCap: "round",
+      }),
+      zIndex: 10,
+    }),
+  ];
+
+  if (radiusText) {
+    styles.push(
+      new Style({
+        geometry: new Point(endPoint),
+        text: new Text({
+          text: `R${radiusText.slice(0, -1)}`,
+          font: "bold 12px Arial, sans-serif",
+          fill: new Fill({ color: "#ff0c0c" }),
+          backgroundFill: new Fill({ color: "rgba(255, 255, 255, 0.8)" }),
+          padding: [2, 4, 2, 4],
+          textAlign: "left",
+          textBaseline: "middle",
+          offsetX: 8,
+          offsetY: 0,
+        }),
+        zIndex: 11,
+      }),
+    );
+  }
+
+  return styles;
+};
+
+/**
  * Check if a feature should display a label
  * Supports Point features and icon features (GP, Tower, Junction, Triangle, Pit)
  */
@@ -508,6 +956,10 @@ const shouldShowLabel = (feature: FeatureLike): boolean => {
   // Skip features that already have their own text display systems
   if (
     feature.get("isArrow") ||
+    feature.get("isDimension") ||
+    feature.get("isAlignedDimension") ||
+    feature.get("isLinearDimension") ||
+    feature.get("isRadiusDimension") ||
     feature.get("isText") ||
     feature.get("islegends") ||
     feature.get("isMeasure")
@@ -577,12 +1029,32 @@ export const getFeatureStyle = (
   feature: FeatureLike,
   resolution: number = 1,
   selectedLegend?: LegendType,
+  scaleFactor: number = 1,
 ) => {
   const type = feature.getGeometry()?.getType();
   const isArrow = feature.get("isArrow");
+  const isDimension = feature.get("isDimension");
+  const isAlignedDimension = feature.get("isAlignedDimension");
+  const isLinearDimension = feature.get("isLinearDimension");
+
+  if (isAlignedDimension && type === "LineString") {
+    return getAlignedDimensionStyle(feature, resolution, scaleFactor);
+  }
+
+  if (isLinearDimension && type === "LineString") {
+    return getLinearDimensionStyle(feature, resolution, scaleFactor);
+  }
+
+  if (feature.get("isRadiusDimension") && type === "LineString") {
+    return getRadiusDimensionStyle(feature);
+  }
 
   if (isArrow && (type === "LineString" || type === "MultiLineString")) {
-    return getArrowStyle(feature, resolution);
+    return getArrowStyle(feature, resolution, scaleFactor);
+  }
+
+  if (isDimension && (type === "LineString" || type === "MultiLineString")) {
+    return getDimensionStyle(feature, resolution, scaleFactor);
   }
 
   // Handle measure features
@@ -643,7 +1115,16 @@ export const getFeatureStyle = (
     const fillOpacity =
       feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
     const strokeDash = feature.get("strokeDash") as number[] | undefined;
-    return getShapeStyles(feature, strokeColor, strokeWidth, strokeOpacity, fillColor, fillOpacity, strokeDash, resolution);
+    return getShapeStyles(
+      feature,
+      strokeColor,
+      strokeWidth,
+      strokeOpacity,
+      fillColor,
+      fillOpacity,
+      strokeDash,
+      resolution,
+    );
   }
 
   // Handle Circle features
@@ -662,7 +1143,16 @@ export const getFeatureStyle = (
     const fillOpacity =
       feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
     const strokeDash = feature.get("strokeDash") as number[] | undefined;
-    return getShapeStyles(feature, strokeColor, strokeWidth, strokeOpacity, fillColor, fillOpacity, strokeDash, resolution);
+    return getShapeStyles(
+      feature,
+      strokeColor,
+      strokeWidth,
+      strokeOpacity,
+      fillColor,
+      fillOpacity,
+      strokeDash,
+      resolution,
+    );
   }
 
   // Handle Revision Cloud features
@@ -681,7 +1171,16 @@ export const getFeatureStyle = (
     const fillOpacity =
       feature.get("fillOpacity") !== undefined ? feature.get("fillOpacity") : 0;
     const strokeDash = feature.get("strokeDash") as number[] | undefined;
-    return getShapeStyles(feature, strokeColor, strokeWidth, strokeOpacity, fillColor, fillOpacity, strokeDash, resolution);
+    return getShapeStyles(
+      feature,
+      strokeColor,
+      strokeWidth,
+      strokeOpacity,
+      fillColor,
+      fillOpacity,
+      strokeDash,
+      resolution,
+    );
   }
 
   if (
@@ -701,9 +1200,11 @@ export const getFeatureStyle = (
 
     // If no legend type is found, fall back to feature's own properties
     if (!legendType) {
-      const fallbackColor = feature.get("lineColor") || feature.get("strokeColor") || "#00ff00";
+      const fallbackColor =
+        feature.get("lineColor") || feature.get("strokeColor") || "#00ff00";
       const fallbackWidth = feature.get("lineWidth") ?? 2;
-      const fallbackOpacity = feature.get("opacity") ?? feature.get("strokeOpacity") ?? 1;
+      const fallbackOpacity =
+        feature.get("opacity") ?? feature.get("strokeOpacity") ?? 1;
       const fallbackDash = feature.get("strokeDash") as number[] | undefined;
 
       return [

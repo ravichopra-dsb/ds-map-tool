@@ -1,5 +1,6 @@
 export const FEATURE_FLAGS = {
   ARROW: 'isArrow',
+  DIMENSION: 'isDimension',
   TEXT: 'isText',
   LEGENDS: 'islegends',  // Keep existing casing
   MEASURE: 'isMeasure',
@@ -14,6 +15,7 @@ export type FeatureFlag = typeof FEATURE_FLAGS[keyof typeof FEATURE_FLAGS];
 export interface FeatureProperties {
   name?: string;
   isArrow?: boolean;
+  isDimension?: boolean;
   isText?: boolean;
   islegends?: boolean;
   isMeasure?: boolean;

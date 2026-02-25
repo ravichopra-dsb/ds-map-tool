@@ -474,8 +474,44 @@ export const useSelectModify = ({
       }
     };
 
-    // Right-click handler for sequential vertex deletion
+    // Right-click handler for mid-continuation vertex deletion and sequential vertex deletion
     const handleContextMenu = (evt: MouseEvent) => {
+      // Mid-continuation mode: right-click removes the last inserted vertex
+      if (isContinuingRef.current && midContinuationFeatureRef.current) {
+        evt.preventDefault();
+
+        // Nothing to undo if no vertices were inserted yet
+        if (midContinuationInsertCountRef.current <= 0) return;
+
+        const feature = midContinuationFeatureRef.current;
+        const geometry = feature.getGeometry() as LineString;
+        const coords = geometry.getCoordinates();
+
+        // Position of the last inserted vertex
+        const lastInsertedPos = midContinuationStartIndexRef.current + midContinuationInsertCountRef.current;
+
+        // If there's a preview coordinate after the last inserted vertex, account for it
+        let removeIndex = lastInsertedPos;
+        if (midContinuationHasPreviewRef.current) {
+          // Preview is at lastInsertedPos + 1, remove the last inserted vertex (before preview)
+          removeIndex = lastInsertedPos;
+        }
+
+        // Remove the last inserted vertex
+        const newCoords = [
+          ...coords.slice(0, removeIndex),
+          ...coords.slice(removeIndex + 1),
+        ];
+        geometry.setCoordinates(newCoords);
+        midContinuationInsertCountRef.current--;
+
+        // If preview was active, it shifted down by one, so update its position flag
+        // (the preview coordinate is still in the array, just at the new correct position)
+
+        return;
+      }
+
+      // Sequential delete mode: right-click deletes next vertex in sequence
       if (sequentialDeleteModeRef.current) {
         evt.preventDefault();
         performSequentialVertexDeletion();

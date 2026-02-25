@@ -182,12 +182,26 @@ export default function LayoutEditor() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!fabricRef.current) return;
       const activeObj = fabricRef.current.getActiveObject();
+      // Skip delete when editing text (direct IText or IText inside interactive group)
       if (activeObj?.type === "i-text" && (activeObj as fabric.IText).isEditing)
         return;
+      if (activeObj instanceof fabric.Group) {
+        const editingText = activeObj.getObjects().find(
+          (obj) => obj.type === "i-text" && (obj as fabric.IText).isEditing,
+        );
+        if (editingText) return;
+      }
       if (e.key === "Delete" || e.key === "Backspace") {
         const activeObjects = fabricRef.current.getActiveObjects();
         if (activeObjects.length) {
-          activeObjects.forEach((obj) => fabricRef.current?.remove(obj));
+          activeObjects.forEach((obj) => {
+            if (obj.group) {
+              // Sub-object inside an interactive group — remove from the group
+              obj.group.remove(obj);
+            } else {
+              fabricRef.current?.remove(obj);
+            }
+          });
           fabricRef.current.discardActiveObject();
           fabricRef.current.requestRenderAll();
           setSelectedObject(null);
@@ -211,7 +225,13 @@ export default function LayoutEditor() {
     const canvas = fabricRef.current;
     const activeObjects = canvas?.getActiveObjects();
     if (activeObjects?.length) {
-      activeObjects.forEach((obj) => canvas?.remove(obj));
+      activeObjects.forEach((obj) => {
+        if (obj.group) {
+          obj.group.remove(obj);
+        } else {
+          canvas?.remove(obj);
+        }
+      });
       canvas?.discardActiveObject();
       canvas?.requestRenderAll();
       setSelectedObject(null);

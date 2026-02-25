@@ -284,8 +284,8 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
           ) {
             const baseScaleFactor = calculateStrokeScale(resolution!);
 
-            // Get base style from FeatureStyler first
-            const baseStyle = getFeatureStyle(feature, resolution!);
+            // Get base style from FeatureStyler first (pass scaleFactor for arrow head sizing)
+            const baseStyle = getFeatureStyle(feature, resolution!, undefined, baseScaleFactor);
             if (!baseStyle) return baseStyle;
 
             // Apply resolution scaling to stroke widths, text, and zigzag geometries
@@ -370,10 +370,12 @@ export const MapInstance: React.FC<MapInstanceProps> = ({
                 }
               }
 
-              // Scale RegularShape images (e.g. arrowheads) by resolution
+              // Scale RegularShape images by resolution (skip arrows - handled in getArrowStyle)
               let scaledImage: any = style.getImage() ?? undefined;
               const image = style.getImage();
-              if (image && image instanceof RegularShape) {
+              const isArrowFeature = feature.get("isArrow");
+              const isDimensionFeature = feature.get("isDimension") || feature.get("isAlignedDimension") || feature.get("isLinearDimension");
+              if (image && image instanceof RegularShape && !isArrowFeature && !isDimensionFeature) {
                 const originalRadius = image.getRadius();
                 scaledImage = new RegularShape({
                   points: image.getPoints(),

@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { useMatchProperties } from "@/hooks/useMatchProperties";
 import { useOffsetTool } from "@/hooks/interactions/useOffsetTool";
 import { useToolStore } from "@/stores/useToolStore";
-import { DragPan, Select } from "ol/interaction";
+import { DragPan, Select, Snap } from "ol/interaction";
 import type { Draw } from "ol/interaction";
 import type Map from "ol/Map";
 import type VectorLayer from "ol/layer/Vector";
@@ -22,8 +22,12 @@ import {
   useDragBoxSelection,
   useTransformTool,
   useSplitTool,
+  useBreakTool,
   useMergeTool,
   useArcModify,
+  useAlignedDimensionTool,
+  useLinearDimensionTool,
+  useRadiusDimensionTool,
   type MultiSelectMode,
 } from "@/hooks/interactions";
 
@@ -64,6 +68,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
 }) => {
   const continuationDrawRef = useRef<Draw | null>(null);
   const isContinuingRef = useRef<boolean>(false);
+  const modifySnapRef = useRef<Snap | null>(null);
   const offsetInteractionRef = useRef<Offset | null>(null);
   const offsetTooltipRef = useRef<OlOverlay | null>(null);
   const offsetTooltipElementRef = useRef<HTMLDivElement | null>(null);
@@ -71,6 +76,7 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
 
   // Subscribe to drawing pause state
   const isDrawingPaused = useToolStore((state) => state.isDrawingPaused);
+  const snapEnabled = useToolStore((state) => state.snapEnabled);
 
   // Initialize UndoRedo interaction
   useUndoRedo({
@@ -89,6 +95,40 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
       onMultiSelectChange,
       onReady: onSelectInteractionReady,
     });
+
+  // Add snap interaction for modify/translate (vertex dragging on existing features)
+  // Must be added AFTER modify/translate interactions for proper OpenLayers event ordering
+  useEffect(() => {
+    if (!map || !vectorLayer) return;
+
+    // Remove existing modify snap
+    if (modifySnapRef.current) {
+      map.removeInteraction(modifySnapRef.current);
+      modifySnapRef.current = null;
+    }
+
+    // Only add snap when in select mode and snap is enabled
+    const selectTools = ['select', 'transform', 'copy'];
+    if (!snapEnabled || !selectTools.includes(activeTool)) return;
+
+    const vectorSource = vectorLayer.getSource();
+    if (!vectorSource) return;
+
+    modifySnapRef.current = new Snap({
+      source: vectorSource,
+      pixelTolerance: 15,
+      vertex: true,
+      edge: true,
+    });
+    map.addInteraction(modifySnapRef.current);
+
+    return () => {
+      if (modifySnapRef.current && map) {
+        map.removeInteraction(modifySnapRef.current);
+        modifySnapRef.current = null;
+      }
+    };
+  }, [map, vectorLayer, snapEnabled, activeTool]);
 
   // Initialize arc-specific editing with 3 control points
   // Must be after useSelectModify to access selectInteraction, modifyInteraction, and translateInteraction
@@ -131,6 +171,42 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     map,
     vectorLayer,
     isActive: activeTool === "split",
+    selectInteraction,
+    modifyInteraction,
+  });
+
+  // Handle break tool activation/deactivation
+  useBreakTool({
+    map,
+    vectorLayer,
+    isActive: activeTool === "break",
+    selectInteraction,
+    modifyInteraction,
+  });
+
+  // Handle aligned dimension tool activation/deactivation
+  useAlignedDimensionTool({
+    map,
+    vectorLayer,
+    isActive: activeTool === "alignedDimension",
+    selectInteraction,
+    modifyInteraction,
+  });
+
+  // Handle linear dimension tool activation/deactivation
+  useLinearDimensionTool({
+    map,
+    vectorLayer,
+    isActive: activeTool === "linearDimension",
+    selectInteraction,
+    modifyInteraction,
+  });
+
+  // Handle radius dimension tool activation/deactivation
+  useRadiusDimensionTool({
+    map,
+    vectorLayer,
+    isActive: activeTool === "radiusDimension",
     selectInteraction,
     modifyInteraction,
   });

@@ -31,10 +31,20 @@ export const useHoverInteraction = ({
       condition: pointerMove,
       layers: [vectorLayer],
       filter: (feature) => {
+        const feat = feature as Feature<Geometry>;
+
         // Don't trigger hover on selected features
         if (!selectInteraction) return true;
         const selectedFeatures = selectInteraction.getFeatures().getArray();
-        return !selectedFeatures.includes(feature as Feature<Geometry>);
+        if (selectedFeatures.includes(feat)) return false;
+
+        // Don't trigger hover on dimension tools
+        if (feat.get("isAlignedDimension") || feat.get("isLinearDimension") ||
+            feat.get("isRadiusDimension") || feat.get("isAngularDimension")) {
+          return false;
+        }
+
+        return true;
       },
       style: (feature, resolution) => {
         return createHoverStyle(feature as Feature<Geometry>, resolution, resolutionScalingEnabled);

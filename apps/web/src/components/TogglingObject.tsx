@@ -43,7 +43,7 @@ export function TogglingObject() {
           </Button>
         </div>
         <div className="px-4 divide-transparent divide-y-12">
-          {TOOLS.slice(6).map((tool) => {
+          {TOOLS.filter((tool) => tool.category !== "edit" && tool.category !== "symbols").map((tool) => {
             const Icon = tool.icon;
             return (
               <div key={tool.id} className="flex items-center gap-4 ">

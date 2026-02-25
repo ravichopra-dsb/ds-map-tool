@@ -18,6 +18,8 @@ import {
   Merge,
   Cloud,
   Pipette,
+  MoveVertical,
+  ScissorsLineDashed,
 } from "lucide-react";
 
 export type ToolCategory = "edit" | "draw" | "symbols";
@@ -69,6 +71,12 @@ export const TOOLS: ToolItem[] = [
     category: "edit",
   },
   {
+    id: 'break',
+    name: 'Break',
+    icon: ScissorsLineDashed,
+    category: "edit",
+  },
+  {
     id: 'merge',
     name: 'Merge',
     icon: Merge,
@@ -104,6 +112,33 @@ export const TOOLS: ToolItem[] = [
     name: "Arrow",
     icon: ArrowUp,
     category: "draw",
+  },
+  {
+    id: "dimension",
+    name: "Dimension",
+    icon: MoveVertical,
+    category: "draw",
+  },
+  {
+    id: "alignedDimension",
+    name: "Aligned Dim",
+    icon: null,
+    category: "draw",
+    iconPath: "/Tool-Icons/AlignedDim.png",
+  },
+  {
+    id: "linearDimension",
+    name: "Linear Dim",
+    icon: null,
+    category: "draw",
+    iconPath: "/Tool-Icons/LinearDim.png",
+  },
+  {
+    id: "radiusDimension",
+    name: "Radius Dim",
+    icon: null,
+    category: "draw",
+    iconPath: "/Tool-Icons/RadiusDim.png",
   },
   {
     id: "point",

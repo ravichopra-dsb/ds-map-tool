@@ -360,7 +360,8 @@ export const parseKmlStyles = (kmlText: string): Map<string, ParsedKmlStyle> => 
 
       const scaleEl = iconStyle.querySelector("scale");
       if (scaleEl?.textContent) {
-        style.iconScale = parseFloat(scaleEl.textContent);
+        const parsed = parseFloat(scaleEl.textContent);
+        if (!isNaN(parsed)) style.iconScale = parsed;
       }
     }
 
@@ -495,7 +496,7 @@ export const applyKmlStylesToFeatures = (
     }
 
     // Set type flags for proper rendering
-    if ((geomType === "LineString" || geomType === "MultiLineString") && !feature.get("isPolyline") && !feature.get("isFreehand") && !feature.get("isArrow")) {
+    if ((geomType === "LineString" || geomType === "MultiLineString") && !feature.get("isPolyline") && !feature.get("isFreehand") && !feature.get("isArrow") && !feature.get("isDimension")) {
       feature.set("isPolyline", true);
     }
     if (geomType === "Point" && !feature.get("isPoint") && !feature.get("isIcon")) {
@@ -506,9 +507,23 @@ export const applyKmlStylesToFeatures = (
 
 /**
  * Convert Google Earth icon URL to app icon path
- * Returns the original URL if no local mapping exists, allowing external icons to be used
+ * Maps remote/external icon URLs back to local paths when possible for offline support
  */
 const convertGoogleEarthToAppIcon = (googleIconUrl: string): string => {
-  // Return the original Google Earth icon URL for use in the app
+  // Strip file:/// protocol prefix (from local KML files)
+  if (googleIconUrl.startsWith("file:///")) {
+    const filePath = googleIconUrl.replace("file:///", "");
+    const iconIndex = filePath.indexOf("google_earth_icons");
+    if (iconIndex !== -1) {
+      return "/" + filePath.substring(iconIndex).replace(/\\/g, "/");
+    }
+  }
+
+  // Map deployed app URLs back to local paths
+  if (googleIconUrl.includes("ds-map-tool.vercel.app/google_earth_icons/")) {
+    const iconIndex = googleIconUrl.indexOf("google_earth_icons");
+    return "/" + googleIconUrl.substring(iconIndex);
+  }
+
   return googleIconUrl;
 };

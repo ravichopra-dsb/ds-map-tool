@@ -84,12 +84,12 @@ export const useIconPropertiesEditor = (
   // Initialize values when feature changes
   useEffect(() => {
     if (selectedFeature && supportsIconPropertiesEdit(selectedFeature)) {
-      const featureOpacity = selectedFeature.get("opacity") ?? DEFAULT_OPACITY;
-      const featureIconScale = selectedFeature.get("iconScale") ?? DEFAULT_ICON_SCALE;
-      const featureLabelScale = selectedFeature.get("labelScale") ?? DEFAULT_LABEL_SCALE;
-      const featureTextOffsetX = selectedFeature.get("textOffsetX") ?? DEFAULT_TEXT_OFFSET_X;
-      const featureTextOffsetY = selectedFeature.get("textOffsetY") ?? DEFAULT_TEXT_OFFSET_Y;
-      const featureRotation = selectedFeature.get("iconRotation") ?? DEFAULT_ROTATION;
+      const featureOpacity = Number(selectedFeature.get("opacity")) || DEFAULT_OPACITY;
+      const featureIconScale = Number(selectedFeature.get("iconScale")) || DEFAULT_ICON_SCALE;
+      const featureLabelScale = Number(selectedFeature.get("labelScale")) || DEFAULT_LABEL_SCALE;
+      const featureTextOffsetX = Number(selectedFeature.get("textOffsetX")) || DEFAULT_TEXT_OFFSET_X;
+      const featureTextOffsetY = Number(selectedFeature.get("textOffsetY")) || DEFAULT_TEXT_OFFSET_Y;
+      const featureRotation = Number(selectedFeature.get("iconRotation")) || DEFAULT_ROTATION;
       const featureShowLabel = selectedFeature.get("showLabel") ?? DEFAULT_SHOW_LABEL;
       const featureIconSrc = selectedFeature.get("iconPath") ?? "";
 

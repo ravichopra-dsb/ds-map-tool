@@ -12,6 +12,7 @@ import {
   createPolylineDraw,
   createFreehandDraw,
   createArrowDraw,
+  createDimensionDraw,
   createLegendDraw,
   createMeasureDraw,
   createBoxDraw,
@@ -234,6 +235,26 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
           },
           lineColor,
           lineWidth,
+        );
+        map.addInteraction(drawInteractionRef.current);
+        addSnapInteraction();
+        break;
+
+      case "dimension":
+        drawInteractionRef.current = createDimensionDraw(
+          vectorSource,
+          (event) => {
+            if (onFeatureSelect && event.feature) {
+              useToolStore.getState().setIsNewlyCreatedFeature(true);
+              useToolStore.getState().pauseDrawing("dimension");
+              onFeatureSelect(event.feature);
+              window.dispatchEvent(
+                new CustomEvent("featureDrawn", {
+                  detail: { feature: event.feature },
+                }),
+              );
+            }
+          },
         );
         map.addInteraction(drawInteractionRef.current);
         addSnapInteraction();
@@ -480,6 +501,11 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         // No draw interaction needed here
         break;
 
+      case "break":
+        // Break interaction is managed in MapInteractions.tsx
+        // No draw interaction needed here
+        break;
+
       case "merge":
         // Merge interaction is managed in MapInteractions.tsx
         // No draw interaction needed here
@@ -487,6 +513,20 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
 
       case "offset":
         // Offset interaction is managed in MapInteractions.tsx
+        // No draw interaction needed here
+        break;
+
+      case "alignedDimension":
+        // Aligned Dimension interaction is managed in MapInteractions.tsx
+        // No draw interaction needed here
+        break;
+
+      case "linearDimension":
+        // Linear Dimension interaction is managed in MapInteractions.tsx
+        // No draw interaction needed here
+        break;
+      case "radiusDimension":
+        // Radius Dimension interaction is managed in MapInteractions.tsx
         // No draw interaction needed here
         break;
 

@@ -6,6 +6,7 @@ type HiddenFeatureTypes = Record<HiddenFeatureKey, boolean>;
 
 let state: HiddenFeatureTypes = {
     arrow: false,
+    dimension: false,
     freehand: false,
     polyline: false,
     point: false,

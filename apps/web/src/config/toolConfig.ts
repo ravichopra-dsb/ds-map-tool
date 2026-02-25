@@ -93,6 +93,13 @@ export const TOOLS_CONFIG: Record<string, ToolConfig> = {
     selectDisabled: true,
     modifyDisabled: true,
   },
+  break: {
+    id: "break",
+    name: "Break",
+    description: "Break LineString features by clicking on them",
+    selectDisabled: true,
+    modifyDisabled: true,
+  },
   merge: {
     id: "merge",
     name: "Merge",
@@ -144,6 +151,27 @@ export const TOOLS_CONFIG: Record<string, ToolConfig> = {
     drawType: "Polygon",
     freehand: true,
     description: "Draw freehand revision cloud with scalloped edges",
+  },
+  alignedDimension: {
+    id: "alignedDimension",
+    name: "Aligned Dimension",
+    description: "AutoCAD-style dimension with extension lines. Click point 1, point 2, then set offset.",
+    selectDisabled: true,
+    modifyDisabled: true,
+  },
+  linearDimension: {
+    id: "linearDimension",
+    name: "Linear Dimension",
+    description: "AutoCAD-style linear dimension. Click point 1, point 2, then move cursor to set horizontal/vertical dimension line.",
+    selectDisabled: true,
+    modifyDisabled: true,
+  },
+  radiusDimension: {
+    id: "radiusDimension",
+    name: "Radius Dimension",
+    description: "Click on a circle to annotate its radius.",
+    selectDisabled: true,
+    modifyDisabled: true,
   },
 };
 

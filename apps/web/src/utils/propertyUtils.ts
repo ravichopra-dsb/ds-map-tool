@@ -60,7 +60,7 @@ export const parseHtmlDescription = (htmlDescription: unknown): Record<string, s
 };
 
 /** Properties that cannot have their key changed */
-export const PROTECTED_PROPERTY_KEYS = ["name", "long", "lat", "label"] as const;
+export const PROTECTED_PROPERTY_KEYS = ["name", "long", "lat", "label", "dimensionText"] as const;
 
 /**
  * Check if a property key is protected (cannot be deleted or renamed)
@@ -72,7 +72,7 @@ export const isProtectedProperty = (key: string): boolean => {
 };
 
 /** Properties that are calculated and fully read-only (both key and value) */
-export const CALCULATED_PROPERTY_KEYS = ["length", "vertex"] as const;
+export const CALCULATED_PROPERTY_KEYS = ["length", "vertex", "radius"] as const;
 
 /**
  * Check if a property is calculated (completely read-only)
@@ -107,6 +107,16 @@ export const parseLengthValue = (value: string): number => {
     return num * 1000;
   }
   return num;
+};
+
+/**
+ * Format radius based on selected unit
+ */
+export const formatRadiusWithUnit = (mapUnits: number, unit: LengthUnit): string => {
+  if (unit === "m") {
+    return `${mapUnits.toFixed(3)}m`;
+  }
+  return `${(mapUnits / 1000).toFixed(3)}km`;
 };
 
 /** Style properties that have their own UI section */
@@ -161,6 +171,9 @@ const shouldExcludeProperty = (key: string): boolean => {
   if (key === "label") return true;
   if (key === "lengthUnit") return true;
   if (key === "scallopRadius") return true;
+  if (key === "dimensionText") return true;
+  // Calculated properties have their own UI section in the panel
+  if (isCalculatedProperty(key)) return true;
   // Style properties have their own UI section in the panel
   if (isStyleProperty(key)) return true;
   return false;
@@ -211,6 +224,29 @@ export const extractAllProperties = (feature: Feature): CustomProperty[] => {
       { id: "prop-length", key: "length", value: formatLengthWithUnit(lengthMeters, lengthUnit) },
       { id: "prop-vertex", key: "vertex", value: String(coords.length) }
     );
+  }
+
+  // Add radius for circle features
+  if (feature.get("isCircle")) {
+    const radiusValue = feature.get("radius");
+    if (radiusValue !== undefined && radiusValue !== null) {
+      const lengthUnit = "m";
+      allProperties.push({
+        id: "prop-radius",
+        key: "radius",
+        value: formatRadiusWithUnit(radiusValue, lengthUnit),
+      });
+    }
+  }
+
+  // Add editable dimension text for dimension features
+  if (feature.get("isDimension")) {
+    const dimensionText = feature.get("dimensionText") || "";
+    allProperties.push({
+      id: "prop-dimensionText",
+      key: "dimensionText",
+      value: String(dimensionText),
+    });
   }
 
   // Add parsed description fields as individual properties (if HTML description exists)
@@ -292,6 +328,7 @@ export const applyPropertiesToFeature = (
     "legendType",
     "originalPath",
     "scallopRadius",
+    "dimensionText",
     // Icon properties (Google Earth icons)
     "iconScale",
     "labelScale",
@@ -329,14 +366,26 @@ export const applyPropertiesToFeature = (
     feature.set("label", labelProp.value.trim() || "name");
   }
 
-  // Set new custom properties (skip protected and style properties)
+  // Handle dimensionText property
+  const dimensionTextProp = properties.find((p) => p.key === "dimensionText");
+  if (dimensionTextProp) {
+    const val = dimensionTextProp.value.trim();
+    if (val) {
+      feature.set("dimensionText", val);
+    } else {
+      feature.unset("dimensionText");
+    }
+  }
+
+  // Set new custom properties (skip protected, style, and calculated properties)
   properties.forEach((prop) => {
     const key = prop.key.trim();
     if (
       key &&
       prop.value.trim() &&
       !isProtectedProperty(key) &&
-      !isStyleProperty(key)
+      !isStyleProperty(key) &&
+      !isCalculatedProperty(key)
     ) {
       feature.set(key, prop.value.trim());
     }
