@@ -297,13 +297,87 @@ export const reconstructGeometryCollection = (geoJSONData: any): any => {
 };
 
 
+/**
+ * Flatten single-child Multi* geometries and GeometryCollections to their
+ * simple counterpart.
+ *
+ * KML <MultiGeometry> wrapping a single <LineString> causes OpenLayers to
+ * produce MultiLineString (same-type children) or GeometryCollection
+ * (mixed-type children). Both prevent split/merge/offset/break tools from
+ * recognizing the feature since they check for exact "LineString" type.
+ *
+ * Handles:
+ *  - MultiLineString (1 child) → LineString
+ *  - MultiPolygon (1 child) → Polygon
+ *  - MultiPoint (1 child) → Point
+ *  - GeometryCollection (1 child) → inner geometry
+ *
+ * Skips icon features (GP, Tower, Junction, Pit, Triangle) whose
+ * GeometryCollections are intentional.
+ */
+const flattenSingleChildMultiGeometries = (geoJSONData: any): any => {
+  if (!geoJSONData.features) return geoJSONData;
+
+  // Maps Multi* type → simple type + how to extract single-child coordinates
+  const multiToSimple: Record<string, string> = {
+    MultiLineString: 'LineString',
+    MultiPolygon: 'Polygon',
+    MultiPoint: 'Point',
+  };
+
+  return {
+    ...geoJSONData,
+    features: geoJSONData.features.map((feature: any) => {
+      const geom = feature.geometry;
+      if (!geom) return feature;
+
+      const props = feature.properties || {};
+
+      // --- Handle Multi* types (coordinates-based) ---
+      const simpleType = multiToSimple[geom.type];
+      if (simpleType && Array.isArray(geom.coordinates) && geom.coordinates.length === 1) {
+        // Never flatten icon features stored as MultiPolygon
+        if (geom.type === 'MultiPolygon' &&
+          (props.isGP || props.isTower || props.isJunction || props.isPit || props.isTriangle)) {
+          return feature;
+        }
+        return {
+          ...feature,
+          geometry: { type: simpleType, coordinates: geom.coordinates[0] },
+          properties: { ...props, featureType: simpleType },
+        };
+      }
+
+      // --- Handle GeometryCollection (geometries-based) ---
+      if (geom.type === 'GeometryCollection') {
+        // Never flatten icon features
+        if (props.isGP || props.isTower || props.isJunction || props.isPit || props.isTriangle) {
+          return feature;
+        }
+        if (geom.geometries && geom.geometries.length === 1) {
+          return {
+            ...feature,
+            geometry: geom.geometries[0],
+            properties: { ...props, featureType: geom.geometries[0].type },
+          };
+        }
+      }
+
+      return feature;
+    }),
+  };
+};
+
 // ✅ NEW: Unified normalization for both import paths
 export const normalizeImportedGeoJSON = (geoJSONData: any): any => {
   // Step 1: Strip Z-coordinates
   let normalized = normalizeGeoJSON(geoJSONData);
 
-  // Step 2: Attempt to restore GeometryCollections
+  // Step 2: Attempt to restore GeometryCollections (for icon features from DB)
   normalized = reconstructGeometryCollection(normalized);
+
+  // Step 3: Flatten single-child Multi* geometries from KML MultiGeometry wrappers
+  normalized = flattenSingleChildMultiGeometries(normalized);
 
   return normalized;
 };
