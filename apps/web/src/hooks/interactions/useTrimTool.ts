@@ -6,6 +6,7 @@ import type { Vector as VectorSource } from "ol/source";
 import { Feature } from "ol";
 import { LineString } from "ol/geom";
 import type { Geometry } from "ol/geom";
+import { useToolStore } from "@/stores/useToolStore";
 import {
   isTrimmableFeature,
   findAllIntersections,
@@ -170,7 +171,8 @@ export const useTrimTool = ({
 
         if (!result) return;
 
-        applyTrim(vectorSource, targetFeature, result);
+        const undoRedo = useToolStore.getState().undoRedoInteraction;
+        applyTrim(vectorSource, targetFeature, result, undoRedo);
         clearPreview();
       };
 

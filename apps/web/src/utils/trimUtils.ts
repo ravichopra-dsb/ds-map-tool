@@ -4,6 +4,7 @@ import type { Geometry } from "ol/geom";
 import type { Coordinate } from "ol/coordinate";
 import type { Vector as VectorSource } from "ol/source";
 import { getLength } from "ol/sphere";
+import type UndoRedo from "ol-ext/interaction/UndoRedo";
 import { isSplittableFeature, copyFeatureProperties } from "./splitUtils";
 
 /** Re-export as isTrimmableFeature (same criteria as splittable) */
@@ -273,7 +274,8 @@ export function computeTrim(
 export function applyTrim(
   vectorSource: VectorSource<Feature<Geometry>>,
   originalFeature: Feature<Geometry>,
-  result: TrimResult
+  result: TrimResult,
+  undoRedo?: UndoRedo | null
 ): Feature<Geometry>[] {
   const newFeatures = result.remainingSegments.map((coords) => {
     return new Feature({ geometry: new LineString(coords) });
@@ -289,8 +291,13 @@ export function applyTrim(
     }
   });
 
+  // Group all mutations as a single undo/redo step
+  (undoRedo as any)?.blockStart?.("trim");
+
   vectorSource.removeFeature(originalFeature);
   newFeatures.forEach((f) => vectorSource.addFeature(f));
+
+  (undoRedo as any)?.blockEnd?.();
 
   return newFeatures;
 }
