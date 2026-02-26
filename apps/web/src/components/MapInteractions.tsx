@@ -23,6 +23,7 @@ import {
   useTransformTool,
   useSplitTool,
   useBreakTool,
+  useTrimTool,
   useMergeTool,
   useArcModify,
   useAlignedDimensionTool,
@@ -180,6 +181,15 @@ export const MapInteractions: React.FC<MapInteractionsProps> = ({
     map,
     vectorLayer,
     isActive: activeTool === "break",
+    selectInteraction,
+    modifyInteraction,
+  });
+
+  // Handle trim tool activation/deactivation
+  useTrimTool({
+    map,
+    vectorLayer,
+    isActive: activeTool === "trim",
     selectInteraction,
     modifyInteraction,
   });

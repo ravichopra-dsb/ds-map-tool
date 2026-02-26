@@ -100,6 +100,13 @@ export const TOOLS_CONFIG: Record<string, ToolConfig> = {
     selectDisabled: true,
     modifyDisabled: true,
   },
+  trim: {
+    id: "trim",
+    name: "Trim",
+    description: "Trim LineString features at intersection points",
+    selectDisabled: true,
+    modifyDisabled: true,
+  },
   merge: {
     id: "merge",
     name: "Merge",

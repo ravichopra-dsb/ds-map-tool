@@ -506,6 +506,10 @@ export const ToolManager: React.FC<ToolManagerProps> = ({
         // No draw interaction needed here
         break;
 
+      case "trim":
+        // Trim interaction is managed in MapInteractions.tsx
+        break;
+
       case "merge":
         // Merge interaction is managed in MapInteractions.tsx
         // No draw interaction needed here

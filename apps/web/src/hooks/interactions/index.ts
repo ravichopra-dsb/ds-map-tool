@@ -5,6 +5,7 @@ export { useDragBoxSelection } from './useDragBoxSelection';
 export { useTransformTool } from './useTransformTool';
 export { useSplitTool } from './useSplitTool';
 export { useBreakTool } from './useBreakTool';
+export { useTrimTool } from './useTrimTool';
 export { useMergeTool, type MergeRequestDetail } from './useMergeTool';
 export { useSnapInteraction } from './useSnapInteraction';
 export { useArcModify } from './useArcModify';

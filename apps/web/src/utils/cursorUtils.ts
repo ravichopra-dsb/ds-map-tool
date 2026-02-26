@@ -102,6 +102,7 @@ const initializeCursors = () => {
   TOOL_CURSORS.transform = "move";
   TOOL_CURSORS.hand = "grab";
   TOOL_CURSORS.split = createCrosshairWithIcon(ICON_SVGS.split);
+  TOOL_CURSORS.trim = createCrosshairWithIcon(ICON_SVGS.split);
   TOOL_CURSORS.merge = createCrosshairWithIcon(ICON_SVGS.merge);
   TOOL_CURSORS.offset = createCrosshairWithIcon(ICON_SVGS.offset);
 };
