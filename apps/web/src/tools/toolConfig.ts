@@ -84,6 +84,13 @@ export const TOOLS: ToolItem[] = [
     iconPath: "/Tool-Icons/Trim.png",
   },
   {
+    id: 'extend',
+    name: 'Extend',
+    icon: null,
+    category: "edit",
+    iconPath: "/Tool-Icons/Extend.png",
+  },
+  {
     id: 'merge',
     name: 'Merge',
     icon: Merge,
